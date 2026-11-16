@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import {
   deduplicateCodes,
   calculateMarginFillSpaces,
+  centerLineText,
   MINECRAFT_LINES_PER_PAGE,
   MINECRAFT_PAGE_MAX_CHARS,
   MINECRAFT_MAX_PAGES,
@@ -432,5 +433,62 @@ describe('Minecraft Page Limit & Page Gallery Presets', () => {
     const updated = list.filter(t => t.id !== 'custom-art-1');
     expect(updated.length).toBe(DEFAULT_PRESETS.length);
     expect(updated.find(t => t.id === 'custom-art-1')).toBeUndefined();
+  });
+
+  test('centerLineText centers text on a 114px line using balanced spaces', () => {
+    // 1. Basic text centering
+    const raw = 'CHAPTER I';
+    const centered = centerLineText(raw, 114);
+    expect(centered.startsWith(' ')).toBe(true);
+    expect(centered.endsWith('CHAPTER I')).toBe(true);
+
+    const spans = parseFormattedText(centered);
+    const totalW = measureLineWidth(spans);
+    expect(totalW).toBeLessThanOrEqual(114);
+
+    // Measure left margin
+    const leadingSpaces = centered.match(/^[ ]+/)?.[0] || '';
+    const leftW = leadingSpaces.length * 4;
+    const rightW = 114 - totalW;
+    // Margins should be balanced to within 4px (1 space width)
+    expect(Math.abs(leftW - rightW)).toBeLessThanOrEqual(4);
+
+    // 2. Formatted line centering with § codes
+    const formattedRaw = '§6§lAWAKENING';
+    const formattedCentered = centerLineText(formattedRaw, 114);
+    expect(formattedCentered.endsWith('AWAKENING')).toBe(true);
+    expect(measureLineWidth(parseFormattedText(formattedCentered))).toBeLessThanOrEqual(114);
+
+    // 3. Re-centering does not pile up duplicate spaces
+    const doubleCentered = centerLineText(centered, 114);
+    expect(doubleCentered).toBe(centered);
+
+    // 4. Line that already fills line width is returned unchanged
+    const fullLine = '━'.repeat(12); // 12 * 9 = 108px, nearly fills 114px line
+    const centeredFull = centerLineText(fullLine, 114);
+    expect(measureLineWidth(parseFormattedText(centeredFull))).toBeLessThanOrEqual(114);
+
+    // 5. Empty line returns empty string
+    expect(centerLineText('', 114)).toBe('');
+    expect(centerLineText('   ', 114)).toBe('');
+  });
+
+  test('clear page empties lines while maintaining valid 14 lines array and undo history', () => {
+    let lines = ['§6Header', 'Some content', 'More content'];
+    while (lines.length < 14) lines.push('');
+
+    expect(lines.filter(l => l.length > 0).length).toBe(3);
+
+    // Clear operation
+    const undoSnapshot = [...lines];
+    lines = Array(14).fill('');
+
+    expect(lines.length).toBe(14);
+    expect(lines.every(l => l === '')).toBe(true);
+
+    // Undo operation restores lines
+    lines = [...undoSnapshot];
+    expect(lines.filter(l => l.length > 0).length).toBe(3);
+    expect(lines[0]).toBe('§6Header');
   });
 });

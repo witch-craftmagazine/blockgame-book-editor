@@ -625,8 +625,10 @@ let btnRedo: HTMLButtonElement;
 let btnOpenGallery: HTMLButtonElement;
 let btnSaveGallery: HTMLButtonElement;
 let btnOpenGalleryTool: HTMLButtonElement;
+let btnCenterLine: HTMLButtonElement;
 let btnFillMargin: HTMLButtonElement;
 let btnDedupCodes: HTMLButtonElement;
+let btnClearPage: HTMLButtonElement;
 let btnPrevPage: HTMLButtonElement;
 let btnNextPage: HTMLButtonElement;
 let btnZoomIn: HTMLButtonElement;
@@ -727,8 +729,10 @@ function initDOM(): void {
   btnOpenGallery      = document.getElementById('btn-open-gallery')      as HTMLButtonElement;
   btnSaveGallery      = document.getElementById('btn-save-gallery')      as HTMLButtonElement;
   btnOpenGalleryTool  = document.getElementById('btn-open-gallery-tool') as HTMLButtonElement;
+  btnCenterLine       = document.getElementById('btn-center-line')       as HTMLButtonElement;
   btnFillMargin       = document.getElementById('btn-fill-margin')       as HTMLButtonElement;
   btnDedupCodes       = document.getElementById('btn-dedup-codes')       as HTMLButtonElement;
+  btnClearPage        = document.getElementById('btn-clear-page')        as HTMLButtonElement;
   btnPrevPage         = document.getElementById('prev-page-btn')         as HTMLButtonElement;
   btnNextPage         = document.getElementById('next-page-btn')         as HTMLButtonElement;
   btnZoomIn           = document.getElementById('btn-zoom-in')           as HTMLButtonElement;
@@ -1420,6 +1424,30 @@ export function calculateMarginFillSpaces(currentLineWidth: number, targetWidth:
     result += `§l${' '.repeat(bestB)}§r`;
   }
   return result;
+}
+
+/**
+ * Centers text on a Minecraft book line by prepending regular and bold spaces.
+ * Intrinsic content is measured without leading spaces, and optimal spacing is calculated
+ * to balance left and right margins to within 1-2 pixels of exact line center.
+ */
+export function centerLineText(
+  rawLine: string,
+  targetWidth: number = BOOK_TEXT_WIDTH,
+  carriedStyle?: any
+): string {
+  // Strip leading spaces (both raw and immediately following initial format codes)
+  let trimmed = rawLine.replace(/^[ \t]+/, '');
+  trimmed = trimmed.replace(/^((?:§[0-9a-fk-or])+)[ \t]+/i, '$1');
+
+  if (!trimmed.trim()) return '';
+
+  const contentW = Math.round(measureLineWidth(parseFormattedText(trimmed, carriedStyle)));
+  if (contentW >= targetWidth) return rawLine;
+
+  const leftMargin = Math.floor((targetWidth - contentW) / 2);
+  const padding = calculateMarginFillSpaces(0, leftMargin);
+  return padding + trimmed;
 }
 
 // ─── Page Management ──────────────────────────────────────────────────────────
@@ -2223,6 +2251,52 @@ function wireEvents(): void {
     });
   });
 
+  // 5b. Center Line (Balance Left and Right Margins with Spaces)
+  btnCenterLine?.addEventListener('click', (e) => {
+    e.preventDefault();
+    if (isRawMode) {
+      const pos = textarea.selectionStart ?? textarea.value.length;
+      const text = textarea.value;
+      const lines = text.split('\n');
+      let charCount = 0;
+      let targetLineIdx = 0;
+      for (let i = 0; i < lines.length; i++) {
+        const nextCount = charCount + lines[i]!.length + 1;
+        if (pos <= nextCount) {
+          targetLineIdx = i;
+          break;
+        }
+        charCount = nextCount;
+      }
+      const rawTarget = lines[targetLineIdx] ?? '';
+      if (!rawTarget.trim()) {
+        showToast('Line is empty', 'info');
+        return;
+      }
+      pushUndoSnapshot();
+      lines[targetLineIdx] = centerLineText(rawTarget, maxWidth());
+      textarea.value = lines.join('\n');
+      currentLines = getLinesFromPageText(textarea.value);
+      updateAll(true);
+      showToast(`Centered line ${targetLineIdx + 1}`, 'success');
+    } else {
+      const rawTarget = currentLines[activeLineIndex] ?? '';
+      if (!rawTarget.trim()) {
+        showToast(`Line ${activeLineIndex + 1} is empty`, 'info');
+        return;
+      }
+      pushUndoSnapshot();
+      const style = getCarriedStyleForLine(currentLines, activeLineIndex);
+      const centered = centerLineText(rawTarget, maxWidth(), style);
+      currentLines[activeLineIndex] = centered;
+      if (lineInputEls[activeLineIndex]) {
+        lineInputEls[activeLineIndex].value = centered;
+      }
+      updateAll(true);
+      showToast(`Centered Line ${activeLineIndex + 1}`, 'success');
+    }
+  });
+
   // 6. Fill to Margin
   btnFillMargin.addEventListener('click', (e) => {
     e.preventDefault();
@@ -2276,6 +2350,30 @@ function wireEvents(): void {
         showToast('No redundant duplicate formatting codes found', 'info');
       }
     }
+  });
+
+  // 7b. Clear Page (Instant reset of current page with Undo history)
+  btnClearPage?.addEventListener('click', (e) => {
+    e.preventDefault();
+    const isCurrentlyEmpty = isRawMode
+      ? textarea.value.length === 0
+      : currentLines.every((l) => !l || l.trim().length === 0);
+
+    if (isCurrentlyEmpty) {
+      showToast(`Page ${currentPageIndex + 1} is already empty`, 'info');
+      return;
+    }
+
+    pushUndoSnapshot();
+    currentLines = Array(MINECRAFT_LINES_PER_PAGE).fill('');
+    for (let i = 0; i < MINECRAFT_LINES_PER_PAGE; i++) {
+      if (lineInputEls[i]) lineInputEls[i].value = '';
+    }
+    textarea.value = '';
+    book.pages[currentPageIndex] = '';
+    updateAll(true);
+    triggerAutosave();
+    showToast(`Cleared Page ${currentPageIndex + 1} (Ctrl+Z to Undo)`, 'info');
   });
 
   // 7. Page Navigation Controls (Minecraft-exact advance to add page)

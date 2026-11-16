@@ -1094,6 +1094,15 @@ body {
   padding: 0 8px;
 }
 
+.btn-danger-tag {
+  color: var(--mc-red) !important;
+}
+
+.btn-danger-tag:hover {
+  background: var(--mc-red) !important;
+  color: #ffffff !important;
+}
+
 .toolbar-sep {
   width: 2px;
   height: 20px;
