@@ -1400,6 +1400,8 @@ export function calculateMarginFillSpaces(currentLineWidth: number, targetWidth:
   if (remaining < 4) return '';
 
   // Solve 4 * regularSpaces + 5 * boldSpaces = remaining
+  // In Minecraft, regular spaces are 4px and bold spaces (§l §r) are 5px.
+  // Combining both allows sub-4px pixel alignment to perfectly hit margins and centers.
   let bestA = 0; // regular spaces (4px)
   let bestB = 0; // bold spaces (5px)
   let minDiff = remaining;
