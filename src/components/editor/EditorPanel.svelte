@@ -3,6 +3,10 @@
   import { uiStore } from '../../state/uiStore.svelte';
   import FormattingBar from './FormattingBar.svelte';
 
+  function updateCursor(target: HTMLInputElement) {
+    bookStore.activeCursorPos = target.selectionStart;
+  }
+
   function handleLineInput(idx: number, e: Event) {
     const target = e.target as HTMLInputElement;
     const ok = bookStore.setLine(idx, target.value);
@@ -10,10 +14,18 @@
       uiStore.showToast('Page character limit (1024) exceeded', 'warn');
       target.value = bookStore.currentLines[idx] ?? '';
     }
+    updateCursor(target);
   }
 
-  function handleLineFocus(idx: number) {
+  function handleLineFocus(idx: number, e: FocusEvent) {
     bookStore.activeLineIndex = idx;
+    const target = e.target as HTMLInputElement;
+    updateCursor(target);
+  }
+
+  function handleLineCursorChange(e: Event) {
+    const target = e.target as HTMLInputElement;
+    updateCursor(target);
   }
 </script>
 
@@ -56,7 +68,9 @@
             class:overflown={metric.isOverWidth}
             value={metric.text}
             oninput={(e) => handleLineInput(idx, e)}
-            onfocus={() => handleLineFocus(idx)}
+            onfocus={(e) => handleLineFocus(idx, e)}
+            onclick={handleLineCursorChange}
+            onkeyup={handleLineCursorChange}
             spellcheck="false"
             autocomplete="off"
           />

@@ -7,7 +7,6 @@ import {
   parseFormattedText,
   measureLineWidth,
   centerLineText,
-  type StyleState,
 } from 'blockgame-book-viewer';
 
 export interface BookState {
@@ -56,6 +55,7 @@ export function createBookStore() {
   let pages = $state<string[]>([...initialBook.pages]);
   let currentPageIndex = $state(0);
   let activeLineIndex = $state(0);
+  let activeCursorPos = $state<number | null>(null);
 
   // Undo / Redo history stacks
   let undoStack = $state<BookState[]>([]);
@@ -137,6 +137,24 @@ export function createBookStore() {
     takeSnapshot();
     pages[currentPageIndex] = text;
     saveToLocalStorage();
+  }
+
+  function insertAtCursor(text: string) {
+    const current = currentLines[activeLineIndex] ?? '';
+    let updated: string;
+    let nextPos: number;
+    if (activeCursorPos === null || activeCursorPos < 0 || activeCursorPos > current.length) {
+      updated = current + text;
+      nextPos = updated.length;
+    } else {
+      updated = current.slice(0, activeCursorPos) + text + current.slice(activeCursorPos);
+      nextPos = activeCursorPos + text.length;
+    }
+    const ok = setLine(activeLineIndex, updated);
+    if (ok) {
+      activeCursorPos = nextPos;
+    }
+    return ok;
   }
 
   function clearActivePage() {
@@ -232,6 +250,8 @@ export function createBookStore() {
     set currentPageIndex(idx: number) { goToPage(idx); },
     get activeLineIndex() { return activeLineIndex; },
     set activeLineIndex(idx: number) { activeLineIndex = idx; },
+    get activeCursorPos() { return activeCursorPos; },
+    set activeCursorPos(pos: number | null) { activeCursorPos = pos; },
     get currentPageText() { return currentPageText; },
     get currentLines() { return currentLines; },
     get lineMetrics() { return lineMetrics; },
@@ -241,6 +261,7 @@ export function createBookStore() {
     get canUndo() { return undoStack.length > 0; },
     get canRedo() { return redoStack.length > 0; },
     setLine,
+    insertAtCursor,
     setPageText,
     clearActivePage,
     centerActiveLine,

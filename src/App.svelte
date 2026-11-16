@@ -5,8 +5,10 @@
   import PreviewPanel from './components/preview/PreviewPanel.svelte';
   import BottomDrawer from './components/layout/BottomDrawer.svelte';
   import Toast from './components/common/Toast.svelte';
+  import GlyphBrowser from './components/glyphs/GlyphBrowser.svelte';
   import { bookStore } from './state/bookStore.svelte';
   import { uiStore } from './state/uiStore.svelte';
+  import { glyphStore } from './state/glyphStore.svelte';
 
   onMount(() => {
     // Sync initial theme
@@ -35,6 +37,9 @@
             uiStore.showToast('Redo', 'info');
           }
         }
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === 'g' || e.key === 'G')) {
+        e.preventDefault();
+        glyphStore.toggle();
       } else if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || e.key === 'Y')) {
         if (bookStore.canRedo) {
           e.preventDefault();
@@ -65,6 +70,7 @@
   </main>
 
   <BottomDrawer />
+  <GlyphBrowser />
   <Toast />
 </div>
 

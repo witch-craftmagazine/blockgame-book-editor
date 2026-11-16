@@ -1,6 +1,7 @@
 <script lang="ts">
   import { bookStore } from '../../state/bookStore.svelte';
   import { uiStore } from '../../state/uiStore.svelte';
+  import { glyphStore } from '../../state/glyphStore.svelte';
   import SplitButton from '../common/SplitButton.svelte';
 
   const COLOR_SWATCHES = [
@@ -65,6 +66,15 @@
   </div>
 
   <div class="actions-group">
+    <button
+      type="button"
+      class="action-btn glyph-btn"
+      title="Browse Minecraft Glyphs & Symbols (Ctrl+G)"
+      onclick={() => glyphStore.toggle()}
+    >
+      ★ Glyphs
+    </button>
+
     <button
       type="button"
       class="action-btn"
@@ -170,6 +180,16 @@
 
   .action-btn:hover {
     background: var(--btn-hover, #3a3746);
+  }
+
+  .action-btn.glyph-btn {
+    color: #ffd54f;
+    border-color: rgba(255, 213, 79, 0.35);
+  }
+
+  .action-btn.glyph-btn:hover {
+    background: rgba(255, 213, 79, 0.12);
+    border-color: #ffd54f;
   }
 
   .action-btn.warn {
