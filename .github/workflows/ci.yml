@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-build:
+    name: Test & Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout editor
+        uses: actions/checkout@v4
+        with:
+          path: blockgame-book-editor
+
+      - name: Checkout viewer
+        uses: actions/checkout@v4
+        with:
+          repository: witch-craftmagazine/blockgame-book-viewer
+          path: blockgame-book-viewer
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Build viewer library
+        run: |
+          cd blockgame-book-viewer
+          bun install --frozen-lockfile
+          bun run build:lib
+
+      - name: Test & build editor
+        run: |
+          cd blockgame-book-editor
+          bun install
+          bun run typecheck
+          bun test
+          bun run build
