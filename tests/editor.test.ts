@@ -450,8 +450,8 @@ describe('Minecraft Page Limit & Page Gallery Presets', () => {
     expect(totalW).toBeLessThanOrEqual(114);
 
     // Measure left margin
-    const leadingSpaces = centered.match(/^[ ]+/)?.[0] || '';
-    const leftW = leadingSpaces.length * 4;
+    const leftSpans = spans.slice(0, spans.length - 1);
+    const leftW = measureLineWidth(leftSpans);
     const rightW = 114 - totalW;
     // Margins should be balanced to within 4px (1 space width)
     expect(Math.abs(leftW - rightW)).toBeLessThanOrEqual(4);

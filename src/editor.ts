@@ -22,18 +22,32 @@ import {
   parseFormattedText,
   stripFormatting,
   soundManager,
+  MINECRAFT_LINES_PER_PAGE,
+  MINECRAFT_PAGE_MAX_CHARS,
+  MINECRAFT_MAX_PAGES,
+  JAVA_MAX_CHARS_PER_PAGE,
+  BEDROCK_MAX_CHARS_PER_PAGE,
+  detectUnsupportedMinecraftChars,
+  solveBoldSpaces,
+  centerLineText,
+  formatSinglePage,
+  type SinglePageExportFormat,
   type BlockgameBook,
   type BookEngine,
   type ViewMode,
 } from 'blockgame-book-viewer';
 
-// ─── Constants & Limits ───────────────────────────────────────────────────────
+// Re-export canonical constants for backwards compatibility with tests and callers
+export {
+  MINECRAFT_LINES_PER_PAGE,
+  MINECRAFT_PAGE_MAX_CHARS,
+  MINECRAFT_MAX_PAGES,
+  JAVA_MAX_CHARS_PER_PAGE,
+  BEDROCK_MAX_CHARS_PER_PAGE,
+  detectUnsupportedMinecraftChars,
+  centerLineText,
+};
 
-export const MINECRAFT_LINES_PER_PAGE = 14;
-export const MINECRAFT_PAGE_MAX_CHARS = 1024; // Minecraft WritableBookContent PAGE_EDIT_LENGTH
-export const MINECRAFT_MAX_PAGES = 100; // Minecraft WritableBookContent MAX_PAGES
-export const JAVA_MAX_CHARS_PER_PAGE = MINECRAFT_PAGE_MAX_CHARS;
-export const BEDROCK_MAX_CHARS_PER_PAGE = MINECRAFT_PAGE_MAX_CHARS;
 const AUTOSAVE_KEY = 'blockgame-book-studio:autosave';
 const MAX_UNDO_HISTORY = 40;
 
@@ -106,14 +120,11 @@ export function getLinesFromPageText(pageText: string): string[] {
   return lines;
 }
 
-export type PageCopyFormat = 'raw' | 'ampersand' | 'give' | 'plain';
+export type PageCopyFormat = SinglePageExportFormat;
 
 /**
  * Formats a single page's lines for copying into Minecraft or external tools.
- * - 'raw': Preserves exact line-breaks and '§' formatting codes for Book & Quill paste.
- * - 'ampersand': Replaces '§' with '&' for Essentials / CMI server plugins.
- * - 'give': Produces a complete modern /give command (SNBT components) containing this single page.
- * - 'plain': Strips all formatting codes for clean vanilla chat or unmodded paste.
+ * Delegated to blockgame-book-viewer engine.
  */
 export function formatPageForClipboard(
   pageLines: string[],
@@ -121,22 +132,7 @@ export function formatPageForClipboard(
   bookMeta: { title?: string; author?: string } = {}
 ): string {
   const pageText = getPageTextFromLines(pageLines);
-  if (!pageText) return '';
-
-  switch (format) {
-    case 'raw':
-      return pageText;
-    case 'ampersand':
-      return pageText.replace(/§/g, '&');
-    case 'give':
-      return exportToGiveCommandModern({
-        title: bookMeta.title || 'Page Preview',
-        author: bookMeta.author || 'Player',
-        pages: [pageText],
-      });
-    case 'plain':
-      return stripFormatting(pageText);
-  }
+  return formatSinglePage(pageText, format, bookMeta);
 }
 
 /**
@@ -488,22 +484,6 @@ export function saveHiddenPresetIds(ids: Set<string>): void {
 }
 
 // ─── Minecraft Unicode & Emoji Compatibility Checker ─────────────────────────
-
-/**
- * Checks if a string contains Unicode characters above U+FFFF (Supplementary Multilingual Plane, SMP).
- * In vanilla Minecraft Java Edition, fonts only render 16-bit BMP characters (U+0000 to U+FFFF).
- * Characters above U+FFFF (like modern emoji: 😀, 🍎, 🔥, 💀, etc.) render as missing glyph boxes ([]).
- */
-export function detectUnsupportedMinecraftChars(text: string): { count: number; chars: string[] } {
-  const chars: string[] = [];
-  for (const ch of text) {
-    const code = ch.codePointAt(0);
-    if (code && code > 0xFFFF) {
-      if (!chars.includes(ch)) chars.push(ch);
-    }
-  }
-  return { count: chars.length, chars };
-}
 
 // ─── Unicode Pixel-Width Matrix Catalog & Character Sets ─────────────────────
 
@@ -1501,59 +1481,15 @@ export function deduplicateCodes(text: string): { cleaned: string; removedCount:
 
 export function calculateMarginFillSpaces(currentLineWidth: number, targetWidth: number): string {
   const remaining = Math.floor(targetWidth - currentLineWidth);
-  if (remaining < 4) return '';
-
-  // Solve 4 * regularSpaces + 5 * boldSpaces = remaining
-  // In Minecraft, regular spaces are 4px and bold spaces (§l §r) are 5px.
-  // Combining both allows sub-4px pixel alignment to perfectly hit margins and centers.
-  let bestA = 0; // regular spaces (4px)
-  let bestB = 0; // bold spaces (5px)
-  let minDiff = remaining;
-
-  for (let b = 0; b * 5 <= remaining; b++) {
-    const leftAfterB = remaining - b * 5;
-    const a = Math.floor(leftAfterB / 4);
-    const diff = remaining - (a * 4 + b * 5);
-    if (diff < minDiff) {
-      minDiff = diff;
-      bestA = a;
-      bestB = b;
-      if (diff === 0) break;
-    }
-  }
-
+  const { regular, bold } = solveBoldSpaces(remaining);
   let result = '';
-  if (bestA > 0) {
-    result += ' '.repeat(bestA);
+  if (regular > 0) {
+    result += ' '.repeat(regular);
   }
-  if (bestB > 0) {
-    result += `§l${' '.repeat(bestB)}§r`;
+  if (bold > 0) {
+    result += `§l${' '.repeat(bold)}§r`;
   }
   return result;
-}
-
-/**
- * Centers text on a Minecraft book line by prepending regular and bold spaces.
- * Intrinsic content is measured without leading spaces, and optimal spacing is calculated
- * to balance left and right margins to within 1-2 pixels of exact line center.
- */
-export function centerLineText(
-  rawLine: string,
-  targetWidth: number = BOOK_TEXT_WIDTH,
-  carriedStyle?: any
-): string {
-  // Strip leading spaces (both raw and immediately following initial format codes)
-  let trimmed = rawLine.replace(/^[ \t]+/, '');
-  trimmed = trimmed.replace(/^((?:§[0-9a-fk-or])+)[ \t]+/i, '$1');
-
-  if (!trimmed.trim()) return '';
-
-  const contentW = Math.round(measureLineWidth(parseFormattedText(trimmed, carriedStyle)));
-  if (contentW >= targetWidth) return rawLine;
-
-  const leftMargin = Math.floor((targetWidth - contentW) / 2);
-  const padding = calculateMarginFillSpaces(0, leftMargin);
-  return padding + trimmed;
 }
 
 // ─── Page Management ──────────────────────────────────────────────────────────
