@@ -8,17 +8,16 @@
     <link rel="stylesheet" href="/src/editor.css" />
   </head>
   <body>
-    <!-- Full-Width Top Bar: Inline Title, Tools Dropdown, Unicode Matrix Selector, and Page Nav -->
+    <!-- Full-Width Top Bar: Tools Dropdown, Symbols Browser, Unicode Matrix Selector, and Page Nav -->
     <header class="app-header matrix-header">
-      <!-- Left: Inline Title and Studio Tools Hub Button -->
+      <!-- Left: Studio Tools Hub & Quick Symbols Button -->
       <div class="header-left-hub">
         <span class="app-logo" title="Blockgame Book Studio">📖</span>
-        <div class="inline-title-field">
-          <input id="meta-title" class="header-inline-title" type="text" placeholder="Book Title…" maxlength="32" value="My Book" title="Click to edit book title" />
-          <span class="inline-title-count" id="meta-title-count">7/32</span>
-        </div>
-        <button id="btn-studio-tools" class="btn btn-xs btn-primary header-menu-btn" title="Book Author, Import, Export, Full Browser">
+        <button id="btn-studio-tools" class="btn btn-xs btn-primary header-menu-btn" title="Book Settings, Title, Author, Import &amp; Export">
           <span class="btn-icon">⚙</span> Menu ▾
+        </button>
+        <button id="btn-glyph-modal" class="btn btn-xs btn-outline header-symbols-btn" title="Open Symbol Chat &amp; Full Unicode Glyph Browser">
+          <span class="btn-icon">🔣</span> Symbols
         </button>
       </div>
 
@@ -57,10 +56,10 @@
         </div>
       </div>
 
-      <!-- Right: Gallery & Theme Toggle (Page navigation moved to Book panel) -->
+      <!-- Right: History Timeline & Theme Toggle -->
       <div class="header-right-nav">
-        <button id="btn-open-gallery" class="btn btn-xs btn-primary" title="Open Page & Line Gallery">
-          <span class="btn-icon">📑</span> Gallery
+        <button id="btn-open-history" class="btn btn-xs btn-primary" title="Book History &amp; Snapshots (Manual Saves &amp; Autosaves)">
+          <span class="btn-icon">⏱</span> History
         </button>
         <button id="theme-toggle" class="btn btn-xs btn-icon-only" aria-label="Toggle dark/light theme" title="Toggle Theme">
           🌙
@@ -76,7 +75,16 @@
             <button type="button" id="btn-close-tools-flyout" class="btn-dialog-close" title="Close menu">✕</button>
           </div>
 
-          <!-- Author Field -->
+          <!-- Book Title Field -->
+          <div class="flyout-section">
+            <div class="flyout-header-row">
+              <span class="flyout-label">Book Title</span>
+              <span class="meta-count" id="meta-title-count">7/32</span>
+            </div>
+            <input id="meta-title" class="meta-input" type="text" placeholder="Book Title…" maxlength="32" value="My Book" title="Enter book title" />
+          </div>
+
+          <!-- Book Author Field -->
           <div class="flyout-section">
             <div class="flyout-header-row">
               <span class="flyout-label">Book Author</span>
@@ -85,11 +93,10 @@
             <input id="meta-author" class="meta-input" type="text" placeholder="Author name…" maxlength="16" />
           </div>
 
-          <!-- Session Actions (Import, Export, Unicode Browser) -->
+          <!-- Session Actions (Import, Export) -->
           <div class="flyout-section flyout-actions-row">
             <button id="btn-import" class="btn btn-xs btn-outline" title="Import from Stendhal, JSON, CMI, or /give">📥 Import</button>
             <button id="btn-export" class="btn btn-xs btn-primary" title="Export to commands or files">📤 Export</button>
-            <button id="btn-glyph-modal" class="btn btn-xs btn-outline" title="Open Full Unicode Glyph Browser">🔣 Full Browser</button>
           </div>
         </div>
       </div>
@@ -97,157 +104,247 @@
 
     <!-- Main 2-Pane Studio Layout -->
     <main class="app-layout">
-      <!-- Left: Markup Editor with INLINE Line Pixel Counter Gutter -->
-      <section class="panel panel-editor" aria-label="Markup Editor">
-        <div class="panel-header">
-          <div class="editor-header-left">
-            <span class="panel-title">Markup Editor</span>
-            <span id="ruler-target-width" class="badge">Target: 114 px/line</span>
-            <button id="btn-toggle-editor-mode" class="btn btn-xs btn-outline" title="Switch between 14-Line Book View and Raw Textarea View">Mode: 14 Lines</button>
-          </div>
-          <div class="editor-header-actions">
-            <button id="btn-undo" class="btn btn-xs btn-ghost" title="Undo (Ctrl+Z)" disabled>↶ Undo</button>
-            <button id="btn-redo" class="btn btn-xs btn-ghost" title="Redo (Ctrl+Y)" disabled>↷ Redo</button>
-          </div>
-        </div>
-
-        <!-- Formatting Palette & Toolbar inside Markup Editor Panel -->
-        <div class="editor-toolbar">
-          <!-- Row 1: 16 Minecraft Colors -->
-          <div class="color-swatches" role="toolbar" aria-label="Minecraft 16 Colors">
-            <button class="color-btn" data-code="§0" title="Black (§0)" style="--c:#000000;--t:#ffffff;">0</button>
-            <button class="color-btn" data-code="§1" title="Dark Blue (§1)" style="--c:#0000AA;--t:#ffffff;">1</button>
-            <button class="color-btn" data-code="§2" title="Dark Green (§2)" style="--c:#00AA00;--t:#ffffff;">2</button>
-            <button class="color-btn" data-code="§3" title="Dark Aqua (§3)" style="--c:#00AAAA;--t:#ffffff;">3</button>
-            <button class="color-btn" data-code="§4" title="Dark Red (§4)" style="--c:#AA0000;--t:#ffffff;">4</button>
-            <button class="color-btn" data-code="§5" title="Dark Purple (§5)" style="--c:#AA00AA;--t:#ffffff;">5</button>
-            <button class="color-btn" data-code="§6" title="Gold (§6)" style="--c:#FFAA00;--t:#000000;">6</button>
-            <button class="color-btn" data-code="§7" title="Gray (§7)" style="--c:#AAAAAA;--t:#000000;">7</button>
-            <button class="color-btn" data-code="§8" title="Dark Gray (§8)" style="--c:#555555;--t:#ffffff;">8</button>
-            <button class="color-btn" data-code="§9" title="Blue (§9)" style="--c:#5555FF;--t:#ffffff;">9</button>
-            <button class="color-btn" data-code="§a" title="Green (§a)" style="--c:#55FF55;--t:#000000;">a</button>
-            <button class="color-btn" data-code="§b" title="Aqua (§b)" style="--c:#55FFFF;--t:#000000;">b</button>
-            <button class="color-btn" data-code="§c" title="Red (§c)" style="--c:#FF5555;--t:#ffffff;">c</button>
-            <button class="color-btn" data-code="§d" title="Light Purple (§d)" style="--c:#FF55FF;--t:#000000;">d</button>
-            <button class="color-btn" data-code="§e" title="Yellow (§e)" style="--c:#FFFF55;--t:#000000;">e</button>
-            <button class="color-btn" data-code="§f" title="White (§f)" style="--c:#FFFFFF;--t:#000000;">f</button>
-          </div>
-
-          <!-- Row 2: Styles and Utility Tools -->
-          <div class="style-tools" role="toolbar" aria-label="Text Formatting Styles">
-            <div class="btn-group">
-              <button class="tag-btn tag-fmt" data-code="§l" title="Bold (§l)"><b>B</b></button>
-              <button class="tag-btn tag-fmt" data-code="§o" title="Italic (§o)"><i>I</i></button>
-              <button class="tag-btn tag-fmt" data-code="§n" title="Underline (§n)"><u>U</u></button>
-              <button class="tag-btn tag-fmt" data-code="§m" title="Strikethrough (§m)"><s>S</s></button>
-              <button class="tag-btn tag-fmt" data-code="§k" title="Obfuscated (§k)">?</button>
-              <button class="tag-btn tag-reset" data-code="§r" title="Reset (§r)">§r</button>
+      <!-- Left Column: Separate Markup Editor Panel & Font Switcher Panel -->
+      <div class="editor-column">
+        <!-- Markup Editor with INLINE Line Pixel Counter Gutter -->
+        <section class="panel panel-editor" aria-label="Markup Editor">
+          <div class="panel-header">
+            <div class="editor-header-left">
+              <span class="panel-title">Markup Editor</span>
+              <span id="ruler-target-width" class="badge">Target: 114 px/line</span>
+              <button id="btn-toggle-editor-mode" class="btn btn-xs btn-outline" title="Switch between 14-Line Book View and Raw Textarea View">Mode: 14 Lines</button>
             </div>
-            <span class="toolbar-sep"></span>
-            <div class="btn-group">
-              <button class="tag-btn tag-newline" data-code="\n" title="Insert Newline (↵)">↵</button>
-              <button id="btn-center-line" class="tag-btn tag-util" title="Center text on current line using spaces">≡<span class="btn-text"> Center</span></button>
-              <button id="btn-fill-margin" class="tag-btn tag-util" title="Fill current line to right margin with spaces">⇤⇥<span class="btn-text"> Margin</span></button>
-              <button id="btn-dedup-codes" class="tag-btn tag-util" title="Clean duplicate formatting codes without removing intentional line resets">🧹<span class="btn-text"> Clean</span></button>
-              <div class="copy-page-wrapper" id="copy-page-wrapper">
-                <button id="btn-copy-page" class="tag-btn tag-util" title="Copy current page to clipboard (Ctrl+Shift+C) • Paste directly into Book &amp; Quill">📋<span class="btn-text"> Copy Page</span></button>
-                <button id="btn-copy-page-opts" class="tag-btn tag-util copy-opts-btn" title="More copy formats (/give command, &amp; codes, plain text)">▾</button>
-                <div id="copy-page-menu" class="copy-options-menu" style="display: none;">
-                  <button type="button" class="copy-option-item" data-format="raw">
-                    <span class="copy-option-icon">📋</span>
-                    <span class="copy-option-body">
-                      <span class="copy-option-title">Book &amp; Quill Text (§ Codes)</span>
-                      <span class="copy-option-desc">Default multi-line text for Minecraft Book &amp; Quill (Ctrl+V)</span>
-                    </span>
-                  </button>
-                  <button type="button" class="copy-option-item" data-format="give">
-                    <span class="copy-option-icon">⚡</span>
-                    <span class="copy-option-body">
-                      <span class="copy-option-title">Single-Page /give Command</span>
-                      <span class="copy-option-desc">Java 1.20.5+ / 1.21+ SNBT component for chat or command blocks</span>
-                    </span>
-                  </button>
-                  <button type="button" class="copy-option-item" data-format="ampersand">
-                    <span class="copy-option-icon">🏷</span>
-                    <span class="copy-option-body">
-                      <span class="copy-option-title">Color Codes (&amp; Codes)</span>
-                      <span class="copy-option-desc">Replaces § with &amp; for Essentials / CMI server plugins</span>
-                    </span>
-                  </button>
-                  <button type="button" class="copy-option-item" data-format="plain">
-                    <span class="copy-option-icon">📄</span>
-                    <span class="copy-option-body">
-                      <span class="copy-option-title">Plain Text</span>
-                      <span class="copy-option-desc">Formatting codes stripped for unmodded paste</span>
-                    </span>
-                  </button>
+            <div class="editor-header-actions">
+              <button id="btn-undo" class="btn btn-xs btn-ghost" title="Undo (Ctrl+Z)" disabled>↶ Undo</button>
+              <button id="btn-redo" class="btn btn-xs btn-ghost" title="Redo (Ctrl+Y)" disabled>↷ Redo</button>
+            </div>
+          </div>
+
+          <!-- Formatting Palette & Toolbar inside Markup Editor Panel -->
+          <div class="editor-toolbar">
+            <!-- Row 1: 16 Minecraft Colors -->
+            <div class="color-swatches" role="toolbar" aria-label="Minecraft 16 Colors">
+              <button class="color-btn" data-code="§0" title="Black (§0)" style="--c:#000000;--t:#ffffff;">0</button>
+              <button class="color-btn" data-code="§1" title="Dark Blue (§1)" style="--c:#0000AA;--t:#ffffff;">1</button>
+              <button class="color-btn" data-code="§2" title="Dark Green (§2)" style="--c:#00AA00;--t:#ffffff;">2</button>
+              <button class="color-btn" data-code="§3" title="Dark Aqua (§3)" style="--c:#00AAAA;--t:#ffffff;">3</button>
+              <button class="color-btn" data-code="§4" title="Dark Red (§4)" style="--c:#AA0000;--t:#ffffff;">4</button>
+              <button class="color-btn" data-code="§5" title="Dark Purple (§5)" style="--c:#AA00AA;--t:#ffffff;">5</button>
+              <button class="color-btn" data-code="§6" title="Gold (§6)" style="--c:#FFAA00;--t:#000000;">6</button>
+              <button class="color-btn" data-code="§7" title="Gray (§7)" style="--c:#AAAAAA;--t:#000000;">7</button>
+              <button class="color-btn" data-code="§8" title="Dark Gray (§8)" style="--c:#555555;--t:#ffffff;">8</button>
+              <button class="color-btn" data-code="§9" title="Blue (§9)" style="--c:#5555FF;--t:#ffffff;">9</button>
+              <button class="color-btn" data-code="§a" title="Green (§a)" style="--c:#55FF55;--t:#000000;">a</button>
+              <button class="color-btn" data-code="§b" title="Aqua (§b)" style="--c:#55FFFF;--t:#000000;">b</button>
+              <button class="color-btn" data-code="§c" title="Red (§c)" style="--c:#FF5555;--t:#ffffff;">c</button>
+              <button class="color-btn" data-code="§d" title="Light Purple (§d)" style="--c:#FF55FF;--t:#000000;">d</button>
+              <button class="color-btn" data-code="§e" title="Yellow (§e)" style="--c:#FFFF55;--t:#000000;">e</button>
+              <button class="color-btn" data-code="§f" title="White (§f)" style="--c:#FFFFFF;--t:#000000;">f</button>
+            </div>
+
+            <!-- Row 2: Styles and Utility Tools -->
+            <div class="style-tools" role="toolbar" aria-label="Text Formatting Styles">
+              <div class="btn-group">
+                <button class="tag-btn tag-fmt" data-code="§l" title="Bold (§l)"><b>B</b></button>
+                <button class="tag-btn tag-fmt" data-code="§o" title="Italic (§o)"><i>I</i></button>
+                <button class="tag-btn tag-fmt" data-code="§n" title="Underline (§n)"><u>U</u></button>
+                <button class="tag-btn tag-fmt" data-code="§m" title="Strikethrough (§m)"><s>S</s></button>
+                <button class="tag-btn tag-fmt" data-code="§k" title="Obfuscated (§k)">?</button>
+                <button class="tag-btn tag-reset" data-code="§r" title="Reset (§r)">§r</button>
+              </div>
+              <span class="toolbar-sep"></span>
+              <div class="btn-group">
+                <button class="tag-btn tag-newline" data-code="\n" title="Insert Newline (↵)">↵</button>
+                <button id="btn-center-line" class="tag-btn tag-util" title="Center text on current line using spaces">≡<span class="btn-text"> Center</span></button>
+                <button id="btn-fill-margin" class="tag-btn tag-util" title="Fill current line to right margin with spaces">⇤⇥<span class="btn-text"> Margin</span></button>
+                <button id="btn-dedup-codes" class="tag-btn tag-util" title="Clean duplicate formatting codes without removing intentional line resets">🧹<span class="btn-text"> Clean</span></button>
+                <div class="copy-page-wrapper" id="copy-page-wrapper">
+                  <button id="btn-copy-page" class="tag-btn tag-util" title="Copy current page to clipboard (Ctrl+Shift+C) • Paste directly into Book &amp; Quill">📋<span class="btn-text"> Copy Page</span></button>
+                  <button id="btn-copy-page-opts" class="tag-btn tag-util copy-opts-btn" title="More copy formats (/give command, &amp; codes, plain text)">▾</button>
+                  <div id="copy-page-menu" class="copy-options-menu" style="display: none;">
+                    <button type="button" class="copy-option-item" data-format="raw">
+                      <span class="copy-option-icon">📋</span>
+                      <span class="copy-option-body">
+                        <span class="copy-option-title">Book &amp; Quill Text (§ Codes)</span>
+                        <span class="copy-option-desc">Default multi-line text for Minecraft Book &amp; Quill (Ctrl+V)</span>
+                      </span>
+                    </button>
+                    <button type="button" class="copy-option-item" data-format="give">
+                      <span class="copy-option-icon">⚡</span>
+                      <span class="copy-option-body">
+                        <span class="copy-option-title">Single-Page /give Command</span>
+                        <span class="copy-option-desc">Java 1.20.5+ / 1.21+ SNBT component for chat or command blocks</span>
+                      </span>
+                    </button>
+                    <button type="button" class="copy-option-item" data-format="ampersand">
+                      <span class="copy-option-icon">🏷</span>
+                      <span class="copy-option-body">
+                        <span class="copy-option-title">Color Codes (&amp; Codes)</span>
+                        <span class="copy-option-desc">Replaces § with &amp; for Essentials / CMI server plugins</span>
+                      </span>
+                    </button>
+                    <button type="button" class="copy-option-item" data-format="plain">
+                      <span class="copy-option-icon">📄</span>
+                      <span class="copy-option-body">
+                        <span class="copy-option-title">Plain Text</span>
+                        <span class="copy-option-desc">Formatting codes stripped for unmodded paste</span>
+                      </span>
+                    </button>
+                  </div>
+                </div>
+                <button id="btn-clear-page" class="tag-btn tag-util btn-danger-tag" title="Clear all text on current page (Ctrl+Z to Undo)">🗑<span class="btn-text"> Clear Page</span></button>
+                <button id="btn-save-snapshot" class="tag-btn tag-util" title="Save snapshot of current page to History (1-Click)">💾<span class="btn-text"> Save</span></button>
+                <button id="btn-toolbar-presets" class="tag-btn tag-util" title="Toggle Saved Art &amp; ASCII Pastes Deck">🎨<span class="btn-text"> Presets</span></button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Collapsible Saved Art, ASCII Pastes & Template Deck -->
+          <section class="saved-art-deck collapsed" id="saved-art-deck" aria-label="Saved Art and ASCII Pastes">
+            <div class="deck-header">
+              <div class="deck-title-wrap" id="deck-title-toggle" role="button" tabindex="0" title="Click to collapse / expand Saved Art Deck">
+                <span class="deck-icon">🎨</span>
+                <div class="deck-title-texts">
+                  <div class="deck-title-row">
+                    <h2 class="deck-title">Saved Art & ASCII Pastes</h2>
+                    <span class="badge" id="deck-presets-badge">8 Presets</span>
+                  </div>
+                  <span class="deck-subtitle">Instant-click art presets, borders, and book templates</span>
                 </div>
               </div>
-              <button id="btn-clear-page" class="tag-btn tag-util btn-danger-tag" title="Clear all text on current page (Ctrl+Z to Undo)">🗑<span class="btn-text"> Clear Page</span></button>
-              <button id="btn-save-gallery" class="tag-btn tag-util" title="Save current page or active lines to Gallery">💾<span class="btn-text"> Save</span></button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Integrated Editor with 14 Minecraft Book Lines -->
-        <div class="editor-workspace" id="editor-workspace">
-          <!-- Mobile Focused Line Deck with Traffic Light Dot Indicator -->
-          <div class="mobile-line-deck" id="mobile-line-deck">
-            <div class="mobile-line-header">
-              <div class="mobile-line-nav">
-                <button type="button" id="btn-mobile-prev-line" class="btn btn-xs btn-outline" title="Previous line">▲</button>
-                <span class="mobile-line-pill" id="mobile-line-pill">Line 1 / 14</span>
-                <button type="button" id="btn-mobile-next-line" class="btn btn-xs btn-outline" title="Next line">▼</button>
+              <div class="deck-filter-chips" id="deck-filter-chips">
+                <button type="button" class="chip active" data-deck-filter="all">All</button>
+                <button type="button" class="chip" data-deck-filter="page">Pages</button>
+                <button type="button" class="chip" data-deck-filter="lines">Lines</button>
+                <button type="button" class="chip" data-deck-filter="custom">My Saves</button>
               </div>
-              <div class="mobile-line-indicator" title="Line width traffic light (green: fits, amber: near 114px, red: over 114px)">
-                <span class="mobile-traffic-dot dot-ok" id="mobile-traffic-dot"></span>
+              <div class="deck-actions">
+                <button type="button" id="btn-deck-toggle" class="btn btn-xs btn-primary deck-toggle-btn" title="Toggle Saved Art Deck (Collapse / Expand)">
+                  <span id="deck-toggle-icon">▲</span> <span id="deck-toggle-text">Expand Presets</span>
+                </button>
+                <button type="button" id="btn-deck-save-row" class="btn btn-xs btn-outline" title="Save currently active line to presets">💾 Save Active Row</button>
+                <button type="button" id="btn-deck-save-page" class="btn btn-xs btn-outline" title="Save full current page to presets">💾 Save Full Page</button>
+                <button type="button" id="btn-deck-open-gallery" class="btn btn-xs btn-outline" title="Open full Gallery organizer">📑 Open Page Gallery</button>
               </div>
             </div>
-            <div class="mobile-line-input-wrap">
-              <input
-                type="text"
-                id="mobile-line-input"
-                class="mobile-line-input"
-                placeholder="Type line 1 text…"
-                autocomplete="off"
-                spellcheck="false"
-              />
+
+            <div class="deck-pastes-strip" id="deck-pastes-strip">
+              <!-- Dynamically populated with quick-stamp ASCII Art cards -->
+            </div>
+          </section>
+
+          <!-- Integrated Editor with 14 Minecraft Book Lines -->
+          <div class="editor-workspace" id="editor-workspace">
+            <!-- Mobile Focused Line Deck with Traffic Light Dot Indicator -->
+            <div class="mobile-line-deck" id="mobile-line-deck">
+              <div class="mobile-line-header">
+                <div class="mobile-line-nav">
+                  <button type="button" id="btn-mobile-prev-line" class="btn btn-xs btn-outline" title="Previous line">▲</button>
+                  <span class="mobile-line-pill" id="mobile-line-pill">Line 1 / 14</span>
+                  <button type="button" id="btn-mobile-next-line" class="btn btn-xs btn-outline" title="Next line">▼</button>
+                </div>
+                <div class="mobile-line-actions">
+                  <button type="button" id="btn-mobile-presets" class="btn btn-xs btn-outline mobile-presets-btn" title="Toggle Saved Art &amp; ASCII Pastes">🎨 Presets</button>
+                  <div class="mobile-line-indicator" title="Line width traffic light (green: fits, amber: near 114px, red: over 114px)">
+                    <span class="mobile-traffic-dot dot-ok" id="mobile-traffic-dot"></span>
+                  </div>
+                </div>
+              </div>
+              <div class="mobile-line-input-wrap">
+                <input
+                  type="text"
+                  id="mobile-line-input"
+                  class="mobile-line-input"
+                  placeholder="Type line 1 text…"
+                  autocomplete="off"
+                  spellcheck="false"
+                />
+              </div>
+            </div>
+
+            <!-- 14-Line Structured Minecraft Book Lines List -->
+            <div class="book-lines-list" id="book-lines-list" role="region" aria-label="14 Book Page Lines">
+              <!-- Dynamically populated with exactly 14 line rows by editor.ts -->
+            </div>
+
+            <!-- Textarea for Raw View and synchronized backing store -->
+            <textarea
+              id="page-textarea"
+              class="page-textarea raw-view-textarea"
+              spellcheck="false"
+              autocomplete="off"
+              wrap="off"
+              style="display: none;"
+              placeholder="Type book text with § codes here…"
+            ></textarea>
+          </div>
+
+          <!-- Per-page Live Stats & Diagnostics Footer -->
+          <footer class="page-stats-bar">
+            <div class="stats-group">
+              <span id="stat-lines" class="stat">0 / 14 lines</span>
+              <span class="stat-bullet">•</span>
+              <span id="stat-chars" class="stat">0 chars</span>
+              <span class="stat-bullet">•</span>
+              <span id="stat-words" class="stat">0 words</span>
+              <span class="stat-bullet">•</span>
+              <span id="stat-pixels-left" class="stat">114 px left on current line</span>
+            </div>
+            <div class="diag-group">
+              <span id="diag-summary" class="badge badge-ok">✓ No issues</span>
+            </div>
+          </footer>
+        </section>
+
+        <!-- Font Switcher Panel: Separate Box Below Markup Editor -->
+        <section class="panel panel-font-switcher" id="panel-font-switcher" aria-label="Symbol Chat Font Switcher">
+          <div class="panel-header">
+            <div class="font-switcher-header-left">
+              <span class="panel-title">
+                <span class="font-switcher-icon">🔤</span> Font Switcher
+              </span>
+              <span class="badge" id="active-font-badge">Active: Normal</span>
+            </div>
+            <div class="font-switcher-header-actions">
+              <button type="button" id="btn-font-apply-selection" class="btn btn-xs btn-primary font-apply-btn" title="Convert selected line(s) to this font">
+                ⚡ Transform Lines
+              </button>
             </div>
           </div>
-
-          <!-- 14-Line Structured Minecraft Book Lines List -->
-          <div class="book-lines-list" id="book-lines-list" role="region" aria-label="14 Book Page Lines">
-            <!-- Dynamically populated with exactly 14 line rows by editor.ts -->
+          <div class="font-switcher-body font-switcher-ribbon" id="font-switcher-ribbon" role="toolbar" aria-label="Symbol Chat Font Switcher">
+            <div class="font-select-group">
+              <label for="font-switcher-select" class="font-switcher-label">
+                <span class="font-switcher-text">Style:</span>
+              </label>
+              <select id="font-switcher-select" class="font-switcher-select" title="Switch active typing font">
+                <option value="normal">Normal</option>
+                <option value="small">Small Caps (ꜱᴍᴀʟʟ)</option>
+                <option value="fullwidth">Fullwidth (Ｆｕｌｌ)</option>
+                <option value="circled">Circled (Ⓒⓘⓡⓒⓛⓔ)</option>
+                <option value="negative_circled">Negative Circled (🅝🅔🅖)</option>
+                <option value="squared">Squared (🅂🅀)</option>
+                <option value="negative_squared">Negative Squared (🆂🆀)</option>
+                <option value="superscript">Superscript (ˢᵘᵖᵉʳ)</option>
+                <option value="subscript">Subscript (ₛᵤᵦ)</option>
+                <option value="mathematical_bold_fraktur">Fraktur (𝔉𝔯𝔞𝔨𝔱𝔲𝔯)</option>
+                <option value="mathematical_script">Script (𝒮𝒸𝓇𝒾𝓅𝓉)</option>
+                <option value="mathematical_double_struck">Double Struck (𝔻𝕠𝕦𝕓𝕝𝕖)</option>
+                <option value="mathematical_monospace">Monospace (𝙼𝚘𝚗𝚘)</option>
+                <option value="inverse">Inverted (pǝʇɹǝʌuI)</option>
+              </select>
+            </div>
+            <div class="font-quick-chips" id="font-quick-chips">
+              <button type="button" class="font-chip active" data-font="normal">Normal</button>
+              <button type="button" class="font-chip" data-font="small">ꜱᴍᴀʟʟ</button>
+              <button type="button" class="font-chip" data-font="fullwidth">Ｆｕｌｌ</button>
+              <button type="button" class="font-chip" data-font="circled">Ⓒⓘⓡ</button>
+              <button type="button" class="font-chip" data-font="superscript">ˢᵘᵖ</button>
+              <button type="button" class="font-chip" data-font="mathematical_bold_fraktur">𝔉𝔯𝔞</button>
+              <button type="button" class="font-chip" data-font="mathematical_script">𝒮𝒸𝓇</button>
+            </div>
           </div>
-
-          <!-- Textarea for Raw View and synchronized backing store -->
-          <textarea
-            id="page-textarea"
-            class="page-textarea raw-view-textarea"
-            spellcheck="false"
-            autocomplete="off"
-            wrap="off"
-            style="display: none;"
-            placeholder="Type book text with § codes here…"
-          ></textarea>
-        </div>
-
-        <!-- Per-page Live Stats & Diagnostics Footer -->
-        <footer class="page-stats-bar">
-          <div class="stats-group">
-            <span id="stat-lines" class="stat">0 / 14 lines</span>
-            <span class="stat-bullet">•</span>
-            <span id="stat-chars" class="stat">0 chars</span>
-            <span class="stat-bullet">•</span>
-            <span id="stat-words" class="stat">0 words</span>
-            <span class="stat-bullet">•</span>
-            <span id="stat-pixels-left" class="stat">114 px left on current line</span>
-          </div>
-          <div class="diag-group">
-            <span id="diag-summary" class="badge badge-ok">✓ No issues</span>
-          </div>
-        </footer>
-      </section>
+        </section>
+      </div>
 
       <!-- Right: Interactive Live Book Preview -->
       <section class="panel panel-preview" aria-label="Book Preview">
@@ -290,40 +387,6 @@
         </div>
       </section>
     </main>
-
-    <!-- Collapsible Saved Art, ASCII Pastes & Template Deck -->
-    <section class="saved-art-deck collapsed" id="saved-art-deck" aria-label="Saved Art and ASCII Pastes">
-      <div class="deck-header">
-        <div class="deck-title-wrap" id="deck-title-toggle" role="button" tabindex="0" title="Click to collapse / expand Saved Art Deck">
-          <span class="deck-icon">🎨</span>
-          <div class="deck-title-texts">
-            <div class="deck-title-row">
-              <h2 class="deck-title">Saved Art & ASCII Pastes</h2>
-              <span class="badge" id="deck-presets-badge">8 Presets</span>
-            </div>
-            <span class="deck-subtitle">Instant-click art presets, borders, and book templates</span>
-          </div>
-        </div>
-        <div class="deck-filter-chips" id="deck-filter-chips">
-          <button type="button" class="chip active" data-deck-filter="all">All</button>
-          <button type="button" class="chip" data-deck-filter="page">Pages</button>
-          <button type="button" class="chip" data-deck-filter="lines">Lines</button>
-          <button type="button" class="chip" data-deck-filter="custom">My Saves</button>
-        </div>
-        <div class="deck-actions">
-          <button type="button" id="btn-deck-toggle" class="btn btn-xs btn-primary deck-toggle-btn" title="Toggle Saved Art Deck (Collapse / Expand)">
-            <span id="deck-toggle-icon">▲</span> <span id="deck-toggle-text">Expand Presets</span>
-          </button>
-          <button type="button" id="btn-deck-save-row" class="btn btn-xs btn-outline" title="Save currently active line to presets">💾 Save Active Row</button>
-          <button type="button" id="btn-deck-save-page" class="btn btn-xs btn-outline" title="Save full current page to presets">💾 Save Full Page</button>
-          <button type="button" id="btn-deck-open-gallery" class="btn btn-xs btn-outline" title="Open full Gallery organizer">📑 Open Page Gallery</button>
-        </div>
-      </div>
-
-      <div class="deck-pastes-strip" id="deck-pastes-strip">
-        <!-- Dynamically populated with quick-stamp ASCII Art cards -->
-      </div>
-    </section>
 
     <!-- Import Dialog -->
     <dialog id="import-dialog" class="editor-dialog">
@@ -368,131 +431,39 @@
       </div>
     </dialog>
 
-    <!-- Page & Line Gallery Modal -->
-    <dialog id="gallery-dialog" class="editor-dialog">
-      <div class="dialog-card dialog-card-wide gallery-modal-card">
-        <header class="dialog-header gallery-modal-header">
-          <div class="gallery-title-wrap">
-            <span class="dialog-icon">📑</span>
-            <div class="gallery-header-texts">
-              <h2 class="dialog-title">Page & Line Gallery</h2>
-              <span class="dialog-subtitle">Organize book pages, save reusable layouts, templates, and lines</span>
+    <!-- Book History & Snapshots Dialog (Streamlined Replacement for Gallery) -->
+    <dialog id="history-dialog" class="editor-dialog">
+      <div class="dialog-card dialog-card-wide history-modal-card">
+        <header class="dialog-header history-modal-header">
+          <div class="history-title-wrap">
+            <span class="dialog-icon">⏱</span>
+            <div class="history-header-texts">
+              <h2 class="dialog-title">Book History &amp; Snapshots</h2>
+              <span class="dialog-subtitle">Visual timeline of manual saves, line snippets, and autosaves with 1-click restore</span>
             </div>
           </div>
-          <div class="gallery-tabs-nav" id="gallery-tabs-nav" role="tablist">
-            <button type="button" class="gallery-tab active" data-tab="pages" role="tab" aria-selected="true">
-              📖 Book Pages (<span id="gallery-tab-page-count">1</span>)
-            </button>
-            <button type="button" class="gallery-tab" data-tab="library" role="tab" aria-selected="false">
-              💾 Saved Library (<span id="gallery-tab-lib-count">0</span>)
-            </button>
-            <button type="button" class="gallery-tab" data-tab="save" role="tab" aria-selected="false">
-              ➕ Save Current
-            </button>
+          <div class="history-tabs-nav" id="history-tabs-nav" role="tablist">
+            <button type="button" class="history-tab active" data-filter="all">All (<span id="history-count-all">0</span>)</button>
+            <button type="button" class="history-tab" data-filter="manual">Manual Saves (<span id="history-count-manual">0</span>)</button>
+            <button type="button" class="history-tab" data-filter="autosave">Autosaves (<span id="history-count-auto">0</span>)</button>
+            <button type="button" class="history-tab" data-filter="snippet">Line Snippets (<span id="history-count-snippet">0</span>)</button>
           </div>
-          <button type="button" class="dialog-close-btn" data-close="gallery-dialog">✕</button>
+          <button type="button" class="dialog-close-btn" data-close="history-dialog">✕</button>
         </header>
 
-        <div class="dialog-body gallery-modal-body">
-          <!-- Tab 1: Current Book Pages Organizer -->
-          <div class="gallery-tab-pane active" id="gallery-pane-pages">
-            <div class="gallery-pane-toolbar">
-              <div class="gallery-stats-info">
-                <span id="gallery-pages-limit" class="badge">Page Limit: 100 pages (Minecraft Java)</span>
-                <span id="gallery-current-status" class="stat">Editing Page 1 of 1</span>
-              </div>
-              <div class="gallery-pane-actions">
-                <button type="button" id="btn-gallery-add-blank" class="btn btn-xs btn-primary" title="Add blank page (+)">+ Add Blank Page</button>
-                <button type="button" id="btn-gallery-dup-active" class="btn btn-xs btn-outline" title="Duplicate current active page">Duplicate Active Page</button>
-              </div>
-            </div>
-            <div class="gallery-pages-grid" id="gallery-pages-grid">
-              <!-- Dynamically populated page cards -->
-            </div>
+        <div class="dialog-body history-modal-body">
+          <div class="history-toolbar">
+            <button type="button" id="btn-history-save-now" class="btn btn-xs btn-primary">💾 Save Current Page State</button>
+            <button type="button" id="btn-history-clear-autosaves" class="btn btn-xs btn-outline">↺ Clear Autosaves</button>
+            <button type="button" id="btn-history-clear-all" class="btn btn-xs btn-outline btn-danger-tag">🗑 Clear History</button>
           </div>
-
-          <!-- Tab 2: Saved Library (Snippets, Presets, Custom Layouts) -->
-          <div class="gallery-tab-pane" id="gallery-pane-library" style="display: none;">
-            <div class="gallery-pane-toolbar">
-              <div class="gallery-filter-chips" id="gallery-filter-chips">
-                <button type="button" class="chip active" data-filter="all">All</button>
-                <button type="button" class="chip" data-filter="page">Pages</button>
-                <button type="button" class="chip" data-filter="lines">Line Snippets</button>
-                <button type="button" class="chip" data-filter="preset">Presets</button>
-                <button type="button" class="chip" data-filter="custom">My Saves</button>
-              </div>
-              <div class="gallery-pane-actions">
-                <button type="button" id="btn-gallery-switch-save" class="btn btn-xs btn-primary">+ Save New</button>
-                <button type="button" id="btn-gallery-restore-defaults" class="btn btn-xs btn-outline" title="Restore hidden default presets">↺ Reset Presets</button>
-                <button type="button" id="btn-gallery-export-lib" class="btn btn-xs btn-outline" title="Export Library JSON">📤 Export</button>
-                <button type="button" id="btn-gallery-import-lib" class="btn btn-xs btn-outline" title="Import Library JSON">📥 Import</button>
-                <input type="file" id="gallery-import-file-input" accept=".json" style="display: none;" />
-              </div>
-            </div>
-            <div class="gallery-templates-grid" id="gallery-templates-grid">
-              <!-- Dynamically populated template cards -->
-            </div>
-          </div>
-
-          <!-- Tab 3: Save Current Page or Lines Form -->
-          <div class="gallery-tab-pane" id="gallery-pane-save" style="display: none;">
-            <div class="gallery-save-form">
-              <p class="dialog-desc" style="margin-bottom: 10px;">
-                Saved items immediately appear in your bottom <b>Saved Art & ASCII Pastes Deck</b> for 1-click stamping, and inside your permanent Library.
-              </p>
-
-              <div class="form-row">
-                <label for="save-item-title" class="form-label">Template / Snippet Name</label>
-                <input id="save-item-title" class="meta-input" type="text" placeholder="e.g. Chapter I Header, Table of Contents, Guild Rules..." maxlength="40" />
-              </div>
-
-              <div class="form-row">
-                <label class="form-label">What to Save</label>
-                <div class="radio-group-inventory">
-                  <label class="radio-label">
-                    <input type="radio" name="save-scope" value="page" checked />
-                    <span>Entire Page (All 14 Lines)</span>
-                  </label>
-                  <label class="radio-label">
-                    <input type="radio" name="save-scope" value="current-line" />
-                    <span id="save-scope-current-line-label">Active Line Snippet</span>
-                  </label>
-                  <label class="radio-label">
-                    <input type="radio" name="save-scope" value="non-empty" />
-                    <span>Non-empty Lines Only</span>
-                  </label>
-                </div>
-              </div>
-
-              <div class="form-row">
-                <label for="save-item-category" class="form-label">Category / Tag</label>
-                <select id="save-item-category" class="select-xs">
-                  <option value="Header">Header / Title</option>
-                  <option value="Table of Contents">Table of Contents</option>
-                  <option value="Divider / Border">Divider / Border</option>
-                  <option value="Page Layout">Page Layout</option>
-                  <option value="Signature">Signature / Footer</option>
-                  <option value="Custom">Custom</option>
-                </select>
-              </div>
-
-              <div class="form-row">
-                <label class="form-label">Live Preview</label>
-                <div class="gallery-save-preview parchment-preview-slot" id="gallery-save-preview">
-                  <!-- Live preview of what will be saved -->
-                </div>
-              </div>
-
-              <div class="form-actions">
-                <button type="button" id="btn-cancel-save-gallery" class="btn btn-outline">Cancel</button>
-                <button type="button" id="btn-confirm-save-gallery" class="btn btn-primary">💾 Save to Presets Deck & Library</button>
-              </div>
-            </div>
+          <div class="history-timeline-list" id="history-timeline-list">
+            <!-- Dynamically populated snapshot cards -->
           </div>
         </div>
 
-        <footer class="dialog-actions gallery-modal-footer">
-          <button type="button" class="btn btn-primary" data-close="gallery-dialog">Done</button>
+        <footer class="dialog-actions">
+          <button type="button" class="btn btn-primary" data-close="history-dialog">Done</button>
         </footer>
       </div>
     </dialog>
@@ -534,6 +505,12 @@
             <button class="glyph-tab active" data-cat="all">🌐 All</button>
             <button class="glyph-tab" data-cat="fav">⭐ Favs</button>
             <button class="glyph-tab" data-cat="recent">🕒 Recent</button>
+            <button class="glyph-tab" data-cat="faces">😀 Faces</button>
+            <button class="glyph-tab" data-cat="nature">🌲 Nature</button>
+            <button class="glyph-tab" data-cat="things">⛏ Things</button>
+            <button class="glyph-tab" data-cat="activities">⚽ Activities</button>
+            <button class="glyph-tab" data-cat="symbols">✨ Symbols</button>
+            <button class="glyph-tab" data-cat="shapes">▲ Shapes</button>
             <button class="glyph-tab" data-cat="borders">━ Borders</button>
             <button class="glyph-tab" data-cat="rpg">⚔ RPG</button>
             <button class="glyph-tab" data-cat="arrows">➔ Arrows</button>

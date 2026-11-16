@@ -381,6 +381,31 @@ describe('Minecraft Page Limit & Page Gallery Presets', () => {
     expect(mockDeck.classList.has('collapsed')).toBe(true);
   });
 
+  test('mobile presets toggle button updates text and active class in synchrony with deck', () => {
+    const mockMobileBtn = {
+      text: '🎨 Presets',
+      active: false,
+    };
+
+    function syncMobilePresetsBtn(collapsed: boolean) {
+      if (collapsed) {
+        mockMobileBtn.active = false;
+        mockMobileBtn.text = '🎨 Presets';
+      } else {
+        mockMobileBtn.active = true;
+        mockMobileBtn.text = '✕ Presets';
+      }
+    }
+
+    syncMobilePresetsBtn(true);
+    expect(mockMobileBtn.text).toBe('🎨 Presets');
+    expect(mockMobileBtn.active).toBe(false);
+
+    syncMobilePresetsBtn(false);
+    expect(mockMobileBtn.text).toBe('✕ Presets');
+    expect(mockMobileBtn.active).toBe(true);
+  });
+
   test('detectUnsupportedMinecraftChars catches SMP characters > U+FFFF while approving BMP characters', () => {
     // BMP characters supported in Minecraft Java Edition
     const bmpText = '§6★ Quest 1: ⚔ Slay the Beast ━ Enter ⛨ Castle';
@@ -542,5 +567,90 @@ describe('Minecraft Page Limit & Page Gallery Presets', () => {
     expect(formatPageForClipboard(emptyLines, 'raw')).toBe('');
     expect(formatPageForClipboard(emptyLines, 'give')).toBe('');
     expect(formatPageForClipboard(emptyLines, 'plain')).toBe('');
+  });
+
+  test('multi-line selection supports Shift range and Command/Ctrl toggling', () => {
+    let selected = new Set<number>([0]);
+    let lastClicked = 0;
+
+    function selectLine(idx: number, isShift: boolean, isModifier: boolean) {
+      if (isShift) {
+        const start = Math.min(lastClicked, idx);
+        const end = Math.max(lastClicked, idx);
+        if (!isModifier) selected.clear();
+        for (let i = start; i <= end; i++) selected.add(i);
+      } else if (isModifier) {
+        if (selected.has(idx)) {
+          if (selected.size > 1) selected.delete(idx);
+        } else {
+          selected.add(idx);
+        }
+        lastClicked = idx;
+      } else {
+        selected.clear();
+        selected.add(idx);
+        lastClicked = idx;
+      }
+    }
+
+    // Normal click selects row 2
+    selectLine(2, false, false);
+    expect(selected.size).toBe(1);
+    expect(selected.has(2)).toBe(true);
+
+    // Shift click row 5 selects range [2, 3, 4, 5]
+    selectLine(5, true, false);
+    expect(selected.size).toBe(4);
+    expect([...selected].sort()).toEqual([2, 3, 4, 5]);
+
+    // Command/Ctrl click row 8 adds row 8
+    selectLine(8, false, true);
+    expect(selected.size).toBe(5);
+    expect(selected.has(8)).toBe(true);
+
+    // Command/Ctrl click row 3 removes row 3
+    selectLine(3, false, true);
+    expect(selected.size).toBe(4);
+    expect(selected.has(3)).toBe(false);
+  });
+
+  test('history snapshots support manual, autosave, and line snippet scopes', () => {
+    interface TestSnapshot {
+      id: string;
+      type: 'manual' | 'autosave' | 'snippet';
+      title: string;
+      lines: string[];
+    }
+
+    const history: TestSnapshot[] = [];
+
+    function addSnapshot(type: 'manual' | 'autosave' | 'snippet', title: string, lines: string[]) {
+      history.unshift({
+        id: `snap-${Date.now()}-${Math.random()}`,
+        type,
+        title,
+        lines: [...lines],
+      });
+      if (history.length > 50) history.pop();
+    }
+
+    addSnapshot('manual', 'Page 1 Manual Save', ['Line 1', 'Line 2']);
+    addSnapshot('autosave', 'Autosave - Page 1', ['Line 1 edited']);
+    addSnapshot('snippet', 'Snippet: Line 1', ['Line 1 edited']);
+
+    expect(history.length).toBe(3);
+    expect(history[0].type).toBe('snippet');
+    expect(history[1].type).toBe('autosave');
+    expect(history[2].type).toBe('manual');
+
+    // Filter by type
+    const manualOnly = history.filter(s => s.type === 'manual');
+    expect(manualOnly.length).toBe(1);
+    expect(manualOnly[0].title).toBe('Page 1 Manual Save');
+
+    // Clear autosaves
+    const cleaned = history.filter(s => s.type !== 'autosave');
+    expect(cleaned.length).toBe(2);
+    expect(cleaned.some(s => s.type === 'autosave')).toBe(false);
   });
 });

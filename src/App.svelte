@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import TopHeader from './components/layout/TopHeader.svelte';
   import EditorPanel from './components/editor/EditorPanel.svelte';
+  import FontSwitcherPanel from './components/editor/FontSwitcherPanel.svelte';
   import PreviewPanel from './components/preview/PreviewPanel.svelte';
   import BottomDrawer from './components/layout/BottomDrawer.svelte';
   import Toast from './components/common/Toast.svelte';
@@ -62,6 +63,7 @@
   <main class="workspace">
     <div class="workspace-column left">
       <EditorPanel />
+      <FontSwitcherPanel />
     </div>
 
     <div class="workspace-column right">
@@ -142,6 +144,8 @@
   .workspace-column.left {
     flex: 1.1;
     min-width: 440px;
+    gap: 8px;
+    min-height: 0;
   }
 
   .workspace-column.right {

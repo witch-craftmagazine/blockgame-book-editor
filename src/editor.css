@@ -901,6 +901,21 @@ body {
   overflow: hidden;
 }
 
+/* ─── Left Column (Houses Markup Editor and Separate Font Switcher Panel) ─── */
+.editor-column {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.editor-column .panel-editor {
+  flex: 1 1 0%;
+  min-height: 0;
+}
+
 .panel {
   background: var(--mc-gui-bg);
   border: 2px solid var(--mc-gui-outline);
@@ -1189,6 +1204,7 @@ body {
 .editor-workspace {
   flex: 1;
   display: flex;
+  flex-direction: column;
   min-height: 0;
   overflow: hidden;
   position: relative;
@@ -1228,6 +1244,50 @@ body {
 .book-line-row.active {
   background-color: rgba(83, 204, 223, 0.14);
   box-shadow: inset 3px 0 0 var(--mc-diamond);
+}
+
+.book-line-row.selected {
+  background-color: rgba(85, 255, 85, 0.14);
+  box-shadow: inset 3px 0 0 #55ff55;
+}
+
+.book-line-row.active.selected {
+  background-color: rgba(83, 204, 223, 0.22);
+  box-shadow: inset 3px 0 0 var(--mc-diamond);
+}
+
+.line-select-check {
+  margin: 0 4px 0 6px;
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+  accent-color: var(--accent);
+  flex-shrink: 0;
+}
+
+.btn-row-save {
+  display: none;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 4px;
+  margin-right: 6px;
+  border-radius: 3px;
+  color: var(--text-muted);
+  transition: color 0.1s ease, transform 0.08s ease;
+}
+
+.btn-row-save:hover {
+  color: var(--accent);
+  transform: scale(1.2);
+}
+
+.book-line-row.active .btn-row-save,
+.book-line-row.selected .btn-row-save {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .book-line-gutter {
@@ -1342,6 +1402,128 @@ body {
 
 .page-textarea::placeholder {
   color: #555555;
+}
+
+/* ─── Font Switcher Panel (Dedicated Box Below Markup Editor) ─────────────── */
+.panel-font-switcher {
+  flex: 0 0 auto;
+  background: var(--mc-gui-bg);
+  border: 2px solid var(--mc-gui-outline);
+  box-shadow: var(--bevel-raised);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.panel-font-switcher .panel-header {
+  height: 32px;
+  min-height: 32px;
+  padding: 0 10px;
+  background: var(--mc-gui-bg);
+  border-bottom: 2px solid var(--mc-gui-dark-shadow);
+  box-shadow: inset 0 -1px 0 var(--mc-gui-light);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.font-switcher-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.font-switcher-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.font-switcher-body {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--mc-gui-bg, #18171d);
+  user-select: none;
+  overflow-x: auto;
+}
+
+.font-select-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.font-switcher-ribbon {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  user-select: none;
+}
+
+.font-switcher-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.font-switcher-select {
+  height: 24px;
+  padding: 2px 6px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  border-radius: 4px;
+  font-size: 11px;
+  outline: none;
+}
+
+.font-quick-chips {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.font-quick-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.font-chip {
+  padding: 2px 7px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.1s ease;
+  white-space: nowrap;
+}
+
+.font-chip:hover {
+  color: var(--text-main);
+  border-color: var(--accent);
+}
+
+.font-chip.active {
+  background: var(--accent);
+  color: #000000;
+  border-color: var(--accent);
+}
+
+.font-apply-btn {
+  margin-left: auto;
+  white-space: nowrap;
 }
 
 /* Page Stats Bar */
@@ -2077,6 +2259,145 @@ body {
   border-left: 6px solid var(--mc-gold);
 }
 
+/* ─── Book History & Snapshots Modal ────────────────────────────────────────── */
+.history-modal-card {
+  width: 700px;
+  max-width: 94vw;
+}
+
+.history-modal-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: relative;
+  padding-bottom: 8px;
+}
+
+.history-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.history-header-texts {
+  display: flex;
+  flex-direction: column;
+}
+
+.history-tabs-nav {
+  display: flex;
+  gap: 4px;
+  border-bottom: 2px solid var(--mc-gui-dark-shadow);
+  padding-top: 4px;
+}
+
+.history-tab {
+  padding: 5px 10px;
+  background: var(--mc-gui-bg);
+  border: 2px solid var(--mc-gui-outline);
+  border-bottom: none;
+  box-shadow: var(--bevel-raised);
+  color: var(--mc-text-dark);
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  position: relative;
+  bottom: -2px;
+  transition: background 0.1s;
+}
+
+.history-tab:hover {
+  background: #d4d4d4;
+}
+
+.history-tab.active {
+  background: var(--mc-diamond);
+  color: #00282d;
+  box-shadow: var(--bevel-pressed);
+  border-bottom: 2px solid var(--mc-diamond);
+  z-index: 2;
+}
+
+.history-modal-body {
+  padding: 10px;
+  min-height: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.history-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-color);
+  gap: 8px;
+}
+
+.history-timeline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 380px;
+  overflow-y: auto;
+  padding: 4px 2px;
+}
+
+.history-snapshot-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  transition: border-color 0.12s ease;
+}
+
+.history-snapshot-card:hover {
+  border-color: var(--accent);
+}
+
+.history-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.history-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.history-card-time {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.history-card-preview {
+  background: #000000;
+  padding: 6px 8px;
+  border-radius: 3px;
+  font-family: 'Minecraft', monospace;
+  font-size: 11px;
+  line-height: 1.3;
+  max-height: 52px;
+  overflow: hidden;
+  color: #ffffff;
+}
+
+.history-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 /* ─── Page & Line Gallery Modal (Block Pixelart Inventory Style) ─────────────── */
 .gallery-modal-card {
   width: 900px;
@@ -2393,6 +2714,10 @@ body {
   display: none;
 }
 
+.mobile-presets-btn {
+  display: none;
+}
+
 /* ─── Responsive Adjustments ────────────────────────────────────────────────── */
 @media (max-width: 960px) {
   .app-layout {
@@ -2484,9 +2809,20 @@ body {
     object-fit: contain;
   }
 
-  /* 3. Docked Editor Panel: docked on bottom, markup above keyboard */
-  .panel-editor {
+  /* 3. Docked Editor Column: docked on bottom, markup above keyboard */
+  .editor-column {
     order: 2;
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+    gap: 4px;
+    background: var(--bg-root);
+  }
+
+  .panel-editor {
+    order: 1;
     flex: 1 1 auto;
     display: flex;
     flex-direction: column;
@@ -2501,7 +2837,185 @@ body {
     display: none; /* Hide wordy Markup Editor header on mobile */
   }
 
+  .panel-font-switcher {
+    order: 2;
+    margin: 0 8px 6px;
+    flex-shrink: 0;
+  }
+
+  .panel-font-switcher .panel-header {
+    height: 28px;
+    min-height: 28px;
+    padding: 0 8px;
+  }
+
+  .font-switcher-body {
+    padding: 4px 8px;
+  }
+
+  /* 4. Saved Art & Pastes Deck: Redesigned for Mobile (Positioned ABOVE editing deck, collapsible) */
+  .saved-art-deck {
+    order: 1;
+    position: static;
+    bottom: auto;
+    left: auto;
+    right: auto;
+    width: 100%;
+    box-sizing: border-box;
+    z-index: 20;
+    max-height: 185px;
+    padding: 6px 8px;
+    margin: 0 0 6px 0;
+    border-radius: 6px;
+    border: 1px solid var(--mc-gui-outline, #383542);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+    background: var(--mc-gui-bg, #18171d);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    animation: deck-slide-down 0.16s ease-out;
+  }
+
+  @keyframes deck-slide-down {
+    from {
+      opacity: 0;
+      transform: translateY(-6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* When collapsed on mobile, completely hidden so it NEVER blocks line-by-line editing */
+  .saved-art-deck.collapsed {
+    display: none !important;
+  }
+
+  .deck-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--border-color);
+    gap: 6px;
+  }
+
+  .deck-title-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .deck-title {
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .deck-subtitle {
+    display: none !important;
+  }
+
+  .deck-filter-chips {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+
+  .deck-filter-chips .chip {
+    padding: 1px 5px;
+    font-size: 10px;
+    height: 20px;
+  }
+
+  #btn-deck-save-row,
+  #btn-deck-save-page,
+  #btn-deck-open-gallery {
+    display: none !important;
+  }
+
+  .deck-toggle-btn {
+    padding: 1px 6px;
+    font-size: 11px;
+    height: 22px;
+  }
+
+  .deck-pastes-strip {
+    display: flex;
+    flex-direction: row;
+    gap: 6px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 2px 2px 4px;
+    max-height: 125px;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .deck-pastes-strip::-webkit-scrollbar {
+    display: none;
+  }
+
+  .deck-paste-card {
+    flex: 0 0 135px;
+    min-width: 135px;
+    max-width: 140px;
+    padding: 4px 6px;
+    background: var(--mc-gui-slot-bg, #0e0e12);
+    border: 1px solid var(--mc-gui-dark-shadow, #2a2a35);
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .deck-paste-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+  }
+
+  .deck-paste-title {
+    font-size: 10px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 75px;
+  }
+
+  .deck-paste-header .badge {
+    font-size: 8px;
+    padding: 0 3px;
+  }
+
+  .deck-paste-preview {
+    max-height: 48px;
+    height: 48px;
+    overflow: hidden;
+    background: #000000;
+    border-radius: 3px;
+    padding: 2px 4px;
+    cursor: pointer;
+  }
+
+  .deck-card-actions {
+    display: flex;
+    gap: 4px;
+  }
+
+  .btn-deck-action {
+    flex: 1;
+    font-size: 10px;
+    padding: 1px 4px;
+    height: 20px;
+  }
+
+  /* 5. Mobile Line Deck: Stepper, Input & Traffic Light Dot */
   .editor-workspace {
+    order: 2;
     flex: 0 0 auto;
     margin: 0;
     padding: 0;
@@ -2513,7 +3027,6 @@ body {
     display: none !important;
   }
 
-  /* 4. Mobile Line Deck: Stepper, Input & Traffic Light Dot */
   .mobile-line-deck {
     display: flex;
     flex-direction: column;
@@ -2529,12 +3042,41 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 8px;
   }
 
   .mobile-line-nav {
     display: flex;
     align-items: center;
     gap: 6px;
+  }
+
+  .mobile-line-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .mobile-presets-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 700;
+    height: 24px;
+    border-radius: 4px;
+    background: var(--bg-toolbar);
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+    cursor: pointer;
+    transition: all 0.1s ease;
+  }
+
+  .mobile-presets-btn.active {
+    background: var(--accent);
+    color: #000000;
+    border-color: var(--accent);
   }
 
   .mobile-line-pill {
@@ -2607,8 +3149,9 @@ body {
     box-shadow: 0 0 0 1px var(--accent);
   }
 
-  /* 5. Mobile Docked Markup Toolbar */
+  /* 6. Mobile Docked Markup Toolbar */
   .editor-toolbar {
+    order: 3;
     flex: 0 0 auto;
     padding: 4px 0;
     gap: 6px;

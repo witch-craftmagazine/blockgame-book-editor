@@ -188,4 +188,64 @@
     color: var(--text-muted, #9e9ba8);
     font-size: 13px;
   }
+
+  @media (max-width: 768px) {
+    .floating-drawer {
+      bottom: auto;
+      top: 200px;
+      left: 8px;
+      right: 8px;
+      height: 195px;
+      max-height: 195px;
+      border-radius: 8px;
+      border-bottom: 1px solid var(--border-color, #383542);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
+      animation: drawer-slide-down 0.18s ease-out;
+    }
+
+    @keyframes drawer-slide-down {
+      from {
+        opacity: 0;
+        transform: translateY(-8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .drawer-header {
+      padding: 6px 10px;
+    }
+
+    .header-left {
+      gap: 8px;
+    }
+
+    .drawer-title {
+      font-size: 11px;
+    }
+
+    .filter-chips {
+      gap: 4px;
+      overflow-x: auto;
+    }
+
+    .chip-btn {
+      padding: 2px 6px;
+      font-size: 10px;
+    }
+
+    .btn-reset {
+      display: none;
+    }
+
+    .drawer-content {
+      padding: 6px 10px;
+    }
+
+    .cards-grid {
+      gap: 8px;
+    }
+  }
 </style>

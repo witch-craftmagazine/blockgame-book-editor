@@ -63,6 +63,8 @@ export function createBookStore() {
   let currentPageIndex = $state(0);
   let activeLineIndex = $state(0);
   let activeCursorPos = $state<number | null>(null);
+  let activeFontId = $state('normal');
+  let selectedLineIndices = $state<Set<number>>(new Set([0]));
 
   // Undo / Redo history stacks
   let undoStack = $state<BookState[]>([]);
@@ -270,6 +272,10 @@ export function createBookStore() {
     set activeLineIndex(idx: number) { activeLineIndex = idx; },
     get activeCursorPos() { return activeCursorPos; },
     set activeCursorPos(pos: number | null) { activeCursorPos = pos; },
+    get activeFontId() { return activeFontId; },
+    set activeFontId(id: string) { activeFontId = id; },
+    get selectedLineIndices() { return selectedLineIndices; },
+    set selectedLineIndices(s: Set<number>) { selectedLineIndices = s; },
     get currentPageText() { return currentPageText; },
     get currentLines() { return currentLines; },
     get lineMetrics() { return lineMetrics; },

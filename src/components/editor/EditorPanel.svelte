@@ -2,6 +2,9 @@
   import { bookStore } from '../../state/bookStore.svelte';
   import { uiStore } from '../../state/uiStore.svelte';
   import FormattingBar from './FormattingBar.svelte';
+  import { transformWithFont } from '../../data/symbolChatFonts';
+
+  let lastClickedLineIndex = 0;
 
   function updateCursor(target: HTMLInputElement) {
     bookStore.activeCursorPos = target.selectionStart;
@@ -9,7 +12,17 @@
 
   function handleLineInput(idx: number, e: Event) {
     const target = e.target as HTMLInputElement;
-    const ok = bookStore.setLine(idx, target.value);
+    let val = target.value;
+    if (bookStore.activeFontId !== 'normal') {
+      const converted = transformWithFont(val, bookStore.activeFontId);
+      if (converted !== val) {
+        val = converted;
+        const caret = target.selectionStart;
+        target.value = converted;
+        if (caret !== null) target.setSelectionRange(caret, caret);
+      }
+    }
+    const ok = bookStore.setLine(idx, val);
     if (!ok) {
       uiStore.showToast('Page character limit (1024) exceeded', 'warn');
       target.value = bookStore.currentLines[idx] ?? '';
@@ -19,6 +32,9 @@
 
   function handleLineFocus(idx: number, e: FocusEvent) {
     bookStore.activeLineIndex = idx;
+    if (!bookStore.selectedLineIndices.has(idx)) {
+      bookStore.selectedLineIndices = new Set([idx]);
+    }
     const target = e.target as HTMLInputElement;
     updateCursor(target);
   }
@@ -26,6 +42,63 @@
   function handleLineCursorChange(e: Event) {
     const target = e.target as HTMLInputElement;
     updateCursor(target);
+  }
+
+  function handleLineCheckbox(idx: number, e: MouseEvent) {
+    const isShift = e.shiftKey;
+    const isCtrlCmd = e.ctrlKey || e.metaKey;
+    const nextSet = new Set(bookStore.selectedLineIndices);
+
+    if (isShift) {
+      const start = Math.min(lastClickedLineIndex, idx);
+      const end = Math.max(lastClickedLineIndex, idx);
+      for (let i = start; i <= end; i++) nextSet.add(i);
+    } else if (isCtrlCmd) {
+      if (nextSet.has(idx)) {
+        if (nextSet.size > 1) nextSet.delete(idx);
+      } else {
+        nextSet.add(idx);
+      }
+      lastClickedLineIndex = idx;
+    } else {
+      if (nextSet.has(idx) && nextSet.size === 1) {
+        // keep selected
+      } else {
+        nextSet.clear();
+        nextSet.add(idx);
+      }
+      lastClickedLineIndex = idx;
+    }
+    bookStore.selectedLineIndices = nextSet;
+    bookStore.activeLineIndex = idx;
+  }
+
+  function saveLineSnippet(lineIdx: number) {
+    let linesToSave: string[] = [];
+    let title = '';
+    if (bookStore.selectedLineIndices.has(lineIdx) && bookStore.selectedLineIndices.size > 1) {
+      const sorted = [...bookStore.selectedLineIndices].sort((a, b) => a - b);
+      linesToSave = sorted.map(idx => bookStore.currentLines[idx] ?? '');
+      title = `Snippet: Lines ${sorted[0] + 1}-${sorted[sorted.length - 1] + 1}`;
+    } else {
+      linesToSave = [bookStore.currentLines[lineIdx] ?? ''];
+      title = `Snippet: Line ${lineIdx + 1}`;
+    }
+    try {
+      const raw = localStorage.getItem('blockgame_book_history_v1');
+      const snapshots = raw ? JSON.parse(raw) : [];
+      snapshots.unshift({
+        id: `snap-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        type: 'snippet',
+        timestamp: Date.now(),
+        title,
+        pageIndex: bookStore.currentPageIndex,
+        totalPages: bookStore.pages.length,
+        lines: linesToSave,
+      });
+      localStorage.setItem('blockgame_book_history_v1', JSON.stringify(snapshots.slice(0, 50)));
+      uiStore.showToast(`Saved "${title}" to History`, 'success');
+    } catch {}
   }
 </script>
 
@@ -74,18 +147,29 @@
           onclick={() => { bookStore.activeLineIndex = Math.min(13, bookStore.activeLineIndex + 1); }}
         >▼</button>
       </div>
-      <div class="mobile-traffic-dot-wrap" title="Width traffic light indicator">
-        {#if bookStore.lineMetrics[bookStore.activeLineIndex]}
-          {@const activeMetric = bookStore.lineMetrics[bookStore.activeLineIndex]!}
-          {@const isOver = activeMetric.isOverWidth}
-          {@const isWarn = activeMetric.width >= 102 && !isOver}
-          <span
-            class="mobile-traffic-dot"
-            class:dot-ok={!isOver && !isWarn}
-            class:dot-warn={isWarn}
-            class:dot-overflow={isOver}
-          ></span>
-        {/if}
+      <div class="mobile-line-actions">
+        <button
+          type="button"
+          class="mobile-presets-btn"
+          class:active={uiStore.isPresetsDrawerOpen}
+          onclick={() => { uiStore.isPresetsDrawerOpen = !uiStore.isPresetsDrawerOpen; }}
+          title="Toggle Presets and Saved Art"
+        >
+          {uiStore.isPresetsDrawerOpen ? '✕ Presets' : '🎨 Presets'}
+        </button>
+        <div class="mobile-traffic-dot-wrap" title="Width traffic light indicator">
+          {#if bookStore.lineMetrics[bookStore.activeLineIndex]}
+            {@const activeMetric = bookStore.lineMetrics[bookStore.activeLineIndex]!}
+            {@const isOver = activeMetric.isOverWidth}
+            {@const isWarn = activeMetric.width >= 102 && !isOver}
+            <span
+              class="mobile-traffic-dot"
+              class:dot-ok={!isOver && !isWarn}
+              class:dot-warn={isWarn}
+              class:dot-overflow={isOver}
+            ></span>
+          {/if}
+        </div>
       </div>
     </div>
     <div class="mobile-line-input-wrap">
@@ -111,7 +195,18 @@
 
   <div class="lines-container" role="region" aria-label="Minecraft 14-Line Editor">
     {#each bookStore.lineMetrics as metric, idx}
-      <div class="line-row" class:active={bookStore.activeLineIndex === idx}>
+      <div
+        class="line-row"
+        class:active={bookStore.activeLineIndex === idx}
+        class:selected={bookStore.selectedLineIndices.has(idx)}
+      >
+        <input
+          type="checkbox"
+          class="line-select-check"
+          title="Select line for snippet / font action (Shift-click range, Cmd/Ctrl-click toggle)"
+          checked={bookStore.selectedLineIndices.has(idx)}
+          onclick={(e) => handleLineCheckbox(idx, e)}
+        />
         <span class="line-number">{idx + 1}</span>
         
         <div class="input-wrapper">
@@ -130,6 +225,15 @@
 
           <div class="line-ruler-bar" style="width: {Math.min(100, (metric.width / 114) * 100)}%;"></div>
         </div>
+
+        <button
+          type="button"
+          class="btn-row-save"
+          title="Save line snippet to History"
+          onclick={() => saveLineSnippet(idx)}
+        >
+          💾
+        </button>
 
         <span class="line-px-badge" class:overflown={metric.isOverWidth}>
           {metric.width}px
@@ -179,7 +283,8 @@
   .editor-panel {
     display: flex;
     flex-direction: column;
-    height: 100%;
+    flex: 1;
+    min-height: 0;
     background: var(--bg-panel, #16151a);
     border: 1px solid var(--border-color, #2d2b36);
     border-radius: 8px;
@@ -242,6 +347,39 @@
 
   .line-row.active {
     background: rgba(255, 255, 255, 0.04);
+  }
+
+  .line-row.selected {
+    background: rgba(144, 202, 249, 0.08);
+  }
+
+  .line-select-check {
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+    accent-color: var(--accent, #90caf9);
+    margin: 0;
+  }
+
+  .btn-row-save {
+    background: transparent;
+    border: none;
+    font-size: 13px;
+    cursor: pointer;
+    padding: 2px 4px;
+    opacity: 0.3;
+    transition: opacity 0.15s, transform 0.1s;
+  }
+
+  .line-row:hover .btn-row-save,
+  .line-row.active .btn-row-save,
+  .line-row.selected .btn-row-save {
+    opacity: 0.85;
+  }
+
+  .btn-row-save:hover {
+    opacity: 1 !important;
+    transform: scale(1.15);
   }
 
   .line-number {
@@ -387,6 +525,35 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 8px;
+    }
+
+    .mobile-line-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .mobile-presets-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      font-size: 11px;
+      font-weight: 700;
+      height: 24px;
+      border-radius: 4px;
+      background: var(--bg-toolbar);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      cursor: pointer;
+      transition: all 0.1s ease;
+    }
+
+    .mobile-presets-btn.active {
+      background: var(--accent);
+      color: #000000;
+      border-color: var(--accent);
     }
 
     .mobile-line-nav {

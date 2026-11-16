@@ -13,12 +13,18 @@ import {
 import { getCharPixelAdvance } from '../src/components/glyphs/glyphRenderer';
 
 describe('Symbol Chat Glyph Dataset & Taxonomy', () => {
-  test('defines all 12 expected categories with labels, icons and "all" unified grid', () => {
-    expect(CATEGORY_DEFINITIONS.length).toBe(12);
+  test('defines all 18 expected categories with labels, icons and "all" unified grid', () => {
+    expect(CATEGORY_DEFINITIONS.length).toBe(18);
     const ids = CATEGORY_DEFINITIONS.map((c) => c.id);
     expect(ids).toContain('all');
     expect(ids).toContain('fav');
     expect(ids).toContain('recent');
+    expect(ids).toContain('faces');
+    expect(ids).toContain('nature');
+    expect(ids).toContain('things');
+    expect(ids).toContain('activities');
+    expect(ids).toContain('symbols');
+    expect(ids).toContain('shapes');
     expect(ids).toContain('borders');
     expect(ids).toContain('rpg');
     expect(ids).toContain('arrows');
@@ -31,7 +37,23 @@ describe('Symbol Chat Glyph Dataset & Taxonomy', () => {
   });
 
   test('all static categories contain populated glyph collections', () => {
-    const categories = ['borders', 'rpg', 'arrows', 'blocks', 'math', 'runes', 'braille', 'fonts', 'kaomoji'] as const;
+    const categories = [
+      'faces',
+      'nature',
+      'things',
+      'activities',
+      'symbols',
+      'shapes',
+      'borders',
+      'rpg',
+      'arrows',
+      'blocks',
+      'math',
+      'runes',
+      'braille',
+      'fonts',
+      'kaomoji',
+    ] as const;
     for (const cat of categories) {
       const items = GLYPHS_BY_CATEGORY[cat];
       expect(items).toBeDefined();

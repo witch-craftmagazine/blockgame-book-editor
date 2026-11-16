@@ -20,7 +20,6 @@ import {
   BOOK_TEXT_WIDTH,
   BEDROCK_BOOK_TEXT_WIDTH,
   parseFormattedText,
-  stripFormatting,
   soundManager,
   MINECRAFT_LINES_PER_PAGE,
   MINECRAFT_PAGE_MAX_CHARS,
@@ -46,6 +45,7 @@ import {
 import {
   SYMBOL_CHAT_FONTS,
   getFontById,
+  transformWithFont,
 } from './data/symbolChatFonts';
 import {
   normalizeBook,
@@ -479,8 +479,7 @@ export function renderFormattedMiniLine(rawText: string): HTMLElement {
 }
 
 export function updateGalleryCounts(): void {
-  if (galleryTabPageCount) galleryTabPageCount.textContent = book.pages.length.toString();
-  if (galleryTabLibCount) galleryTabLibCount.textContent = savedTemplates.length.toString();
+  // Legacy gallery counts no-op
 }
 
 // ─── Preset & Hidden Presets Management ──────────────────────────────────────
@@ -722,9 +721,6 @@ let toastContainer: HTMLElement;
 // Buttons
 let btnUndo: HTMLButtonElement;
 let btnRedo: HTMLButtonElement;
-let btnOpenGallery: HTMLButtonElement;
-let btnSaveGallery: HTMLButtonElement;
-let btnOpenGalleryTool: HTMLButtonElement;
 let btnCenterLine: HTMLButtonElement;
 let btnFillMargin: HTMLButtonElement;
 let btnDedupCodes: HTMLButtonElement;
@@ -757,28 +753,235 @@ let glyphCustomInput: HTMLInputElement;
 let glyphCustomWidth: HTMLElement;
 let glyphCustomInsertBtn: HTMLButtonElement;
 
-// Gallery Modal Elements
-let galleryDialog: HTMLDialogElement;
-let galleryTabsNav: HTMLElement;
-let galleryTabPageCount: HTMLElement;
-let galleryTabLibCount: HTMLElement;
-let galleryPanePages: HTMLElement;
-let galleryPaneLibrary: HTMLElement;
-let galleryPaneSave: HTMLElement;
-let btnGalleryAddBlank: HTMLButtonElement;
-let btnGalleryDupActive: HTMLButtonElement;
-let galleryPagesGrid: HTMLElement;
-let galleryFilterChips: HTMLElement;
-let btnGallerySwitchSave: HTMLButtonElement;
-let btnGalleryExportLib: HTMLButtonElement;
-let btnGalleryImportLib: HTMLButtonElement;
-let galleryImportFileInput: HTMLInputElement;
-let galleryTemplatesGrid: HTMLElement;
-let saveItemTitle: HTMLInputElement;
-let saveItemCategory: HTMLSelectElement;
-let gallerySavePreview: HTMLElement;
-let btnCancelSaveGallery: HTMLButtonElement;
-let btnConfirmSaveGallery: HTMLButtonElement;
+// Book History & Snapshots Elements
+let historyDialog: HTMLDialogElement;
+let historyTabsNav: HTMLElement | null = null;
+let historyTimelineList: HTMLElement | null = null;
+let btnOpenHistory: HTMLButtonElement | null = null;
+let btnSaveSnapshot: HTMLButtonElement | null = null;
+let btnHistorySaveNow: HTMLButtonElement | null = null;
+let btnHistoryClearAutosaves: HTMLButtonElement | null = null;
+let btnHistoryClearAll: HTMLButtonElement | null = null;
+let historyCountAll: HTMLElement | null = null;
+let historyCountManual: HTMLElement | null = null;
+let historyCountAuto: HTMLElement | null = null;
+let historyCountSnippet: HTMLElement | null = null;
+
+// ─── History & Snapshots Engine (Streamlined Save & History) ────────────
+export const HISTORY_STORAGE_KEY = 'blockgame_book_history_v1';
+export let activeHistoryFilter: 'all' | 'manual' | 'autosave' | 'snippet' = 'all';
+export let lastHistoryAutosaveTs = 0;
+
+export interface HistorySnapshot {
+  id: string;
+  type: 'manual' | 'autosave' | 'snippet';
+  timestamp: number;
+  title: string;
+  pageIndex: number;
+  totalPages: number;
+  lines: string[];
+}
+
+export function loadHistorySnapshots(): HistorySnapshot[] {
+  try {
+    const raw = localStorage.getItem(HISTORY_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch {}
+  return [];
+}
+
+export function saveHistorySnapshots(snapshots: HistorySnapshot[]): void {
+  try {
+    localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(snapshots.slice(0, 50)));
+  } catch {}
+}
+
+export function createHistorySnapshot(
+  type: 'manual' | 'autosave' | 'snippet',
+  customTitle?: string,
+  targetLines?: string[]
+): void {
+  const lines = targetLines ? [...targetLines] : [...currentLines];
+  const pageNum = currentPageIndex + 1;
+  const defaultTitle =
+    type === 'manual'
+      ? `${book.title || 'Book'} - Page ${pageNum} Snapshot`
+      : type === 'autosave'
+      ? `Autosave - Page ${pageNum}`
+      : `Snippet (Line ${activeLineIndex + 1})`;
+  const title = customTitle || defaultTitle;
+
+  const snapshot: HistorySnapshot = {
+    id: `snap-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+    type,
+    timestamp: Date.now(),
+    title,
+    pageIndex: currentPageIndex,
+    totalPages: book.pages.length,
+    lines,
+  };
+
+  const snapshots = [snapshot, ...loadHistorySnapshots().filter(s => s.id !== snapshot.id)].slice(0, 50);
+  saveHistorySnapshots(snapshots);
+
+  if (historyDialog && historyDialog.open) {
+    renderHistoryTimeline();
+  }
+}
+
+export function formatRelativeTime(ts: number): string {
+  const diffSec = Math.floor((Date.now() - ts) / 1000);
+  if (diffSec < 45) return 'Just now';
+  if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`;
+  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`;
+  return new Date(ts).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+export function renderHistoryTimeline(): void {
+  const timelineList = historyTimelineList;
+  if (!timelineList) return;
+  timelineList.innerHTML = '';
+  const all = loadHistorySnapshots();
+
+  // Update tab counts
+  const manualCount = all.filter(s => s.type === 'manual').length;
+  const autoCount = all.filter(s => s.type === 'autosave').length;
+  const snippetCount = all.filter(s => s.type === 'snippet').length;
+
+  if (historyCountAll) historyCountAll.textContent = all.length.toString();
+  if (historyCountManual) historyCountManual.textContent = manualCount.toString();
+  if (historyCountAuto) historyCountAuto.textContent = autoCount.toString();
+  if (historyCountSnippet) historyCountSnippet.textContent = snippetCount.toString();
+
+  const filtered = all.filter(s => {
+    if (activeHistoryFilter === 'all') return true;
+    return s.type === activeHistoryFilter;
+  });
+
+  if (filtered.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'history-empty-state';
+    empty.style.textAlign = 'center';
+    empty.style.padding = '32px 16px';
+    empty.style.color = 'var(--text-muted)';
+    empty.innerHTML = `
+      <p style="font-size: 14px; margin-bottom: 6px;">No snapshots in "<b>${activeHistoryFilter}</b>".</p>
+      <span style="font-size: 12px;">Snapshots are created when you click <b>Save</b> or as you edit.</span>
+    `;
+    timelineList.appendChild(empty);
+    return;
+  }
+
+  filtered.forEach(snap => {
+    const card = document.createElement('div');
+    card.className = 'history-snapshot-card';
+
+    const header = document.createElement('div');
+    header.className = 'history-card-header';
+
+    const meta = document.createElement('div');
+    meta.className = 'history-card-meta';
+    const badgeClass = snap.type === 'manual' ? 'badge-ok' : (snap.type === 'autosave' ? 'badge-info' : 'badge-warn');
+    meta.innerHTML = `
+      <span class="badge ${badgeClass}">${snap.type.toUpperCase()}</span>
+      <span class="history-card-title">${snap.title}</span>
+    `;
+
+    const time = document.createElement('span');
+    time.className = 'history-card-time';
+    time.textContent = formatRelativeTime(snap.timestamp);
+    time.title = new Date(snap.timestamp).toLocaleString();
+
+    header.appendChild(meta);
+    header.appendChild(time);
+    card.appendChild(header);
+
+    const preview = document.createElement('div');
+    preview.className = 'history-card-preview';
+    snap.lines.slice(0, 3).forEach(l => {
+      preview.appendChild(renderFormattedMiniLine(l));
+    });
+    card.appendChild(preview);
+
+    const actions = document.createElement('div');
+    actions.className = 'history-card-actions';
+
+    const restoreBtn = document.createElement('button');
+    restoreBtn.type = 'button';
+    restoreBtn.className = 'btn btn-xs btn-primary';
+    restoreBtn.textContent = '↺ Restore';
+    restoreBtn.title = 'Roll back current page to this snapshot state';
+    restoreBtn.addEventListener('click', () => {
+      pushUndoSnapshot();
+      if (snap.type === 'snippet') {
+        // Insert snippet at active line
+        for (let i = 0; i < snap.lines.length && activeLineIndex + i < MINECRAFT_LINES_PER_PAGE; i++) {
+          currentLines[activeLineIndex + i] = snap.lines[i] ?? '';
+          if (lineInputEls[activeLineIndex + i]) lineInputEls[activeLineIndex + i].value = currentLines[activeLineIndex + i];
+        }
+      } else {
+        // Restore full page lines
+        currentLines = [...snap.lines];
+        while (currentLines.length < MINECRAFT_LINES_PER_PAGE) currentLines.push('');
+        currentLines = currentLines.slice(0, MINECRAFT_LINES_PER_PAGE);
+        for (let i = 0; i < MINECRAFT_LINES_PER_PAGE; i++) {
+          if (lineInputEls[i]) lineInputEls[i].value = currentLines[i] ?? '';
+        }
+      }
+      updateAll(true);
+      historyDialog?.close();
+      soundManager.playButtonClick();
+      showToast(`Restored snapshot "${snap.title}"`, 'success');
+    });
+    actions.appendChild(restoreBtn);
+
+    const copyBtn = document.createElement('button');
+    copyBtn.type = 'button';
+    copyBtn.className = 'btn btn-xs btn-outline';
+    copyBtn.textContent = '📋 Copy';
+    copyBtn.title = 'Copy lines to clipboard';
+    copyBtn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(snap.lines.join('\n'));
+        showToast('Copied snapshot lines to clipboard', 'success');
+      } catch {}
+    });
+    actions.appendChild(copyBtn);
+
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.className = 'btn btn-xs btn-ghost btn-danger-tag';
+    delBtn.textContent = '🗑';
+    delBtn.title = 'Delete snapshot';
+    delBtn.addEventListener('click', () => {
+      const remaining = loadHistorySnapshots().filter(s => s.id !== snap.id);
+      saveHistorySnapshots(remaining);
+      renderHistoryTimeline();
+      showToast('Snapshot deleted', 'info');
+    });
+    actions.appendChild(delBtn);
+
+    card.appendChild(actions);
+    timelineList.appendChild(card);
+  });
+}
+
+export function openHistory(): void {
+  renderHistoryTimeline();
+  historyDialog?.showModal();
+}
+
+// Desktop Font Switcher Ribbon
+let fontSwitcherSelect: HTMLSelectElement | null = null;
+let fontQuickChips: HTMLElement | null = null;
+let btnFontApplySelection: HTMLButtonElement | null = null;
+
+// Multi-line selection
+let selectedLineIndices = new Set<number>([0]);
+let lastClickedLineIndex = 0;
 
 // Top Matrix Selector & Hub
 let btnStudioTools: HTMLButtonElement;
@@ -803,6 +1006,8 @@ let deckPastesStrip: HTMLElement;
 let btnDeckSaveRow: HTMLButtonElement;
 let btnDeckSavePage: HTMLButtonElement;
 let btnDeckOpenGallery: HTMLButtonElement;
+let btnMobilePresets: HTMLButtonElement | null = null;
+let btnToolbarPresets: HTMLButtonElement | null = null;
 
 function initDOM(): void {
   if (typeof document === 'undefined') return;
@@ -837,9 +1042,8 @@ function initDOM(): void {
 
   btnUndo             = document.getElementById('btn-undo')              as HTMLButtonElement;
   btnRedo             = document.getElementById('btn-redo')              as HTMLButtonElement;
-  btnOpenGallery      = document.getElementById('btn-open-gallery')      as HTMLButtonElement;
-  btnSaveGallery      = document.getElementById('btn-save-gallery')      as HTMLButtonElement;
-  btnOpenGalleryTool  = document.getElementById('btn-open-gallery-tool') as HTMLButtonElement;
+  btnOpenHistory      = document.getElementById('btn-open-history')      as HTMLButtonElement | null;
+  btnSaveSnapshot     = document.getElementById('btn-save-snapshot')     as HTMLButtonElement | null;
   btnCenterLine       = document.getElementById('btn-center-line')       as HTMLButtonElement;
   btnFillMargin       = document.getElementById('btn-fill-margin')       as HTMLButtonElement;
   btnDedupCodes       = document.getElementById('btn-dedup-codes')       as HTMLButtonElement;
@@ -871,28 +1075,22 @@ function initDOM(): void {
   glyphCustomWidth    = document.getElementById('glyph-custom-width')!;
   glyphCustomInsertBtn = document.getElementById('glyph-custom-insert-btn') as HTMLButtonElement;
 
-  // Gallery Modal
-  galleryDialog       = document.getElementById('gallery-dialog')         as HTMLDialogElement;
-  galleryTabsNav      = document.getElementById('gallery-tabs-nav')       as HTMLElement;
-  galleryTabPageCount = document.getElementById('gallery-tab-page-count') as HTMLElement;
-  galleryTabLibCount  = document.getElementById('gallery-tab-lib-count')  as HTMLElement;
-  galleryPanePages    = document.getElementById('gallery-pane-pages')     as HTMLElement;
-  galleryPaneLibrary  = document.getElementById('gallery-pane-library')   as HTMLElement;
-  galleryPaneSave     = document.getElementById('gallery-pane-save')      as HTMLElement;
-  btnGalleryAddBlank  = document.getElementById('btn-gallery-add-blank')  as HTMLButtonElement;
-  btnGalleryDupActive = document.getElementById('btn-gallery-dup-active') as HTMLButtonElement;
-  galleryPagesGrid    = document.getElementById('gallery-pages-grid')     as HTMLElement;
-  galleryFilterChips  = document.getElementById('gallery-filter-chips')   as HTMLElement;
-  btnGallerySwitchSave = document.getElementById('btn-gallery-switch-save') as HTMLButtonElement;
-  btnGalleryExportLib = document.getElementById('btn-gallery-export-lib') as HTMLButtonElement;
-  btnGalleryImportLib = document.getElementById('btn-gallery-import-lib') as HTMLButtonElement;
-  galleryImportFileInput = document.getElementById('gallery-import-file-input') as HTMLInputElement;
-  galleryTemplatesGrid = document.getElementById('gallery-templates-grid') as HTMLElement;
-  saveItemTitle       = document.getElementById('save-item-title')       as HTMLInputElement;
-  saveItemCategory    = document.getElementById('save-item-category')    as HTMLSelectElement;
-  gallerySavePreview  = document.getElementById('gallery-save-preview')  as HTMLElement;
-  btnCancelSaveGallery = document.getElementById('btn-cancel-save-gallery') as HTMLButtonElement;
-  btnConfirmSaveGallery = document.getElementById('btn-confirm-save-gallery') as HTMLButtonElement;
+  // History & Snapshots Modal
+  historyDialog       = document.getElementById('history-dialog')         as HTMLDialogElement;
+  historyTabsNav      = document.getElementById('history-tabs-nav');
+  historyTimelineList = document.getElementById('history-timeline-list');
+  btnHistorySaveNow   = document.getElementById('btn-history-save-now')   as HTMLButtonElement | null;
+  btnHistoryClearAutosaves = document.getElementById('btn-history-clear-autosaves') as HTMLButtonElement | null;
+  btnHistoryClearAll  = document.getElementById('btn-history-clear-all')  as HTMLButtonElement | null;
+  historyCountAll     = document.getElementById('history-count-all');
+  historyCountManual  = document.getElementById('history-count-manual');
+  historyCountAuto    = document.getElementById('history-count-auto');
+  historyCountSnippet = document.getElementById('history-count-snippet');
+
+  // Desktop Font Switcher Ribbon
+  fontSwitcherSelect  = document.getElementById('font-switcher-select')  as HTMLSelectElement | null;
+  fontQuickChips      = document.getElementById('font-quick-chips');
+  btnFontApplySelection = document.getElementById('btn-font-apply-selection') as HTMLButtonElement | null;
 
   // Top Matrix Selector & Hub
   btnStudioTools      = document.getElementById('btn-studio-tools')       as HTMLButtonElement;
@@ -917,6 +1115,8 @@ function initDOM(): void {
   btnDeckSaveRow      = document.getElementById('btn-deck-save-row')      as HTMLButtonElement;
   btnDeckSavePage     = document.getElementById('btn-deck-save-page')     as HTMLButtonElement;
   btnDeckOpenGallery  = document.getElementById('btn-deck-open-gallery')  as HTMLButtonElement;
+  btnMobilePresets    = document.getElementById('btn-mobile-presets')    as HTMLButtonElement | null;
+  btnToolbarPresets   = document.getElementById('btn-toolbar-presets')   as HTMLButtonElement | null;
 
   // Build the 14 Line Rows in the 14-Line Book View
   build14LineRows();
@@ -933,12 +1133,24 @@ function build14LineRows(): void {
 
   for (let i = 0; i < MINECRAFT_LINES_PER_PAGE; i++) {
     const row = document.createElement('div');
-    row.className = `book-line-row${i === activeLineIndex ? ' active' : ''}`;
+    row.className = `book-line-row${i === activeLineIndex ? ' active' : ''}${selectedLineIndices.has(i) ? ' selected' : ''}`;
     row.dataset.lineIndex = String(i);
+
+    // Left checkbox for line selection
+    const check = document.createElement('input');
+    check.type = 'checkbox';
+    check.className = 'line-select-check';
+    check.dataset.lineIndex = String(i);
+    check.checked = selectedLineIndices.has(i);
+    check.title = 'Select line for multi-line actions (Shift+Click for range, Cmd/Ctrl+Click to toggle)';
+    check.addEventListener('click', (e) => {
+      e.stopPropagation();
+      handleLineSelection(i, e.shiftKey, e.metaKey || e.ctrlKey, true);
+    });
 
     const gutter = document.createElement('div');
     gutter.className = 'book-line-gutter';
-    gutter.title = `Click to focus Line ${i + 1}`;
+    gutter.title = `Click to select Line ${i + 1} (Shift+Click for range)`;
 
     const numSpan = document.createElement('span');
     numSpan.className = 'gutter-num';
@@ -971,6 +1183,20 @@ function build14LineRows(): void {
     input.autocomplete = 'off';
     inputWrap.appendChild(input);
 
+    // Save icon on each line row
+    const saveBtn = document.createElement('button');
+    saveBtn.type = 'button';
+    saveBtn.className = 'btn-row-save';
+    saveBtn.dataset.lineIndex = String(i);
+    saveBtn.innerHTML = '💾';
+    saveBtn.title = 'Save snippet from this line (or selected lines) to History';
+    saveBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      saveLineSnippet(i);
+    });
+    inputWrap.appendChild(saveBtn);
+
+    row.appendChild(check);
     row.appendChild(gutter);
     row.appendChild(inputWrap);
     bookLinesList.appendChild(row);
@@ -981,15 +1207,19 @@ function build14LineRows(): void {
     lineGutterFillEls.push(barFill);
     lineGutterBadgeEls.push(badge);
 
-    // Gutter click focuses input
-    gutter.addEventListener('click', () => {
-      activeLineIndex = i;
-      updateActiveRowClass();
+    // Gutter click selects and focuses input
+    gutter.addEventListener('click', (e) => {
+      handleLineSelection(i, e.shiftKey, e.metaKey || e.ctrlKey, false);
       input.focus();
     });
 
     // Input Events
     input.addEventListener('focus', () => {
+      if (!selectedLineIndices.has(i)) {
+        selectedLineIndices.clear();
+        selectedLineIndices.add(i);
+        lastClickedLineIndex = i;
+      }
       activeLineIndex = i;
       updateActiveRowClass();
       updateGutterAndStats();
@@ -1009,15 +1239,76 @@ function build14LineRows(): void {
   }
 }
 
+function handleLineSelection(lineIdx: number, isShift: boolean, isModifier: boolean, isCheckboxClick: boolean): void {
+  if (isShift) {
+    const start = Math.min(lastClickedLineIndex, lineIdx);
+    const end = Math.max(lastClickedLineIndex, lineIdx);
+    if (!isModifier && !isCheckboxClick) {
+      selectedLineIndices.clear();
+    }
+    for (let idx = start; idx <= end; idx++) {
+      selectedLineIndices.add(idx);
+    }
+  } else if (isModifier || isCheckboxClick) {
+    if (selectedLineIndices.has(lineIdx)) {
+      if (selectedLineIndices.size > 1) {
+        selectedLineIndices.delete(lineIdx);
+      }
+    } else {
+      selectedLineIndices.add(lineIdx);
+    }
+    lastClickedLineIndex = lineIdx;
+  } else {
+    selectedLineIndices.clear();
+    selectedLineIndices.add(lineIdx);
+    lastClickedLineIndex = lineIdx;
+  }
+
+  activeLineIndex = lineIdx;
+  updateActiveRowClass();
+}
+
 function updateActiveRowClass(): void {
   lineRowEls.forEach((r, idx) => {
     r.classList.toggle('active', idx === activeLineIndex);
+    r.classList.toggle('selected', selectedLineIndices.has(idx));
+    const chk = r.querySelector<HTMLInputElement>('.line-select-check');
+    if (chk) chk.checked = selectedLineIndices.has(idx);
   });
+}
+
+function saveLineSnippet(lineIdx: number): void {
+  let linesToSave: string[] = [];
+  let title = '';
+  if (selectedLineIndices.has(lineIdx) && selectedLineIndices.size > 1) {
+    const sorted = [...selectedLineIndices].sort((a, b) => a - b);
+    linesToSave = sorted.map(idx => currentLines[idx] ?? '');
+    title = `Snippet: Lines ${sorted[0] + 1}-${sorted[sorted.length - 1] + 1}`;
+  } else {
+    linesToSave = [currentLines[lineIdx] ?? ''];
+    title = `Snippet: Line ${lineIdx + 1}`;
+  }
+
+  createHistorySnapshot('snippet', title, linesToSave);
+  soundManager.playButtonClick();
+  showToast(`Saved "${title}" (${linesToSave.length} line${linesToSave.length > 1 ? 's' : ''}) to History`, 'success');
 }
 
 function onLineInput(lineIdx: number): void {
   const input = lineInputEls[lineIdx];
   if (!input) return;
+
+  // Live Stylized Font Transformation if non-normal font is selected
+  if (activeFontId !== 'normal') {
+    const converted = transformWithFont(input.value, activeFontId);
+    if (converted !== input.value) {
+      const caret = input.selectionStart;
+      input.value = converted;
+      if (caret !== null) {
+        input.setSelectionRange(caret, caret);
+      }
+    }
+  }
 
   const prevVal = currentLines[lineIdx];
   currentLines[lineIdx] = input.value;
@@ -1464,6 +1755,11 @@ function triggerAutosave(): void {
       localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(data));
       const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
       autosaveText.textContent = `Saved ${timeStr}`;
+
+      if (Date.now() - lastHistoryAutosaveTs > 30000) {
+        lastHistoryAutosaveTs = Date.now();
+        createHistorySnapshot('autosave');
+      }
     } catch {
       autosaveText.textContent = 'Autosave error';
     } finally {
@@ -1719,7 +2015,7 @@ async function initViewer(): Promise<void> {
 const RECENTS_KEY = 'blockgame_user_recent_glyphs';
 let activeGlyphCat: GlyphCategory = 'all';
 let activeGlyphTint: string = '#FFFFFF';
-let activeFontId: string = 'small_caps';
+let activeFontId: string = 'normal';
 let recentGlyphs: string[] = [];
 
 try {
@@ -2493,384 +2789,8 @@ function wireEvents(): void {
   btnPrevPage.addEventListener('click', retreatPage);
   btnNextPage.addEventListener('click', advancePage);
 
-  // 8. Page & Line Gallery Wire Events
+  // 8. Saved Presets & History Wire Events
   savedTemplates = loadSavedTemplates();
-  updateGalleryCounts();
-
-  function updateGalleryCounts(): void {
-    if (galleryTabPageCount) galleryTabPageCount.textContent = book.pages.length.toString();
-    if (galleryTabLibCount) galleryTabLibCount.textContent = savedTemplates.length.toString();
-  }
-
-  function renderGalleryPages(): void {
-    if (!galleryPagesGrid) return;
-    galleryPagesGrid.innerHTML = '';
-    const statusEl = document.getElementById('gallery-current-status');
-    if (statusEl) {
-      statusEl.textContent = `Editing Page ${currentPageIndex + 1} of ${book.pages.length}`;
-    }
-
-    if (btnGalleryAddBlank) {
-      btnGalleryAddBlank.disabled = book.pages.length >= MINECRAFT_MAX_PAGES;
-    }
-
-    book.pages.forEach((pageContent, idx) => {
-      const card = document.createElement('div');
-      card.className = `gallery-page-card${idx === currentPageIndex ? ' active-page-card' : ''}`;
-
-      const lines = getLinesFromPageText(pageContent);
-      const nonEmptyCount = lines.filter(l => l.trim().length > 0).length;
-      const charCount = pageContent.length;
-
-      // Header
-      const header = document.createElement('div');
-      header.className = 'gallery-card-header';
-      header.innerHTML = `
-        <span class="gallery-card-title">
-          Page ${idx + 1}
-          ${idx === currentPageIndex ? '<span class="badge badge-ok">Active</span>' : ''}
-        </span>
-        <span class="gallery-card-meta">${nonEmptyCount}/14 lines • ${charCount}c</span>
-      `;
-      card.appendChild(header);
-
-      // Miniature Parchment Preview
-      const preview = document.createElement('div');
-      preview.className = 'parchment-preview-slot';
-      preview.title = 'Click to open and edit this page';
-      for (let lineIdx = 0; lineIdx < MINECRAFT_LINES_PER_PAGE; lineIdx++) {
-        preview.appendChild(renderFormattedMiniLine(lines[lineIdx] ?? ''));
-      }
-      preview.addEventListener('click', () => {
-        saveCurrentPageToBook();
-        loadPageIntoEditor(idx);
-        viewer?.setPage(idx);
-        galleryDialog.close();
-      });
-      card.appendChild(preview);
-
-      // Actions Footer
-      const actions = document.createElement('div');
-      actions.className = 'gallery-card-actions';
-
-      const leftGroup = document.createElement('div');
-      leftGroup.className = 'card-btn-group';
-
-      const editBtn = document.createElement('button');
-      editBtn.type = 'button';
-      editBtn.className = 'btn-card-action btn-card-primary';
-      editBtn.textContent = '✏️ Edit';
-      editBtn.title = 'Edit this page';
-      editBtn.addEventListener('click', () => {
-        saveCurrentPageToBook();
-        loadPageIntoEditor(idx);
-        viewer?.setPage(idx);
-        galleryDialog.close();
-      });
-
-      const dupBtn = document.createElement('button');
-      dupBtn.type = 'button';
-      dupBtn.className = 'btn-card-action';
-      dupBtn.textContent = '⎘ Dup';
-      dupBtn.title = 'Duplicate this page';
-      dupBtn.addEventListener('click', () => {
-        if (book.pages.length >= MINECRAFT_MAX_PAGES) {
-          showToast(`Maximum ${MINECRAFT_MAX_PAGES} pages reached`, 'warn');
-          return;
-        }
-        pushUndoSnapshot();
-        saveCurrentPageToBook();
-        book.pages.splice(idx + 1, 0, book.pages[idx] ?? '');
-        loadPageIntoEditor(idx + 1);
-        syncViewerToBook();
-        viewer?.setPage(idx + 1);
-        renderGalleryPages();
-        updateGalleryCounts();
-        showToast(`Duplicated to Page ${idx + 2}`, 'success');
-      });
-
-      const saveBtn = document.createElement('button');
-      saveBtn.type = 'button';
-      saveBtn.className = 'btn-card-action';
-      saveBtn.textContent = '💾 Save';
-      saveBtn.title = 'Save this page layout to library';
-      saveBtn.addEventListener('click', () => {
-        switchGalleryTab('save');
-        saveItemTitle.value = `${book.title || 'Book'} - Page ${idx + 1}`;
-        const radioPage = document.querySelector<HTMLInputElement>('input[name="save-scope"][value="page"]');
-        if (radioPage) radioPage.checked = true;
-        updateSavePreview(getLinesFromPageText(book.pages[idx] ?? ''));
-      });
-
-      const copyBtn = document.createElement('button');
-      copyBtn.type = 'button';
-      copyBtn.className = 'btn-card-action';
-      copyBtn.textContent = '📋 Copy';
-      copyBtn.title = 'Copy this page to clipboard for Minecraft paste';
-      copyBtn.addEventListener('click', async () => {
-        const pageText = book.pages[idx] ?? '';
-        const lines = getLinesFromPageText(pageText);
-        const text = formatPageForClipboard(lines, 'raw', { title: book.title, author: book.author });
-        if (!text) {
-          showToast(`Page ${idx + 1} is empty`, 'info');
-          return;
-        }
-        const ok = await writeTextToClipboard(text);
-        if (ok) {
-          copyBtn.textContent = '✓ Copied';
-          setTimeout(() => { copyBtn.textContent = '📋 Copy'; }, 1500);
-          showToast(`Copied Page ${idx + 1} to clipboard! Paste directly into Book & Quill (Ctrl+V)`, 'success');
-        } else {
-          showToast('Failed to copy to clipboard', 'warn');
-        }
-      });
-
-      leftGroup.appendChild(editBtn);
-      leftGroup.appendChild(dupBtn);
-      leftGroup.appendChild(saveBtn);
-      leftGroup.appendChild(copyBtn);
-
-      const rightGroup = document.createElement('div');
-      rightGroup.className = 'card-btn-group';
-
-      if (idx > 0) {
-        const moveLeftBtn = document.createElement('button');
-        moveLeftBtn.type = 'button';
-        moveLeftBtn.className = 'btn-card-action';
-        moveLeftBtn.textContent = '◀';
-        moveLeftBtn.title = 'Move page earlier';
-        moveLeftBtn.addEventListener('click', () => {
-          pushUndoSnapshot();
-          saveCurrentPageToBook();
-          const tmp = book.pages[idx];
-          book.pages[idx] = book.pages[idx - 1] ?? '';
-          book.pages[idx - 1] = tmp ?? '';
-          if (currentPageIndex === idx) currentPageIndex = idx - 1;
-          else if (currentPageIndex === idx - 1) currentPageIndex = idx;
-          loadPageIntoEditor(currentPageIndex);
-          syncViewerToBook();
-          viewer?.setPage(currentPageIndex);
-          renderGalleryPages();
-        });
-        rightGroup.appendChild(moveLeftBtn);
-      }
-
-      if (idx < book.pages.length - 1) {
-        const moveRightBtn = document.createElement('button');
-        moveRightBtn.type = 'button';
-        moveRightBtn.className = 'btn-card-action';
-        moveRightBtn.textContent = '▶';
-        moveRightBtn.title = 'Move page later';
-        moveRightBtn.addEventListener('click', () => {
-          pushUndoSnapshot();
-          saveCurrentPageToBook();
-          const tmp = book.pages[idx];
-          book.pages[idx] = book.pages[idx + 1] ?? '';
-          book.pages[idx + 1] = tmp ?? '';
-          if (currentPageIndex === idx) currentPageIndex = idx + 1;
-          else if (currentPageIndex === idx + 1) currentPageIndex = idx;
-          loadPageIntoEditor(currentPageIndex);
-          syncViewerToBook();
-          viewer?.setPage(currentPageIndex);
-          renderGalleryPages();
-        });
-        rightGroup.appendChild(moveRightBtn);
-      }
-
-      const delBtn = document.createElement('button');
-      delBtn.type = 'button';
-      delBtn.className = 'btn-card-action btn-card-danger';
-      delBtn.textContent = '🗑';
-      delBtn.title = 'Delete this page';
-      delBtn.addEventListener('click', () => {
-        pushUndoSnapshot();
-        if (book.pages.length <= 1) {
-          book.pages[0] = '';
-          loadPageIntoEditor(0);
-          syncViewerToBook();
-          renderGalleryPages();
-          updateGalleryCounts();
-          showToast('Cleared Page 1', 'info');
-          return;
-        }
-        book.pages.splice(idx, 1);
-        const newIdx = Math.min(currentPageIndex >= idx ? Math.max(0, currentPageIndex - 1) : currentPageIndex, book.pages.length - 1);
-        loadPageIntoEditor(newIdx);
-        syncViewerToBook();
-        viewer?.setPage(newIdx);
-        renderGalleryPages();
-        updateGalleryCounts();
-        showToast(`Deleted Page ${idx + 1}`, 'info');
-      });
-      rightGroup.appendChild(delBtn);
-
-      actions.appendChild(leftGroup);
-      actions.appendChild(rightGroup);
-      card.appendChild(actions);
-
-      galleryPagesGrid.appendChild(card);
-    });
-  }
-
-  function renderGalleryLibrary(): void {
-    if (!galleryTemplatesGrid) return;
-    galleryTemplatesGrid.innerHTML = '';
-
-    const hiddenIds = getHiddenPresetIds();
-    const filtered = savedTemplates.filter(t => {
-      if (t.isPreset && hiddenIds.has(t.id)) return false;
-      if (activeLibraryFilter === 'page') return t.scope === 'page';
-      if (activeLibraryFilter === 'lines') return t.scope === 'lines';
-      if (activeLibraryFilter === 'preset') return t.isPreset;
-      if (activeLibraryFilter === 'custom') return !t.isPreset;
-      return true;
-    });
-
-    if (filtered.length === 0) {
-      const emptyMsg = document.createElement('div');
-      emptyMsg.className = 'gallery-empty-state';
-      emptyMsg.style.gridColumn = '1 / -1';
-      emptyMsg.style.padding = '24px';
-      emptyMsg.style.textAlign = 'center';
-      emptyMsg.style.color = '#888888';
-      emptyMsg.style.fontFamily = 'var(--font-mono)';
-      emptyMsg.innerHTML = `
-        <p>No templates found for filter "<b>${activeLibraryFilter}</b>".</p>
-        <button type="button" class="btn btn-xs btn-primary" id="btn-empty-save-current" style="margin-top: 8px;">+ Save Current Page or Lines</button>
-      `;
-      galleryTemplatesGrid.appendChild(emptyMsg);
-      document.getElementById('btn-empty-save-current')?.addEventListener('click', () => switchGalleryTab('save'));
-      return;
-    }
-
-    filtered.forEach((tpl) => {
-      const card = document.createElement('div');
-      card.className = 'gallery-template-card';
-
-      // Header
-      const header = document.createElement('div');
-      header.className = 'gallery-card-header';
-      header.innerHTML = `
-        <span class="gallery-card-title">${tpl.title}</span>
-        <span class="badge ${tpl.scope === 'page' ? 'badge-ok' : ''}">${tpl.scope === 'page' ? 'PAGE' : 'LINES'} • ${tpl.category}</span>
-      `;
-      card.appendChild(header);
-
-      // Miniature Parchment Preview
-      const preview = document.createElement('div');
-      preview.className = 'parchment-preview-slot';
-      preview.title = tpl.scope === 'page' ? 'Apply template to page' : 'Insert lines into current page';
-      const maxRows = Math.min(tpl.lines.length, MINECRAFT_LINES_PER_PAGE);
-      for (let r = 0; r < maxRows; r++) {
-        preview.appendChild(renderFormattedMiniLine(tpl.lines[r] ?? ''));
-      }
-      preview.addEventListener('click', () => {
-        applyTemplate(tpl);
-      });
-      card.appendChild(preview);
-
-      // Actions Footer
-      const actions = document.createElement('div');
-      actions.className = 'gallery-card-actions';
-
-      const leftGroup = document.createElement('div');
-      leftGroup.className = 'card-btn-group';
-
-      const applyBtn = document.createElement('button');
-      applyBtn.type = 'button';
-      applyBtn.className = 'btn-card-action btn-card-primary';
-      applyBtn.textContent = tpl.scope === 'page' ? 'Apply Page' : 'Insert Lines';
-      applyBtn.title = tpl.scope === 'page' ? 'Replace current page with this layout' : 'Insert lines starting at active row';
-      applyBtn.addEventListener('click', () => applyTemplate(tpl));
-
-      const newPageBtn = document.createElement('button');
-      newPageBtn.type = 'button';
-      newPageBtn.className = 'btn-card-action';
-      newPageBtn.textContent = '+ New Page';
-      newPageBtn.title = 'Insert as a new page in book';
-      newPageBtn.addEventListener('click', () => {
-        if (book.pages.length >= MINECRAFT_MAX_PAGES) {
-          showToast(`Maximum ${MINECRAFT_MAX_PAGES} pages reached`, 'warn');
-          return;
-        }
-        pushUndoSnapshot();
-        saveCurrentPageToBook();
-        const pageText = tpl.lines.join('\n');
-        book.pages.splice(currentPageIndex + 1, 0, pageText);
-        loadPageIntoEditor(currentPageIndex + 1);
-        syncViewerToBook();
-        viewer?.setPage(currentPageIndex);
-        updateGalleryCounts();
-        galleryDialog.close();
-        showToast(`Inserted "${tpl.title}" as Page ${currentPageIndex + 1}`, 'success');
-      });
-
-      leftGroup.appendChild(applyBtn);
-      leftGroup.appendChild(newPageBtn);
-
-      const rightGroup = document.createElement('div');
-      rightGroup.className = 'card-btn-group';
-
-      const dupBtn = document.createElement('button');
-      dupBtn.type = 'button';
-      dupBtn.className = 'btn-card-action';
-      dupBtn.textContent = '⎘';
-      dupBtn.title = 'Duplicate this saved template';
-      dupBtn.addEventListener('click', () => {
-        const copy: SavedTemplate = {
-          ...tpl,
-          id: `custom-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-          title: `${tpl.title} (Copy)`,
-          createdAt: Date.now(),
-          isPreset: false,
-        };
-        savedTemplates.push(copy);
-        saveUserTemplates(savedTemplates);
-        renderGalleryLibrary();
-        updateGalleryCounts();
-        showToast(`Duplicated "${copy.title}"`, 'success');
-      });
-      rightGroup.appendChild(dupBtn);
-
-      if (!tpl.isPreset) {
-        const delBtn = document.createElement('button');
-        delBtn.type = 'button';
-        delBtn.className = 'btn-card-action btn-card-danger';
-        delBtn.textContent = '🗑';
-        delBtn.title = 'Delete saved template';
-        delBtn.addEventListener('click', () => {
-          savedTemplates = savedTemplates.filter(t => t.id !== tpl.id);
-          saveUserTemplates(savedTemplates);
-          renderGalleryLibrary();
-          renderDeckPastes();
-          updateGalleryCounts();
-          showToast(`Deleted "${tpl.title}"`, 'info');
-        });
-        rightGroup.appendChild(delBtn);
-      } else {
-        const hideBtn = document.createElement('button');
-        hideBtn.type = 'button';
-        hideBtn.className = 'btn-card-action';
-        hideBtn.textContent = '✕';
-        hideBtn.title = 'Hide built-in preset (can restore with Reset Presets)';
-        hideBtn.addEventListener('click', () => {
-          const ids = getHiddenPresetIds();
-          ids.add(tpl.id);
-          saveHiddenPresetIds(ids);
-          renderGalleryLibrary();
-          renderDeckPastes();
-          showToast(`Hidden "${tpl.title}"`, 'info');
-        });
-        rightGroup.appendChild(hideBtn);
-      }
-
-      actions.appendChild(leftGroup);
-      actions.appendChild(rightGroup);
-      card.appendChild(actions);
-
-      galleryTemplatesGrid.appendChild(card);
-    });
-  }
 
   function applyTemplate(tpl: SavedTemplate): void {
     pushUndoSnapshot();
@@ -2883,7 +2803,6 @@ function wireEvents(): void {
         if (lineInputEls[i]) lineInputEls[i].value = currentLines[i] ?? '';
       }
       updateAll(true);
-      galleryDialog.close();
       showToast(`Applied "${tpl.title}" to Page ${currentPageIndex + 1}`, 'success');
     } else {
       const startRow = Math.max(0, Math.min(activeLineIndex, MINECRAFT_LINES_PER_PAGE - 1));
@@ -2895,229 +2814,87 @@ function wireEvents(): void {
         if (lineInputEls[i]) lineInputEls[i].value = currentLines[i] ?? '';
       }
       updateAll(true);
-      galleryDialog.close();
       showToast(`Inserted ${tpl.lines.length} lines from "${tpl.title}"`, 'success');
     }
   }
 
-  function getLinesToSave(scope: 'page' | 'current-line' | 'non-empty'): string[] {
-    if (scope === 'current-line') {
-      const row = Math.max(0, Math.min(activeLineIndex, MINECRAFT_LINES_PER_PAGE - 1));
-      return [currentLines[row] ?? ''];
-    }
-    if (scope === 'non-empty') {
-      const filtered = currentLines.filter(l => l.trim().length > 0);
-      return filtered.length > 0 ? filtered : [''];
-    }
-    // scope === 'page'
-    return [...currentLines];
-  }
+  btnOpenHistory?.addEventListener('click', () => openHistory());
 
-  function updateSavePreview(customLines?: string[]): void {
-    if (!gallerySavePreview) return;
-    gallerySavePreview.innerHTML = '';
-    const scopeRadio = document.querySelector<HTMLInputElement>('input[name="save-scope"]:checked');
-    const scope = (scopeRadio?.value as 'page' | 'current-line' | 'non-empty') || 'page';
-    const lines = customLines ?? getLinesToSave(scope);
-
-    lines.forEach(l => {
-      gallerySavePreview.appendChild(renderFormattedMiniLine(l));
-    });
-  }
-
-  function setupGallerySaveForm(): void {
-    const scopeRadio = document.querySelector<HTMLInputElement>('input[name="save-scope"]:checked');
-    const scope = (scopeRadio?.value as 'page' | 'current-line' | 'non-empty') || 'page';
-
-    if (saveItemTitle) {
-      if (scope === 'current-line') {
-        const text = stripFormatting(currentLines[activeLineIndex] || '').trim();
-        saveItemTitle.value = text ? `Line ${activeLineIndex + 1}: ${text.slice(0, 16)}` : `Line ${activeLineIndex + 1} Snippet`;
-      } else {
-        saveItemTitle.value = `${book.title || 'Book'} - Page ${currentPageIndex + 1}`;
-      }
-    }
-    const currentLineLabel = document.getElementById('save-scope-current-line-label');
-    if (currentLineLabel) {
-      currentLineLabel.textContent = `Active Line (Line ${activeLineIndex + 1})`;
-    }
-    updateSavePreview();
-  }
-
-  const btnGalleryRestoreDefaults = document.getElementById('btn-gallery-restore-defaults');
-  btnGalleryRestoreDefaults?.addEventListener('click', () => {
-    saveHiddenPresetIds(new Set());
-    renderGalleryLibrary();
-    renderDeckPastes();
-    showToast('Restored all default presets', 'success');
+  btnSaveSnapshot?.addEventListener('click', () => {
+    createHistorySnapshot('manual');
+    soundManager.playButtonClick();
+    showToast(`Page ${currentPageIndex + 1} snapshot saved to History!`, 'success');
   });
 
-  function switchGalleryTab(tab: 'pages' | 'library' | 'save'): void {
-    activeGalleryTab = tab;
-    if (galleryTabsNav) {
-      galleryTabsNav.querySelectorAll<HTMLButtonElement>('.gallery-tab').forEach(t => {
-        const isActive = t.dataset.tab === tab;
-        t.classList.toggle('active', isActive);
-        t.setAttribute('aria-selected', isActive ? 'true' : 'false');
-      });
-    }
+  btnHistorySaveNow?.addEventListener('click', () => {
+    createHistorySnapshot('manual');
+    renderHistoryTimeline();
+    showToast('Snapshot saved', 'success');
+  });
 
-    if (galleryPanePages) galleryPanePages.style.display = tab === 'pages' ? 'flex' : 'none';
-    if (galleryPaneLibrary) galleryPaneLibrary.style.display = tab === 'library' ? 'flex' : 'none';
-    if (galleryPaneSave) galleryPaneSave.style.display = tab === 'save' ? 'flex' : 'none';
+  btnHistoryClearAutosaves?.addEventListener('click', () => {
+    const remaining = loadHistorySnapshots().filter(s => s.type !== 'autosave');
+    saveHistorySnapshots(remaining);
+    renderHistoryTimeline();
+    showToast('Cleared autosaves from history', 'info');
+  });
 
-    if (tab === 'pages') renderGalleryPages();
-    else if (tab === 'library') renderGalleryLibrary();
-    else if (tab === 'save') setupGallerySaveForm();
-  }
+  btnHistoryClearAll?.addEventListener('click', () => {
+    saveHistorySnapshots([]);
+    renderHistoryTimeline();
+    showToast('History cleared', 'info');
+  });
 
-  function openGallery(initialTab: 'pages' | 'library' | 'save' = 'pages'): void {
-    saveCurrentPageToBook();
-    updateGalleryCounts();
-    switchGalleryTab(initialTab);
-    galleryDialog?.showModal();
-  }
-
-  // Gallery Navigation Buttons
-  btnOpenGallery?.addEventListener('click', () => openGallery('pages'));
-  btnOpenGalleryTool?.addEventListener('click', () => openGallery('pages'));
-  btnSaveGallery?.addEventListener('click', () => openGallery('save'));
-
-  galleryTabsNav?.querySelectorAll<HTMLButtonElement>('.gallery-tab').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const targetTab = btn.dataset.tab as 'pages' | 'library' | 'save';
-      if (targetTab) switchGalleryTab(targetTab);
+  historyTabsNav?.querySelectorAll<HTMLButtonElement>('.history-tab').forEach(tabBtn => {
+    tabBtn.addEventListener('click', () => {
+      historyTabsNav?.querySelectorAll('.history-tab').forEach(t => t.classList.remove('active'));
+      tabBtn.classList.add('active');
+      activeHistoryFilter = (tabBtn.dataset.filter as any) || 'all';
+      renderHistoryTimeline();
     });
   });
 
-  galleryFilterChips?.querySelectorAll<HTMLButtonElement>('.chip').forEach(chip => {
+  // ─── Font Switcher Wiring ───────────────────────────────────────────────
+  function setActiveFont(fontId: string): void {
+    activeFontId = fontId;
+    if (fontSwitcherSelect) fontSwitcherSelect.value = fontId;
+    fontQuickChips?.querySelectorAll('.font-chip').forEach(chip => {
+      chip.classList.toggle('active', chip.getAttribute('data-font') === fontId);
+    });
+    const activeFontBadge = document.getElementById('active-font-badge');
+    if (activeFontBadge) {
+      const selectedOption = fontSwitcherSelect?.querySelector(`option[value="${fontId}"]`) as HTMLOptionElement | null;
+      const label = fontId === 'normal' ? 'Normal' : (selectedOption?.text?.split(' (')[0] || fontId);
+      activeFontBadge.textContent = `Active: ${label}`;
+    }
+    showToast(`Font: ${fontId === 'normal' ? 'Normal' : fontId}`, 'info');
+  }
+
+  fontSwitcherSelect?.addEventListener('change', () => {
+    if (fontSwitcherSelect) setActiveFont(fontSwitcherSelect.value);
+  });
+
+  fontQuickChips?.querySelectorAll<HTMLButtonElement>('.font-chip').forEach(chip => {
     chip.addEventListener('click', () => {
-      galleryFilterChips.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
-      chip.classList.add('active');
-      activeLibraryFilter = (chip.dataset.filter as any) || 'all';
-      renderGalleryLibrary();
+      const fId = chip.dataset.font || 'normal';
+      setActiveFont(fId);
     });
   });
 
-  btnGalleryAddBlank?.addEventListener('click', () => {
-    if (book.pages.length >= MINECRAFT_MAX_PAGES) {
-      showToast(`Maximum ${MINECRAFT_MAX_PAGES} pages reached`, 'warn');
+  btnFontApplySelection?.addEventListener('click', () => {
+    if (activeFontId === 'normal') {
+      showToast('Select a stylized font from the dropdown/chips first', 'info');
       return;
     }
     pushUndoSnapshot();
-    saveCurrentPageToBook();
-    book.pages.push('');
-    loadPageIntoEditor(book.pages.length - 1);
-    syncViewerToBook();
-    viewer?.setPage(currentPageIndex);
-    renderGalleryPages();
-    updateGalleryCounts();
-    showToast(`Added Blank Page ${book.pages.length}`, 'success');
-  });
-
-  btnGalleryDupActive?.addEventListener('click', () => {
-    if (book.pages.length >= MINECRAFT_MAX_PAGES) {
-      showToast(`Maximum ${MINECRAFT_MAX_PAGES} pages reached`, 'warn');
-      return;
+    const targetIndices = selectedLineIndices.size > 0 ? [...selectedLineIndices] : [activeLineIndex];
+    for (const idx of targetIndices) {
+      currentLines[idx] = transformWithFont(currentLines[idx] ?? '', activeFontId);
+      if (lineInputEls[idx]) lineInputEls[idx].value = currentLines[idx];
     }
-    pushUndoSnapshot();
-    saveCurrentPageToBook();
-    const activeText = book.pages[currentPageIndex] ?? '';
-    book.pages.splice(currentPageIndex + 1, 0, activeText);
-    loadPageIntoEditor(currentPageIndex + 1);
-    syncViewerToBook();
-    viewer?.setPage(currentPageIndex);
-    renderGalleryPages();
-    updateGalleryCounts();
-    showToast(`Duplicated Active Page as Page ${currentPageIndex + 1}`, 'success');
-  });
-
-  btnGallerySwitchSave?.addEventListener('click', () => switchGalleryTab('save'));
-
-  btnGalleryExportLib?.addEventListener('click', () => {
-    const userOnly = savedTemplates.filter(t => !t.isPreset);
-    const jsonStr = JSON.stringify(userOnly, null, 2);
-    const blob = new Blob([jsonStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'bookgame_gallery_library.json';
-    a.click();
-    URL.revokeObjectURL(url);
-    showToast(`Exported ${userOnly.length} saved templates`, 'success');
-  });
-
-  btnGalleryImportLib?.addEventListener('click', () => {
-    galleryImportFileInput?.click();
-  });
-
-  galleryImportFileInput?.addEventListener('change', (e) => {
-    const file = (e.target as HTMLInputElement).files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const raw = event.target?.result as string;
-        const imported = JSON.parse(raw);
-        if (Array.isArray(imported)) {
-          let count = 0;
-          imported.forEach((item: any) => {
-            if (item.title && Array.isArray(item.lines)) {
-              savedTemplates.push({
-                id: item.id || `imported-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-                title: item.title,
-                scope: item.scope === 'lines' ? 'lines' : 'page',
-                category: item.category || 'Custom',
-                lines: item.lines,
-                createdAt: item.createdAt || Date.now(),
-                isPreset: false,
-              });
-              count++;
-            }
-          });
-          saveUserTemplates(savedTemplates);
-          renderGalleryLibrary();
-          updateGalleryCounts();
-          showToast(`Imported ${count} template(s) to Library`, 'success');
-        } else {
-          showToast('Invalid gallery library JSON file', 'warn');
-        }
-      } catch {
-        showToast('Failed to parse JSON file', 'warn');
-      }
-    };
-    reader.readAsText(file);
-  });
-
-  document.querySelectorAll<HTMLInputElement>('input[name="save-scope"]').forEach(r => {
-    r.addEventListener('change', () => updateSavePreview());
-  });
-
-  btnCancelSaveGallery?.addEventListener('click', () => switchGalleryTab('library'));
-
-  btnConfirmSaveGallery?.addEventListener('click', () => {
-    const title = saveItemTitle?.value.trim() || `Template ${savedTemplates.length + 1}`;
-    const scopeRadio = document.querySelector<HTMLInputElement>('input[name="save-scope"]:checked');
-    const scope = (scopeRadio?.value as 'page' | 'current-line' | 'non-empty') || 'page';
-    const category = saveItemCategory?.value || 'Custom';
-    const lines = getLinesToSave(scope);
-
-    const newTemplate: SavedTemplate = {
-      id: `custom-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-      title,
-      scope: scope === 'current-line' ? 'lines' : (scope === 'non-empty' ? 'lines' : 'page'),
-      category,
-      lines,
-      createdAt: Date.now(),
-      isPreset: false,
-    };
-
-    savedTemplates.push(newTemplate);
-    saveUserTemplates(savedTemplates);
-    updateGalleryCounts();
-    renderDeckPastes();
-    switchGalleryTab('library');
-    showToast(`Saved "${newTemplate.title}" to Presets Deck and Library`, 'success');
+    updateAll(true);
+    soundManager.playButtonClick();
+    showToast(`Transformed ${targetIndices.length} line(s) with ${activeFontId}`, 'success');
   });
 
   // 9. Matrix Selector & Tools Hub Wire Events
@@ -3258,7 +3035,7 @@ function wireEvents(): void {
       `;
       deckPastesStrip.appendChild(empty);
       document.getElementById('btn-deck-quick-save-hint')?.addEventListener('click', () => {
-        openGallery('save');
+        openHistory();
       });
       return;
     }
@@ -3313,8 +3090,7 @@ function wireEvents(): void {
           hiddenIds.add(preset.id);
           saveHiddenPresetIds(hiddenIds);
           renderDeckPastes();
-          renderGalleryLibrary();
-          showToast(`Hidden "${preset.title}"`, 'info');
+                    showToast(`Hidden "${preset.title}"`, 'info');
         });
         actions.appendChild(hideBtn);
       } else {
@@ -3327,8 +3103,7 @@ function wireEvents(): void {
           savedTemplates = savedTemplates.filter(t => t.id !== preset.id);
           saveUserTemplates(savedTemplates);
           renderDeckPastes();
-          renderGalleryLibrary();
-          updateGalleryCounts();
+                    updateGalleryCounts();
           showToast(`Deleted "${preset.title}"`, 'info');
         });
         actions.appendChild(delBtn);
@@ -3359,12 +3134,27 @@ function wireEvents(): void {
       if (deckToggleText) deckToggleText.textContent = 'Expand Presets';
       btnDeckToggle?.classList.remove('btn-outline');
       btnDeckToggle?.classList.add('btn-primary');
+      if (btnMobilePresets) {
+        btnMobilePresets.classList.remove('active');
+        btnMobilePresets.textContent = '🎨 Presets';
+      }
+      if (btnToolbarPresets) {
+        btnToolbarPresets.classList.remove('active');
+      }
     } else {
       savedArtDeck.classList.remove('collapsed');
-      if (deckToggleIcon) deckToggleIcon.textContent = '▼';
-      if (deckToggleText) deckToggleText.textContent = 'Collapse';
+      if (deckToggleIcon) deckToggleIcon.textContent = '✕';
+      if (deckToggleText) deckToggleText.textContent = 'Close';
       btnDeckToggle?.classList.remove('btn-primary');
       btnDeckToggle?.classList.add('btn-outline');
+      if (btnMobilePresets) {
+        btnMobilePresets.classList.add('active');
+        btnMobilePresets.textContent = '✕ Presets';
+      }
+      if (btnToolbarPresets) {
+        btnToolbarPresets.classList.add('active');
+      }
+      renderDeckPastes();
     }
     try {
       localStorage.setItem('blockgame_art_deck_collapsed', collapsed ? 'true' : 'false');
@@ -3385,6 +3175,16 @@ function wireEvents(): void {
     toggleDeckCollapsed();
   });
 
+  btnMobilePresets?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleDeckCollapsed();
+  });
+
+  btnToolbarPresets?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleDeckCollapsed();
+  });
+
   deckTitleToggle?.addEventListener('click', () => {
     toggleDeckCollapsed();
   });
@@ -3397,21 +3197,17 @@ function wireEvents(): void {
   });
 
   btnDeckSaveRow?.addEventListener('click', () => {
-    openGallery('save');
-    const r = document.querySelector<HTMLInputElement>('input[name="save-scope"][value="current-line"]');
-    if (r) r.checked = true;
-    setupGallerySaveForm();
+    saveLineSnippet(activeLineIndex);
   });
 
   btnDeckSavePage?.addEventListener('click', () => {
-    openGallery('save');
-    const r = document.querySelector<HTMLInputElement>('input[name="save-scope"][value="page"]');
-    if (r) r.checked = true;
-    setupGallerySaveForm();
+    createHistorySnapshot('manual');
+    soundManager.playButtonClick();
+    showToast(`Page ${currentPageIndex + 1} saved to History`, 'success');
   });
 
   btnDeckOpenGallery?.addEventListener('click', () => {
-    openGallery('library');
+    openHistory();
   });
 
   // 9. View Mode Toggle (Single vs Double Spread)

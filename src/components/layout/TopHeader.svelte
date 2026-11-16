@@ -1,5 +1,6 @@
 <script lang="ts">
   import { uiStore } from '../../state/uiStore.svelte';
+  import { glyphStore } from '../../state/glyphStore.svelte';
 </script>
 
 <header class="app-header">
@@ -10,6 +11,15 @@
   </div>
 
   <div class="header-actions">
+    <button
+      type="button"
+      class="btn-header"
+      onclick={() => glyphStore.toggle()}
+      title="Open full Unicode & Minecraft symbol browser (Ctrl+G)"
+    >
+      🔣 Symbols
+    </button>
+
     <button
       type="button"
       class="btn-header"
