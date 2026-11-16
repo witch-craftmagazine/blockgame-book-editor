@@ -148,4 +148,33 @@
     flex: 1.2;
     min-width: 440px;
   }
+
+  @media (max-width: 768px) {
+    .app-root {
+      height: 100dvh;
+    }
+
+    .workspace {
+      flex-direction: column;
+      padding: 0;
+      gap: 0;
+      height: calc(100dvh - 44px);
+    }
+
+    .workspace-column.right {
+      order: 1;
+      flex: 0 0 auto;
+      height: 200px;
+      min-width: 0;
+      width: 100%;
+    }
+
+    .workspace-column.left {
+      order: 2;
+      flex: 1 1 auto;
+      min-width: 0;
+      width: 100%;
+      min-height: 0;
+    }
+  }
 </style>

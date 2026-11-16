@@ -48,6 +48,9 @@ import {
   getFontById,
 } from './data/symbolChatFonts';
 import {
+  normalizeBook,
+} from './utils/bookNormalization';
+import {
   ensureAtlasLoaded,
   renderGlyphToCanvas,
   getCharPixelAdvance,
@@ -74,11 +77,11 @@ interface UndoSnapshot {
   pageIndex: number;
 }
 
-let book: BlockgameBook = {
+let book: BlockgameBook = normalizeBook({
   title: 'My Book',
   author: 'Author',
   pages: ['§6§lWelcome to the Book!§r\n\nEdit this page using the toolbar or type §-codes directly.'],
-};
+});
 
 let currentPageIndex = 0;
 let currentLines: string[] = Array(MINECRAFT_LINES_PER_PAGE).fill('');
@@ -691,6 +694,13 @@ let lineGutterFillEls: HTMLElement[] = [];
 let lineGutterBadgeEls: HTMLElement[] = [];
 let btnToggleEditorMode: HTMLButtonElement;
 
+// Mobile Active Line Deck Elements
+let mobileLineInput: HTMLInputElement | null = null;
+let btnMobilePrevLine: HTMLButtonElement | null = null;
+let btnMobileNextLine: HTMLButtonElement | null = null;
+let mobileLinePill: HTMLElement | null = null;
+let mobileTrafficDot: HTMLElement | null = null;
+
 let metaTitle: HTMLInputElement;
 let metaAuthor: HTMLInputElement;
 let metaTitleCount: HTMLElement;
@@ -800,6 +810,12 @@ function initDOM(): void {
   textarea            = document.getElementById('page-textarea')         as HTMLTextAreaElement;
   bookLinesList       = document.getElementById('book-lines-list')       as HTMLElement;
   btnToggleEditorMode = document.getElementById('btn-toggle-editor-mode') as HTMLButtonElement;
+
+  mobileLineInput     = document.getElementById('mobile-line-input')     as HTMLInputElement | null;
+  btnMobilePrevLine   = document.getElementById('btn-mobile-prev-line')   as HTMLButtonElement | null;
+  btnMobileNextLine   = document.getElementById('btn-mobile-next-line')   as HTMLButtonElement | null;
+  mobileLinePill      = document.getElementById('mobile-line-pill');
+  mobileTrafficDot    = document.getElementById('mobile-traffic-dot');
 
   metaTitle           = document.getElementById('meta-title')            as HTMLInputElement;
   metaAuthor          = document.getElementById('meta-author')           as HTMLInputElement;
@@ -1277,7 +1293,8 @@ function insertAtCursor(text: string): void {
     return;
   }
 
-  const input = lineInputEls[activeLineIndex];
+  const isMobileActive = mobileLineInput && (document.activeElement === mobileLineInput || (window.innerWidth <= 768 && document.activeElement !== lineInputEls[activeLineIndex]));
+  const input = (isMobileActive ? mobileLineInput : lineInputEls[activeLineIndex]) || mobileLineInput || lineInputEls[activeLineIndex];
   if (!input) return;
 
   const start = input.selectionStart ?? input.value.length;
@@ -1285,7 +1302,8 @@ function insertAtCursor(text: string): void {
   const currentVal = currentLines[activeLineIndex] ?? '';
 
   currentLines[activeLineIndex] = currentVal.slice(0, start) + text + currentVal.slice(end);
-  input.value = currentLines[activeLineIndex];
+  if (lineInputEls[activeLineIndex]) lineInputEls[activeLineIndex].value = currentLines[activeLineIndex];
+  if (mobileLineInput) mobileLineInput.value = currentLines[activeLineIndex];
   const pos = start + text.length;
   input.setSelectionRange(pos, pos);
   input.focus();
@@ -1317,7 +1335,8 @@ function applyFormatting(code: string): void {
     return;
   }
 
-  const input = lineInputEls[activeLineIndex];
+  const isMobileActive = mobileLineInput && (document.activeElement === mobileLineInput || (window.innerWidth <= 768 && document.activeElement !== lineInputEls[activeLineIndex]));
+  const input = (isMobileActive ? mobileLineInput : lineInputEls[activeLineIndex]) || mobileLineInput || lineInputEls[activeLineIndex];
   if (!input) return;
 
   const start = input.selectionStart ?? input.value.length;
@@ -1332,9 +1351,11 @@ function applyFormatting(code: string): void {
   const selectedText = currentVal.slice(start, end);
   const replacement = code === '§r' ? `${selectedText}§r` : `${code}${selectedText}§r`;
   currentLines[activeLineIndex] = currentVal.slice(0, start) + replacement + currentVal.slice(end);
-  input.value = currentLines[activeLineIndex];
+  if (lineInputEls[activeLineIndex]) lineInputEls[activeLineIndex].value = currentLines[activeLineIndex];
+  if (mobileLineInput) mobileLineInput.value = currentLines[activeLineIndex];
   const pos = start + replacement.length;
   input.setSelectionRange(pos, pos);
+  input.focus();
   input.focus();
 
   handleLineAutoWrap(activeLineIndex);
@@ -1457,7 +1478,8 @@ function restoreAutosave(): boolean {
     if (!raw) return false;
     const parsed = JSON.parse(raw);
     if (parsed && parsed.book && Array.isArray(parsed.book.pages) && parsed.book.pages.length > 0) {
-      book = parsed.book;
+      const targetWidth = engine === 'bedrock' ? BEDROCK_BOOK_TEXT_WIDTH : BOOK_TEXT_WIDTH;
+      book = normalizeBook(parsed.book, { maxWidth: targetWidth });
       currentPageIndex = Math.max(0, Math.min(parsed.currentPageIndex || 0, book.pages.length - 1));
       return true;
     }
@@ -1612,6 +1634,21 @@ function updateGutterAndStats(): void {
 
   metaTitleCount.textContent = `${metaTitle.value.length}/32`;
   metaAuthorCount.textContent = `${metaAuthor.value.length}/16`;
+
+  // Mobile Active Line Deck & Traffic Light Dot Sync
+  if (mobileLineInput && document.activeElement !== mobileLineInput) {
+    mobileLineInput.value = currentLines[activeLineIndex] ?? '';
+    mobileLineInput.placeholder = `Type line ${activeLineIndex + 1} text…`;
+  }
+  if (mobileLinePill) {
+    mobileLinePill.textContent = `Line ${activeLineIndex + 1} / ${MINECRAFT_LINES_PER_PAGE}`;
+  }
+  if (mobileTrafficDot) {
+    const isOver = activeW > mw;
+    const isWarn = activeW >= Math.floor(mw * 0.9) && !isOver;
+    mobileTrafficDot.className = `mobile-traffic-dot ${isOver ? 'dot-overflow' : isWarn ? 'dot-warn' : 'dot-ok'}`;
+    mobileTrafficDot.title = `Line ${activeLineIndex + 1}: ${activeW} / ${mw} px`;
+  }
 }
 
 // ─── Master Update ────────────────────────────────────────────────────────────
@@ -2108,6 +2145,71 @@ function renderExportFormats(): void {
 // ─── Event Wiring ─────────────────────────────────────────────────────────────
 
 function wireEvents(): void {
+  // Mobile Active Line Stepper & Input Events
+  if (mobileLineInput) {
+    mobileLineInput.addEventListener('input', () => {
+      const prevVal = currentLines[activeLineIndex];
+      currentLines[activeLineIndex] = mobileLineInput!.value;
+
+      if (lineInputEls[activeLineIndex]) {
+        lineInputEls[activeLineIndex].value = mobileLineInput!.value;
+      }
+
+      const totalChars = getTotalPageChars(currentLines);
+      if (totalChars > MINECRAFT_PAGE_MAX_CHARS) {
+        currentLines[activeLineIndex] = prevVal;
+        mobileLineInput!.value = prevVal;
+        if (lineInputEls[activeLineIndex]) lineInputEls[activeLineIndex].value = prevVal;
+        showToast(`Minecraft character limit reached (${MINECRAFT_PAGE_MAX_CHARS} max per page)`, 'warn');
+        updateAll();
+        return;
+      }
+
+      handleLineAutoWrap(activeLineIndex);
+      pushUndoSnapshot();
+      updateAll();
+    });
+
+    mobileLineInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (activeLineIndex < MINECRAFT_LINES_PER_PAGE - 1) {
+          activeLineIndex++;
+          updateActiveRowClass();
+          updateGutterAndStats();
+          if (mobileLineInput) {
+            mobileLineInput.value = currentLines[activeLineIndex] ?? '';
+            mobileLineInput.focus();
+          }
+        }
+      }
+    });
+  }
+
+  btnMobilePrevLine?.addEventListener('click', () => {
+    if (activeLineIndex > 0) {
+      activeLineIndex--;
+      updateActiveRowClass();
+      updateGutterAndStats();
+      if (mobileLineInput) {
+        mobileLineInput.value = currentLines[activeLineIndex] ?? '';
+        mobileLineInput.focus();
+      }
+    }
+  });
+
+  btnMobileNextLine?.addEventListener('click', () => {
+    if (activeLineIndex < MINECRAFT_LINES_PER_PAGE - 1) {
+      activeLineIndex++;
+      updateActiveRowClass();
+      updateGutterAndStats();
+      if (mobileLineInput) {
+        mobileLineInput.value = currentLines[activeLineIndex] ?? '';
+        mobileLineInput.focus();
+      }
+    }
+  });
+
   // 1. Mode Toggle (14 Lines vs Raw Textarea)
   if (btnToggleEditorMode) {
     btnToggleEditorMode.addEventListener('click', () => {
@@ -3403,8 +3505,10 @@ function wireEvents(): void {
     if (!raw) return;
     const parsed = parseBook(raw);
     if (parsed) {
+      const targetWidth = engine === 'bedrock' ? BEDROCK_BOOK_TEXT_WIDTH : BOOK_TEXT_WIDTH;
+      const normalized = normalizeBook(parsed, { maxWidth: targetWidth });
       pushUndoSnapshot();
-      book = parsed;
+      book = normalized;
       metaTitle.value = book.title;
       metaAuthor.value = book.author;
       currentPageIndex = 0;

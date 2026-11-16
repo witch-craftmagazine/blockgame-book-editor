@@ -7,7 +7,9 @@ import {
   parseFormattedText,
   measureLineWidth,
   centerLineText,
+  type BlockgameBook,
 } from 'blockgame-book-viewer';
+import { normalizeBook } from '../utils/bookNormalization';
 
 export interface BookState {
   title: string;
@@ -27,11 +29,11 @@ const MAX_UNDO = 40;
 
 export function createBookStore() {
   // Load initial book from localStorage if available
-  let initialBook: BookState = {
+  let initialBook: BookState = normalizeBook({
     title: 'Untitled Book',
     author: 'Author',
-    pages: [''],
-  };
+    pages: ['§6§lWelcome to the Book!§r\n\nEdit this page using the toolbar or type §-codes directly.'],
+  });
 
   if (typeof localStorage !== 'undefined') {
     try {
@@ -39,10 +41,15 @@ export function createBookStore() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed.pages) && parsed.pages.length > 0) {
-          initialBook = {
+          const normalized = normalizeBook({
             title: parsed.title || 'Untitled Book',
             author: parsed.author || 'Author',
             pages: parsed.pages,
+          });
+          initialBook = {
+            title: normalized.title,
+            author: normalized.author,
+            pages: normalized.pages,
           };
         }
       }
@@ -240,6 +247,17 @@ export function createBookStore() {
     saveToLocalStorage();
   }
 
+  function loadBook(newBook: BlockgameBook, targetWidth = BOOK_TEXT_WIDTH) {
+    takeSnapshot();
+    const normalized = normalizeBook(newBook, { maxWidth: targetWidth });
+    title = normalized.title;
+    author = normalized.author;
+    pages = [...normalized.pages];
+    currentPageIndex = 0;
+    activeLineIndex = 0;
+    saveToLocalStorage();
+  }
+
   return {
     get title() { return title; },
     set title(v: string) { title = v; saveToLocalStorage(); },
@@ -272,6 +290,7 @@ export function createBookStore() {
     deleteCurrentPage,
     undo,
     redo,
+    loadBook,
     takeSnapshot,
   };
 }

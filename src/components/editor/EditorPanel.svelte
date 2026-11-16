@@ -56,6 +56,59 @@
 
   <FormattingBar />
 
+  <!-- Mobile Focused Line Deck with Traffic Light Dot Indicator -->
+  <div class="mobile-line-deck">
+    <div class="mobile-line-header">
+      <div class="mobile-line-nav">
+        <button
+          type="button"
+          class="stepper-btn"
+          disabled={bookStore.activeLineIndex <= 0}
+          onclick={() => { bookStore.activeLineIndex = Math.max(0, bookStore.activeLineIndex - 1); }}
+        >▲</button>
+        <span class="mobile-line-pill">Line {bookStore.activeLineIndex + 1} / 14</span>
+        <button
+          type="button"
+          class="stepper-btn"
+          disabled={bookStore.activeLineIndex >= 13}
+          onclick={() => { bookStore.activeLineIndex = Math.min(13, bookStore.activeLineIndex + 1); }}
+        >▼</button>
+      </div>
+      <div class="mobile-traffic-dot-wrap" title="Width traffic light indicator">
+        {#if bookStore.lineMetrics[bookStore.activeLineIndex]}
+          {@const activeMetric = bookStore.lineMetrics[bookStore.activeLineIndex]!}
+          {@const isOver = activeMetric.isOverWidth}
+          {@const isWarn = activeMetric.width >= 102 && !isOver}
+          <span
+            class="mobile-traffic-dot"
+            class:dot-ok={!isOver && !isWarn}
+            class:dot-warn={isWarn}
+            class:dot-overflow={isOver}
+          ></span>
+        {/if}
+      </div>
+    </div>
+    <div class="mobile-line-input-wrap">
+      <input
+        type="text"
+        class="mobile-line-input"
+        placeholder="Type line {bookStore.activeLineIndex + 1} text…"
+        value={bookStore.currentLines[bookStore.activeLineIndex] ?? ''}
+        oninput={(e) => handleLineInput(bookStore.activeLineIndex, e)}
+        onkeydown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            if (bookStore.activeLineIndex < 13) bookStore.activeLineIndex++;
+          }
+        }}
+        onclick={handleLineCursorChange}
+        onkeyup={handleLineCursorChange}
+        spellcheck="false"
+        autocomplete="off"
+      />
+    </div>
+  </div>
+
   <div class="lines-container" role="region" aria-label="Minecraft 14-Line Editor">
     {#each bookStore.lineMetrics as metric, idx}
       <div class="line-row" class:active={bookStore.activeLineIndex === idx}>
@@ -300,5 +353,112 @@
   .btn-tool:disabled {
     opacity: 0.4;
     cursor: not-allowed;
+  }
+
+  .mobile-line-deck {
+    display: none;
+  }
+
+  @media (max-width: 768px) {
+    .lines-container {
+      display: none !important;
+    }
+
+    .meta-inputs {
+      display: none !important;
+    }
+
+    .editor-footer {
+      display: none !important;
+    }
+
+    .mobile-line-deck {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 8px 10px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      margin-bottom: 6px;
+    }
+
+    .mobile-line-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .mobile-line-nav {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .stepper-btn {
+      background: var(--btn-bg);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      border-radius: 4px;
+      padding: 2px 8px;
+      cursor: pointer;
+    }
+
+    .mobile-line-pill {
+      font-family: monospace;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--accent);
+      background: var(--bg-toolbar);
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+
+    .mobile-traffic-dot-wrap {
+      display: flex;
+      align-items: center;
+      padding-right: 4px;
+    }
+
+    .mobile-traffic-dot {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      transition: background-color 0.2s, box-shadow 0.2s;
+    }
+
+    .mobile-traffic-dot.dot-ok {
+      background-color: #55ff55;
+      box-shadow: 0 0 6px rgba(85, 255, 85, 0.6);
+    }
+
+    .mobile-traffic-dot.dot-warn {
+      background-color: #ffaa00;
+      box-shadow: 0 0 6px rgba(255, 170, 0, 0.6);
+    }
+
+    .mobile-traffic-dot.dot-overflow {
+      background-color: #ff5555;
+      box-shadow: 0 0 8px rgba(255, 85, 85, 0.8);
+    }
+
+    .mobile-line-input {
+      width: 100%;
+      box-sizing: border-box;
+      height: 38px;
+      padding: 6px 10px;
+      font-family: 'Minecraft', monospace;
+      font-size: 14px;
+      background: var(--bg-root);
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      outline: none;
+    }
+
+    .mobile-line-input:focus {
+      border-color: var(--accent);
+    }
   }
 </style>

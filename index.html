@@ -2,7 +2,7 @@
 <html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content" />
     <title>Blockgame Book Studio</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📖</text></svg>" />
     <link rel="stylesheet" href="/src/editor.css" />
@@ -146,11 +146,11 @@
             <span class="toolbar-sep"></span>
             <div class="btn-group">
               <button class="tag-btn tag-newline" data-code="\n" title="Insert Newline (↵)">↵</button>
-              <button id="btn-center-line" class="tag-btn tag-util" title="Center text on current line using spaces">≡ Center</button>
-              <button id="btn-fill-margin" class="tag-btn tag-util" title="Fill current line to right margin with spaces">⇤⇥ Margin</button>
-              <button id="btn-dedup-codes" class="tag-btn tag-util" title="Clean duplicate formatting codes without removing intentional line resets">🧹 Clean</button>
+              <button id="btn-center-line" class="tag-btn tag-util" title="Center text on current line using spaces">≡<span class="btn-text"> Center</span></button>
+              <button id="btn-fill-margin" class="tag-btn tag-util" title="Fill current line to right margin with spaces">⇤⇥<span class="btn-text"> Margin</span></button>
+              <button id="btn-dedup-codes" class="tag-btn tag-util" title="Clean duplicate formatting codes without removing intentional line resets">🧹<span class="btn-text"> Clean</span></button>
               <div class="copy-page-wrapper" id="copy-page-wrapper">
-                <button id="btn-copy-page" class="tag-btn tag-util" title="Copy current page to clipboard (Ctrl+Shift+C) • Paste directly into Book &amp; Quill">📋 Copy Page</button>
+                <button id="btn-copy-page" class="tag-btn tag-util" title="Copy current page to clipboard (Ctrl+Shift+C) • Paste directly into Book &amp; Quill">📋<span class="btn-text"> Copy Page</span></button>
                 <button id="btn-copy-page-opts" class="tag-btn tag-util copy-opts-btn" title="More copy formats (/give command, &amp; codes, plain text)">▾</button>
                 <div id="copy-page-menu" class="copy-options-menu" style="display: none;">
                   <button type="button" class="copy-option-item" data-format="raw">
@@ -183,14 +183,38 @@
                   </button>
                 </div>
               </div>
-              <button id="btn-clear-page" class="tag-btn tag-util btn-danger-tag" title="Clear all text on current page (Ctrl+Z to Undo)">🗑 Clear Page</button>
-              <button id="btn-save-gallery" class="tag-btn tag-util" title="Save current page or active lines to Gallery">💾 Save</button>
+              <button id="btn-clear-page" class="tag-btn tag-util btn-danger-tag" title="Clear all text on current page (Ctrl+Z to Undo)">🗑<span class="btn-text"> Clear Page</span></button>
+              <button id="btn-save-gallery" class="tag-btn tag-util" title="Save current page or active lines to Gallery">💾<span class="btn-text"> Save</span></button>
             </div>
           </div>
         </div>
 
         <!-- Integrated Editor with 14 Minecraft Book Lines -->
         <div class="editor-workspace" id="editor-workspace">
+          <!-- Mobile Focused Line Deck with Traffic Light Dot Indicator -->
+          <div class="mobile-line-deck" id="mobile-line-deck">
+            <div class="mobile-line-header">
+              <div class="mobile-line-nav">
+                <button type="button" id="btn-mobile-prev-line" class="btn btn-xs btn-outline" title="Previous line">▲</button>
+                <span class="mobile-line-pill" id="mobile-line-pill">Line 1 / 14</span>
+                <button type="button" id="btn-mobile-next-line" class="btn btn-xs btn-outline" title="Next line">▼</button>
+              </div>
+              <div class="mobile-line-indicator" title="Line width traffic light (green: fits, amber: near 114px, red: over 114px)">
+                <span class="mobile-traffic-dot dot-ok" id="mobile-traffic-dot"></span>
+              </div>
+            </div>
+            <div class="mobile-line-input-wrap">
+              <input
+                type="text"
+                id="mobile-line-input"
+                class="mobile-line-input"
+                placeholder="Type line 1 text…"
+                autocomplete="off"
+                spellcheck="false"
+              />
+            </div>
+          </div>
+
           <!-- 14-Line Structured Minecraft Book Lines List -->
           <div class="book-lines-list" id="book-lines-list" role="region" aria-label="14 Book Page Lines">
             <!-- Dynamically populated with exactly 14 line rows by editor.ts -->

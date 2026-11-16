@@ -2388,6 +2388,11 @@ body {
   margin-top: 6px;
 }
 
+/* ─── Mobile Line Deck Base (Hidden on Desktop) ────────────────────────────── */
+.mobile-line-deck {
+  display: none;
+}
+
 /* ─── Responsive Adjustments ────────────────────────────────────────────────── */
 @media (max-width: 960px) {
   .app-layout {
@@ -2406,6 +2411,287 @@ body {
 
   .deck-subtitle {
     display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  /* 1. App Layout: Full dynamic viewport height with pinned preview on top */
+  .app-layout {
+    display: flex;
+    flex-direction: column;
+    height: calc(100dvh - 44px);
+    overflow: hidden;
+    padding: 0;
+    gap: 0;
+  }
+
+  /* 2. Top Pinned Book Preview */
+  .panel-preview {
+    order: 1;
+    flex: 0 0 auto;
+    height: 200px;
+    max-height: 210px;
+    overflow: hidden;
+    border-bottom: 1px solid var(--border-color);
+    border-left: none;
+    padding: 0;
+    margin: 0;
+    background: var(--bg-panel);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .panel-preview .panel-header {
+    height: 30px;
+    min-height: 30px;
+    padding: 2px 8px;
+    display: flex;
+    justify-content: center;
+  }
+
+  .preview-mode-controls {
+    display: none; /* Hide single/double/engine selector on mobile to maximize canvas room */
+  }
+
+  .preview-nav-controls {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+  }
+
+  .preview-book-wrap {
+    flex: 1;
+    margin: 0;
+    padding: 2px 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  #viewer-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    max-height: 150px;
+    overflow: hidden;
+  }
+
+  #viewer-container canvas,
+  .blockgame-book-canvas {
+    max-height: 145px !important;
+    width: auto !important;
+    object-fit: contain;
+  }
+
+  /* 3. Docked Editor Panel: docked on bottom, markup above keyboard */
+  .panel-editor {
+    order: 2;
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    min-height: 0;
+    overflow: hidden;
+    padding: 6px 8px 8px;
+    background: var(--bg-root);
+  }
+
+  .panel-editor .panel-header {
+    display: none; /* Hide wordy Markup Editor header on mobile */
+  }
+
+  .editor-workspace {
+    flex: 0 0 auto;
+    margin: 0;
+    padding: 0;
+    overflow: visible;
+  }
+
+  /* Hide 14 desktop rows on mobile in favor of focused active line deck */
+  .book-lines-list {
+    display: none !important;
+  }
+
+  /* 4. Mobile Line Deck: Stepper, Input & Traffic Light Dot */
+  .mobile-line-deck {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 10px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    margin-bottom: 6px;
+  }
+
+  .mobile-line-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .mobile-line-nav {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .mobile-line-pill {
+    font-family: var(--font-mono, monospace);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent);
+    background: var(--bg-toolbar);
+    padding: 2px 8px;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+  }
+
+  .mobile-line-indicator {
+    display: flex;
+    align-items: center;
+    padding-right: 4px;
+  }
+
+  /* Traffic light dot indicator */
+  .mobile-traffic-dot {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .mobile-traffic-dot.dot-ok {
+    background-color: #55ff55;
+    box-shadow: 0 0 6px rgba(85, 255, 85, 0.6);
+  }
+
+  .mobile-traffic-dot.dot-warn {
+    background-color: #ffaa00;
+    box-shadow: 0 0 6px rgba(255, 170, 0, 0.6);
+  }
+
+  .mobile-traffic-dot.dot-overflow {
+    background-color: #ff5555;
+    box-shadow: 0 0 8px rgba(255, 85, 85, 0.8);
+    animation: pulse-dot 1.2s infinite;
+  }
+
+  @keyframes pulse-dot {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.15); opacity: 0.85; }
+  }
+
+  .mobile-line-input-wrap {
+    width: 100%;
+  }
+
+  .mobile-line-input {
+    width: 100%;
+    box-sizing: border-box;
+    height: 38px;
+    padding: 6px 10px;
+    font-family: 'Minecraft', monospace;
+    font-size: 14px;
+    background: var(--bg-root);
+    color: var(--text-main);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    outline: none;
+  }
+
+  .mobile-line-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+
+  /* 5. Mobile Docked Markup Toolbar */
+  .editor-toolbar {
+    flex: 0 0 auto;
+    padding: 4px 0;
+    gap: 6px;
+    border-top: 1px solid var(--border-color);
+  }
+
+  .color-swatches {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 4px;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .color-swatches::-webkit-scrollbar {
+    display: none;
+  }
+
+  .color-swatches .color-btn {
+    flex: 0 0 28px;
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+
+  .style-tools {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 4px;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    align-items: center;
+  }
+
+  .style-tools::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tag-btn {
+    height: 30px;
+    min-width: 30px;
+    padding: 4px 6px;
+    font-size: 13px;
+  }
+
+  /* 6. Text Clutter Reduction: Hide wordy button texts, display crisp icons only */
+  .btn-text {
+    display: none !important;
+  }
+
+  .toolbar-sep {
+    display: none;
+  }
+
+  /* Footer & header simplification */
+  .page-stats-bar {
+    display: none; /* Hide verbose stats footer on mobile */
+  }
+
+  .inline-title-count,
+  .meta-by,
+  .matrix-slots-ribbon,
+  .matrix-quick-widths,
+  .matrix-px-controls,
+  .matrix-page-controls,
+  .deck-subtitle {
+    display: none !important;
+  }
+
+  .app-header.matrix-header {
+    height: 44px;
+    padding: 0 8px;
+  }
+
+  .header-inline-title {
+    width: 120px !important;
+    font-size: 13px;
   }
 }
 
