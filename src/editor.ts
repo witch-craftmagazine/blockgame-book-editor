@@ -680,7 +680,7 @@ let metaAuthor: HTMLInputElement;
 let metaTitleCount: HTMLElement;
 let metaAuthorCount: HTMLElement;
 let pageBadge: HTMLElement;
-let previewIndicator: HTMLElement;
+let previewIndicator: HTMLElement | null = null;
 let zoomLabel: HTMLElement;
 let statChars: HTMLElement;
 let statWords: HTMLElement;
@@ -790,7 +790,7 @@ function initDOM(): void {
   metaTitleCount      = document.getElementById('meta-title-count')!;
   metaAuthorCount     = document.getElementById('meta-author-count')!;
   pageBadge           = document.getElementById('page-badge')!;
-  previewIndicator    = document.getElementById('preview-page-indicator')!;
+  previewIndicator    = document.getElementById('preview-page-indicator');
   zoomLabel           = document.getElementById('zoom-label')!;
   statChars           = document.getElementById('stat-chars')!;
   statWords           = document.getElementById('stat-words')!;
@@ -1519,7 +1519,9 @@ function loadPageIntoEditor(index: number): void {
   }
 
   pageBadge.textContent = `Page ${currentPageIndex + 1} / ${book.pages.length}`;
-  previewIndicator.textContent = `${currentPageIndex + 1} / ${book.pages.length}`;
+  if (previewIndicator) {
+    previewIndicator.textContent = `${currentPageIndex + 1} / ${book.pages.length}`;
+  }
 
   updateAll();
 }
@@ -1622,7 +1624,9 @@ function updateAll(immediate = false): void {
   }
 
   pageBadge.textContent = `Page ${currentPageIndex + 1} / ${book.pages.length}`;
-  previewIndicator.textContent = `${currentPageIndex + 1} / ${book.pages.length}`;
+  if (previewIndicator) {
+    previewIndicator.textContent = `${currentPageIndex + 1} / ${book.pages.length}`;
+  }
   triggerAutosave();
 }
 
