@@ -16,6 +16,9 @@ import {
   detectUnsupportedMinecraftChars,
   CHARACTER_SETS,
   GLYPH_CATALOG_BY_WIDTH,
+  formatPageForClipboard,
+  writeTextToClipboard,
+  type PageCopyFormat,
   type SavedTemplate,
 } from '../src/editor';
 import {
@@ -490,5 +493,54 @@ describe('Minecraft Page Limit & Page Gallery Presets', () => {
     lines = [...undoSnapshot];
     expect(lines.filter(l => l.length > 0).length).toBe(3);
     expect(lines[0]).toBe('§6Header');
+  });
+
+  test('formatPageForClipboard serializes single page into Minecraft Book & Quill and command formats', () => {
+    const pageLines = [
+      '§6Town Notice',
+      '§7Market open today!',
+      'Bring emeralds.',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+    ];
+
+    // 1. Raw format (default for Book & Quill paste via Ctrl+V)
+    const raw = formatPageForClipboard(pageLines, 'raw');
+    expect(raw).toBe('§6Town Notice\n§7Market open today!\nBring emeralds.');
+    expect(raw.includes('§6')).toBe(true);
+    expect(raw.includes('§7')).toBe(true);
+
+    // 2. Ampersand format (for EssentialsX / CMI server plugins)
+    const ampersand = formatPageForClipboard(pageLines, 'ampersand');
+    expect(ampersand).toBe('&6Town Notice\n&7Market open today!\nBring emeralds.');
+    expect(ampersand.includes('§')).toBe(false);
+    expect(ampersand.includes('&6')).toBe(true);
+
+    // 3. Modern /give command (single page instant give)
+    const give = formatPageForClipboard(pageLines, 'give', { title: 'Town Notice', author: 'Mayor' });
+    expect(give.startsWith('/give @p written_book[written_book_content=')).toBe(true);
+    expect(give.includes('Town Notice')).toBe(true);
+    expect(give.includes('Mayor')).toBe(true);
+    expect(give.endsWith('] 1')).toBe(true);
+
+    // 4. Plain text format (formatting codes stripped)
+    const plain = formatPageForClipboard(pageLines, 'plain');
+    expect(plain).toBe('Town Notice\nMarket open today!\nBring emeralds.');
+    expect(plain.includes('§')).toBe(false);
+
+    // 5. Empty page returns empty string
+    const emptyLines = Array(14).fill('');
+    expect(formatPageForClipboard(emptyLines, 'raw')).toBe('');
+    expect(formatPageForClipboard(emptyLines, 'give')).toBe('');
+    expect(formatPageForClipboard(emptyLines, 'plain')).toBe('');
   });
 });

@@ -106,6 +106,100 @@ export function getLinesFromPageText(pageText: string): string[] {
   return lines;
 }
 
+export type PageCopyFormat = 'raw' | 'ampersand' | 'give' | 'plain';
+
+/**
+ * Formats a single page's lines for copying into Minecraft or external tools.
+ * - 'raw': Preserves exact line-breaks and '§' formatting codes for Book & Quill paste.
+ * - 'ampersand': Replaces '§' with '&' for Essentials / CMI server plugins.
+ * - 'give': Produces a complete modern /give command (SNBT components) containing this single page.
+ * - 'plain': Strips all formatting codes for clean vanilla chat or unmodded paste.
+ */
+export function formatPageForClipboard(
+  pageLines: string[],
+  format: PageCopyFormat = 'raw',
+  bookMeta: { title?: string; author?: string } = {}
+): string {
+  const pageText = getPageTextFromLines(pageLines);
+  if (!pageText) return '';
+
+  switch (format) {
+    case 'raw':
+      return pageText;
+    case 'ampersand':
+      return pageText.replace(/§/g, '&');
+    case 'give':
+      return exportToGiveCommandModern({
+        title: bookMeta.title || 'Page Preview',
+        author: bookMeta.author || 'Player',
+        pages: [pageText],
+      });
+    case 'plain':
+      return stripFormatting(pageText);
+  }
+}
+
+/**
+ * Robust clipboard writer supporting navigator.clipboard with fallback to document.execCommand.
+ */
+export async function writeTextToClipboard(text: string): Promise<boolean> {
+  if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {}
+  }
+  if (typeof document !== 'undefined') {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      ta.style.pointerEvents = 'none';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      const success = document.execCommand('copy');
+      document.body.removeChild(ta);
+      return success;
+    } catch {}
+  }
+  return false;
+}
+
+/**
+ * Copies the active page in the requested format to the clipboard with toast feedback.
+ */
+export async function copyPageToClipboard(
+  format: PageCopyFormat = 'raw',
+  showNotification = true
+): Promise<boolean> {
+  saveCurrentPageToBook();
+  const text = formatPageForClipboard(currentLines, format, {
+    title: book.title || 'Page Preview',
+    author: book.author || 'Player',
+  });
+
+  if (!text) {
+    if (showNotification) showToast(`Page ${currentPageIndex + 1} is empty`, 'info');
+    return false;
+  }
+
+  const ok = await writeTextToClipboard(text);
+  if (ok && showNotification) {
+    const labels: Record<PageCopyFormat, string> = {
+      raw: 'Book & Quill text (§ codes)',
+      ampersand: 'Plugin text (& codes)',
+      give: 'Single-page /give command',
+      plain: 'Plain text (no formatting)',
+    };
+    showToast(`Copied Page ${currentPageIndex + 1} (${labels[format]}) to clipboard!`, 'success');
+  } else if (!ok && showNotification) {
+    showToast('Failed to copy to clipboard', 'warn');
+  }
+  return ok;
+}
+
 /**
  * Computes carried formatting styles across lines up to targetLineIdx.
  */
@@ -629,6 +723,11 @@ let btnCenterLine: HTMLButtonElement;
 let btnFillMargin: HTMLButtonElement;
 let btnDedupCodes: HTMLButtonElement;
 let btnClearPage: HTMLButtonElement;
+let btnCopyPage: HTMLButtonElement;
+let btnCopyPageOpts: HTMLButtonElement;
+let copyPageWrapper: HTMLElement | null;
+let copyPageMenu: HTMLElement | null;
+let btnPreviewCopyPage: HTMLButtonElement | null;
 let btnPrevPage: HTMLButtonElement;
 let btnNextPage: HTMLButtonElement;
 let btnZoomIn: HTMLButtonElement;
@@ -733,6 +832,11 @@ function initDOM(): void {
   btnFillMargin       = document.getElementById('btn-fill-margin')       as HTMLButtonElement;
   btnDedupCodes       = document.getElementById('btn-dedup-codes')       as HTMLButtonElement;
   btnClearPage        = document.getElementById('btn-clear-page')        as HTMLButtonElement;
+  btnCopyPage         = document.getElementById('btn-copy-page')         as HTMLButtonElement;
+  btnCopyPageOpts     = document.getElementById('btn-copy-page-opts')     as HTMLButtonElement;
+  copyPageWrapper     = document.getElementById('copy-page-wrapper');
+  copyPageMenu        = document.getElementById('copy-page-menu');
+  btnPreviewCopyPage  = document.getElementById('btn-preview-copy-page')  as HTMLButtonElement | null;
   btnPrevPage         = document.getElementById('prev-page-btn')         as HTMLButtonElement;
   btnNextPage         = document.getElementById('next-page-btn')         as HTMLButtonElement;
   btnZoomIn           = document.getElementById('btn-zoom-in')           as HTMLButtonElement;
@@ -2354,7 +2458,54 @@ function wireEvents(): void {
     }
   });
 
-  // 7b. Clear Page (Instant reset of current page with Undo history)
+  async function triggerCopyPageFeedback(format: PageCopyFormat = 'raw', triggerBtn?: HTMLElement | null): Promise<void> {
+    const ok = await copyPageToClipboard(format);
+    if (ok && triggerBtn) {
+      const origText = triggerBtn.textContent;
+      triggerBtn.textContent = '✓ Copied!';
+      setTimeout(() => {
+        triggerBtn.textContent = origText;
+      }, 1500);
+    }
+  }
+
+  // 7b. Copy Page (Quick single page export for Minecraft paste)
+  btnCopyPage?.addEventListener('click', (e) => {
+    e.preventDefault();
+    triggerCopyPageFeedback('raw', btnCopyPage);
+  });
+
+  btnCopyPage?.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    if (copyPageMenu) {
+      copyPageMenu.style.display = copyPageMenu.style.display !== 'none' ? 'none' : 'flex';
+    }
+  });
+
+  btnPreviewCopyPage?.addEventListener('click', (e) => {
+    e.preventDefault();
+    triggerCopyPageFeedback('raw', btnPreviewCopyPage);
+  });
+
+  btnCopyPageOpts?.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (copyPageMenu) {
+      const isVisible = copyPageMenu.style.display !== 'none';
+      copyPageMenu.style.display = isVisible ? 'none' : 'flex';
+    }
+  });
+
+  copyPageMenu?.querySelectorAll<HTMLButtonElement>('.copy-option-item').forEach((item) => {
+    item.addEventListener('click', (e) => {
+      e.preventDefault();
+      const fmt = (item.dataset.format as PageCopyFormat) || 'raw';
+      if (copyPageMenu) copyPageMenu.style.display = 'none';
+      triggerCopyPageFeedback(fmt, btnCopyPage);
+    });
+  });
+
+  // 7c. Clear Page (Instant reset of current page with Undo history)
   btnClearPage?.addEventListener('click', (e) => {
     e.preventDefault();
     const isCurrentlyEmpty = isRawMode
@@ -2520,9 +2671,33 @@ function wireEvents(): void {
         updateSavePreview(getLinesFromPageText(book.pages[idx] ?? ''));
       });
 
+      const copyBtn = document.createElement('button');
+      copyBtn.type = 'button';
+      copyBtn.className = 'btn-card-action';
+      copyBtn.textContent = '📋 Copy';
+      copyBtn.title = 'Copy this page to clipboard for Minecraft paste';
+      copyBtn.addEventListener('click', async () => {
+        const pageText = book.pages[idx] ?? '';
+        const lines = getLinesFromPageText(pageText);
+        const text = formatPageForClipboard(lines, 'raw', { title: book.title, author: book.author });
+        if (!text) {
+          showToast(`Page ${idx + 1} is empty`, 'info');
+          return;
+        }
+        const ok = await writeTextToClipboard(text);
+        if (ok) {
+          copyBtn.textContent = '✓ Copied';
+          setTimeout(() => { copyBtn.textContent = '📋 Copy'; }, 1500);
+          showToast(`Copied Page ${idx + 1} to clipboard! Paste directly into Book & Quill (Ctrl+V)`, 'success');
+        } else {
+          showToast('Failed to copy to clipboard', 'warn');
+        }
+      });
+
       leftGroup.appendChild(editBtn);
       leftGroup.appendChild(dupBtn);
       leftGroup.appendChild(saveBtn);
+      leftGroup.appendChild(copyBtn);
 
       const rightGroup = document.createElement('div');
       rightGroup.className = 'card-btn-group';
@@ -3373,6 +3548,19 @@ function wireEvents(): void {
       if (studioToolsFlyout && studioToolsFlyout.style.display !== 'none') {
         studioToolsFlyout.style.display = 'none';
       }
+      if (copyPageMenu && copyPageMenu.style.display !== 'none') {
+        copyPageMenu.style.display = 'none';
+      }
+    }
+  });
+
+  // Clicking outside copy page menu closes it
+  window.addEventListener('click', (e) => {
+    const target = e.target as HTMLElement | null;
+    if (copyPageMenu && copyPageMenu.style.display !== 'none') {
+      if (!copyPageWrapper?.contains(target)) {
+        copyPageMenu.style.display = 'none';
+      }
     }
   });
 
@@ -3489,6 +3677,13 @@ function wireEvents(): void {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
       e.preventDefault();
       redo();
+      return;
+    }
+
+    // Copy Current Page (Ctrl+Shift+C / Cmd+Shift+C)
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'c') {
+      e.preventDefault();
+      triggerCopyPageFeedback('raw', btnCopyPage);
       return;
     }
 

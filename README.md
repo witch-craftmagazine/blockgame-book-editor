@@ -21,6 +21,7 @@ Comprehensive guides and technical references are maintained directly in the rep
 |---|---|---|
 | **Exact 14-Line Book View** | Strict 14 lines per page, 1024 characters max per page, and automatic word-wrapping at 114px. | [Book & Quill](https://minecraft.wiki/w/Book_and_Quill) |
 | **Pixel-Exact Centering (`[≡ Center]`)** | Prepend balanced spaces to center text within the line. Solves regular 4px spaces and 5px bold spaces (`§l §r`) to achieve sub-pixel balance. | [Formatting Codes](https://minecraft.wiki/w/Formatting_codes) |
+| **Instant Page Copy (`[📋 Copy Page]`)** | 1-click clipboard copy (<kbd>Ctrl+Shift+C</kbd>) ready for in-game Book & Quill paste (<kbd>Ctrl+V</kbd>). Includes Single-Page `/give` command, `&` color codes, and plain text options. Also in preview bar and gallery cards. | [Book & Quill](https://minecraft.wiki/w/Book_and_Quill) |
 | **Clear Page (`[🗑 Clear Page]`)** | Instant 1-click page reset with full Undo/Redo history protection. | — |
 | **Unicode Character Sets & Matrix** | Top ribbon with curated sets (`★ Favs`, `━ Borders`, `⚔ RPG`, `➔ Arrows`, `█ Blocks`, `✨ Decor`), custom favorites, and pixel-width steppers. | [Fonts](https://minecraft.wiki/w/Font) |
 | **Emoji & SMP Diagnostic Checker** | Scans text for characters `> U+FFFF` (modern emojis) that vanilla Minecraft cannot render, warning users in real time. | [Resource Pack Fonts](https://minecraft.wiki/w/Resource_pack#Fonts) |

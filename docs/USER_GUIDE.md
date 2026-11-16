@@ -71,6 +71,7 @@ Located directly beneath the color swatches:
 | **Center Line** | `[≡ Center]` | Prepend optimal spaces to center text within the 114px line. Combines 4px standard spaces and 5px bold spaces (`§l §r`) to balance margins within 1px. Re-clicking automatically re-trims and re-centers. |
 | **Fill Margin** | `[⇤⇥ Margin]` | Pads the active line with spaces until it reaches the right margin (114px). |
 | **Clean Codes** | `[🧹 Clean]` | Deduplicates redundant formatting codes (e.g. `§6§6` $\to$ `§6`) without breaking intentional line resets. |
+| **Copy Page** | `[📋 Copy Page]` | Copies the active page to clipboard (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>C</kbd>) ready to paste into Minecraft Book &amp; Quill (<kbd>Ctrl</kbd>+<kbd>V</kbd>). Includes dropdown `▾` for Single-Page `/give` command, `&` color codes, or plain text. Also accessible directly in the Book Preview bar and Gallery cards! |
 | **Clear Page** | `[🗑 Clear Page]` | Wipes all 14 lines of the current page with 1 click. Safe and non-destructive: press <kbd>Ctrl</kbd>+<kbd>Z</kbd> to undo anytime. |
 | **Save Page/Lines** | `[💾 Save]` | Opens the Save Dialog to store the active line or page layout into your Library and bottom Presets Deck. |
 
@@ -132,6 +133,7 @@ Click **`[📑 Gallery]`** in the header to open the full organizer:
   - Visual miniature parchment cards for all pages in your book.
   - Reorder pages with `◀` and `▶` move buttons.
   - Duplicate any page with `[⎘ Dup]`.
+  - Copy any page directly to clipboard with `[📋 Copy]`.
   - Delete or clear pages with `[🗑]`.
 - **Tab 2: Saved Library:**
   - View all saved templates and snippets.
@@ -174,3 +176,15 @@ Click **`[⚙ Menu ▾]`** in the header to access import and export tools:
   - **Light Parchment & Stone:** Warm parchment stone GUI resembling classic Minecraft interfaces.
   - Your theme preference is saved automatically in `localStorage`.
 - **Sound Effects:** Inlined vanilla Minecraft book open, page turn, and UI click sounds. Toggle anytime with `🔊`.
+
+---
+
+## 11. Keyboard Shortcuts
+
+| Shortcut | Action |
+|---|---|
+| <kbd>Ctrl</kbd> / <kbd>Cmd</kbd> + <kbd>Shift</kbd> + <kbd>C</kbd> | **Copy Active Page** to clipboard (ready for Minecraft paste) |
+| <kbd>Ctrl</kbd> / <kbd>Cmd</kbd> + <kbd>Z</kbd> | **Undo** last change |
+| <kbd>Ctrl</kbd> / <kbd>Cmd</kbd> + <kbd>Y</kbd> / <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd> | **Redo** last change |
+| <kbd>←</kbd> / <kbd>→</kbd> (when not typing in an input) | **Previous / Next Page** |
+| <kbd>Escape</kbd> | Close active dropdown flyouts or modals |
