@@ -5,12 +5,18 @@ import {
   GLYPHS_BY_CATEGORY,
   findGlyphItem,
 } from '../src/data/symbolChatDataset';
+import {
+  SYMBOL_CHAT_FONTS,
+  getFontById,
+  transformWithFont,
+} from '../src/data/symbolChatFonts';
 import { getCharPixelAdvance } from '../src/components/glyphs/glyphRenderer';
 
 describe('Symbol Chat Glyph Dataset & Taxonomy', () => {
-  test('defines all 11 expected categories with labels and icons', () => {
-    expect(CATEGORY_DEFINITIONS.length).toBe(11);
+  test('defines all 12 expected categories with labels, icons and "all" unified grid', () => {
+    expect(CATEGORY_DEFINITIONS.length).toBe(12);
     const ids = CATEGORY_DEFINITIONS.map((c) => c.id);
+    expect(ids).toContain('all');
     expect(ids).toContain('fav');
     expect(ids).toContain('recent');
     expect(ids).toContain('borders');
@@ -60,5 +66,25 @@ describe('Symbol Chat Glyph Dataset & Taxonomy', () => {
     expect(getCharPixelAdvance('★')).toBeGreaterThanOrEqual(5);
     expect(getCharPixelAdvance('━')).toBeGreaterThanOrEqual(5);
     expect(getCharPixelAdvance('(•‿•)')).toBeGreaterThanOrEqual(15);
+  });
+
+  test('Symbol Chat Unicode fonts transform text correctly', () => {
+    expect(SYMBOL_CHAT_FONTS.length).toBeGreaterThanOrEqual(10);
+
+    const smallCaps = transformWithFont('hello world', 'small_caps');
+    expect(smallCaps).toBe('ʜᴇʟʟᴏ ᴡᴏʀʟᴅ');
+
+    const circled = transformWithFont('abc 123', 'circled');
+    expect(circled).toBe('ⓐⓑⓒ ①②③');
+
+    const fullwidth = transformWithFont('hello', 'fullwidth');
+    expect(fullwidth).toBe('ｈｅｌｌｏ');
+
+    const superscript = transformWithFont('test 123', 'superscript');
+    expect(superscript).toBe('ᵗᵉˢᵗ ¹²³');
+
+    const font = getFontById('small_caps');
+    expect(font.name).toBe('Small Caps');
+    expect(font.isSmp).toBe(false);
   });
 });

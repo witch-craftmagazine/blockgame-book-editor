@@ -473,31 +473,31 @@
       </div>
     </dialog>
 
-    <!-- Enhanced Unicode Glyph Browser Modal -->
+    <!-- Enhanced Unicode Glyph Browser Modal (Symbol Chat Inspired) -->
     <dialog id="glyph-dialog" class="editor-dialog">
       <div class="dialog-card dialog-card-wide glyph-dialog-card">
         <header class="dialog-header">
           <div class="glyph-header-title">
-            <h2 class="dialog-title">Minecraft Unicode Glyph Browser</h2>
-            <span class="dialog-subtitle">Click any glyph to insert at cursor • Thousands of Unifont & bitmap symbols</span>
+            <h2 class="dialog-title">✦ Minecraft Unicode Glyph Browser <span class="tag">Symbol Chat</span></h2>
+            <span class="dialog-subtitle">High-Density Minecraft Bitmap Grid • Star Favorites • Symbol Chat Fonts</span>
           </div>
           <button type="button" class="dialog-close-btn" data-close="glyph-dialog">✕</button>
         </header>
         <div class="dialog-body">
-          <!-- Custom Character / Codepoint Inspector & Search -->
+          <!-- Search & Filter Bar -->
           <div class="glyph-search-bar">
             <input
               type="text"
               id="glyph-search"
               class="glyph-search-input"
-              placeholder="🔍 Search glyphs, names, or hex (e.g. 2694, star, box, arrow)…"
+              placeholder="🔍 Search all glyphs by name, symbol, or hex (e.g. 2694, star, sword, arrow)…"
             />
             <div class="glyph-tester">
               <input
                 type="text"
                 id="glyph-custom-input"
                 class="glyph-custom-input"
-                placeholder="Paste ANY char to inspect width…"
+                placeholder="Inspect char…"
                 maxlength="8"
               />
               <span id="glyph-custom-width" class="badge">-- px</span>
@@ -505,27 +505,90 @@
             </div>
           </div>
 
-          <!-- Comprehensive Category Tabs -->
+          <!-- Symbol Chat Category Tabs -->
           <div class="glyph-category-tabs" id="glyph-tabs">
-            <button class="glyph-tab active" data-cat="game">Game & Icons</button>
-            <button class="glyph-tab" data-cat="box">Box Drawing</button>
-            <button class="glyph-tab" data-cat="blocks">Blocks & Shades</button>
-            <button class="glyph-tab" data-cat="shapes">Shapes & Suits</button>
-            <button class="glyph-tab" data-cat="runes">Runes & Magic</button>
-            <button class="glyph-tab" data-cat="arrows">Arrows</button>
-            <button class="glyph-tab" data-cat="math">Math & Greek</button>
-            <button class="glyph-tab" data-cat="braille">Braille (256)</button>
-            <button class="glyph-tab" data-cat="typography">Punctuation</button>
-            <button class="glyph-tab" data-cat="cjk">CJK & Symbols</button>
+            <button class="glyph-tab active" data-cat="all">🌐 All</button>
+            <button class="glyph-tab" data-cat="fav">⭐ Favs</button>
+            <button class="glyph-tab" data-cat="recent">🕒 Recent</button>
+            <button class="glyph-tab" data-cat="borders">━ Borders</button>
+            <button class="glyph-tab" data-cat="rpg">⚔ RPG</button>
+            <button class="glyph-tab" data-cat="arrows">➔ Arrows</button>
+            <button class="glyph-tab" data-cat="blocks">█ Blocks</button>
+            <button class="glyph-tab" data-cat="math">🔢 Math</button>
+            <button class="glyph-tab" data-cat="runes">ᚠ Runes</button>
+            <button class="glyph-tab" data-cat="braille">⠟ Braille</button>
+            <button class="glyph-tab" data-cat="fonts">🔠 Fonts</button>
+            <button class="glyph-tab" data-cat="kaomoji">🔤 Kaomoji</button>
           </div>
 
-          <!-- Glyphs Grid -->
+          <!-- Quick Favorites Strip -->
+          <div class="glyph-quick-favs-row" id="glyph-quick-favs-row">
+            <span class="quick-favs-label">⭐ Quick Favs:</span>
+            <div class="quick-favs-list" id="glyph-quick-favs-list"></div>
+          </div>
+
+          <!-- Symbol Chat Font Replacement & Converter Panel (Toggled for Fonts Tab) -->
+          <div class="glyph-font-panel" id="glyph-font-panel" style="display: none;">
+            <div class="font-selector-header">
+              <span class="font-panel-title">🔠 Symbol Chat Unicode Fonts:</span>
+              <div class="font-chips-bar" id="font-chips-bar"></div>
+            </div>
+            <div class="font-converter-bar">
+              <div class="font-converter-input-wrap">
+                <input
+                  type="text"
+                  id="font-convert-input"
+                  class="font-convert-input"
+                  placeholder="Type anything to convert (e.g. Chapter 1: The Legend)..."
+                />
+              </div>
+              <div class="font-converter-preview-wrap">
+                <span id="font-convert-preview" class="font-convert-preview">ᴄʜᴀᴘᴛᴇʀ 1: ᴛʜᴇ ʟᴇɢᴇɴᴅ</span>
+              </div>
+              <div class="font-converter-btns">
+                <button type="button" id="btn-font-insert" class="btn btn-xs btn-primary">Insert Converted</button>
+                <button type="button" id="btn-font-apply-line" class="btn btn-xs btn-outline">Apply to Line</button>
+              </div>
+            </div>
+            <div class="font-alphabet-label">Click any letter to insert directly into book:</div>
+            <div class="font-alphabet-grid" id="font-alphabet-grid"></div>
+          </div>
+
+          <!-- High-Density Glyphs Grid -->
           <div class="glyph-grid-container" id="glyph-grid">
-            <!-- Populated dynamically by JS -->
+            <!-- Populated dynamically with pixelated Minecraft bitmap canvases -->
           </div>
         </div>
-        <footer class="dialog-actions">
-          <span class="glyph-tip">Each glyph shows its authentic Minecraft pixel advance (width + 1px spacing)</span>
+
+        <footer class="dialog-actions glyph-modal-footer">
+          <div class="glyph-inspector-bar">
+            <canvas id="glyph-inspector-canvas" width="40" height="40" class="glyph-inspector-canvas"></canvas>
+            <div class="glyph-inspector-info">
+              <div class="glyph-inspector-title">
+                <span id="glyph-inspector-name">Crossed Swords</span>
+                <span id="glyph-inspector-char" class="glyph-inspector-char">⚔</span>
+              </div>
+              <div class="glyph-inspector-badges">
+                <span id="glyph-inspector-cp" class="badge">U+2694</span>
+                <span id="glyph-inspector-width" class="badge">6px</span>
+                <span id="glyph-inspector-compat" class="badge badge-ok">✓ Vanilla Java BMP</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="glyph-tint-picker">
+            <span class="glyph-tint-label">Bitmap Color Tint:</span>
+            <div class="glyph-tint-swatches" id="glyph-tint-swatches">
+              <button type="button" class="tint-dot active" data-color="#FFFFFF" style="background: #FFFFFF;" title="White"></button>
+              <button type="button" class="tint-dot" data-color="#1D1D21" style="background: #1D1D21;" title="Dark Slate"></button>
+              <button type="button" class="tint-dot" data-color="#FFAA00" style="background: #FFAA00;" title="Gold"></button>
+              <button type="button" class="tint-dot" data-color="#55FFFF" style="background: #55FFFF;" title="Aqua"></button>
+              <button type="button" class="tint-dot" data-color="#55FF55" style="background: #55FF55;" title="Green"></button>
+              <button type="button" class="tint-dot" data-color="#FF5555" style="background: #FF5555;" title="Red"></button>
+              <button type="button" class="tint-dot" data-color="#FF55FF" style="background: #FF55FF;" title="Light Purple"></button>
+            </div>
+          </div>
+
           <button type="button" class="btn btn-outline" data-close="glyph-dialog">Close</button>
         </footer>
       </div>

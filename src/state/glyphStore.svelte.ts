@@ -6,6 +6,11 @@ import {
   DEFAULT_FAVORITES,
   findGlyphItem,
 } from '../data/symbolChatDataset';
+import {
+  SYMBOL_CHAT_FONTS,
+  getFontById,
+  transformWithFont,
+} from '../data/symbolChatFonts';
 
 const FAVS_KEY = 'blockgame_user_fav_glyphs';
 const RECENTS_KEY = 'blockgame_user_recent_glyphs';
@@ -40,10 +45,12 @@ export function createGlyphStore() {
   let isOpen = $state(false);
   let favorites = $state<string[]>(initialFavs);
   let recents = $state<string[]>(initialRecents);
-  let activeCategory = $state<GlyphCategory>('fav');
+  let activeCategory = $state<GlyphCategory>('all');
   let searchQuery = $state('');
   let previewColor = $state('#1D1D21');
   let inspectorGlyph = $state<GlyphItem | null>(null);
+  let activeFontId = $state<string>('small_caps');
+  let fontInputText = $state<string>('');
 
   function saveFavs() {
     if (typeof localStorage === 'undefined') return;
@@ -106,6 +113,12 @@ export function createGlyphStore() {
     inspectorGlyph = g;
   }
 
+  function setActiveFont(id: string) {
+    activeFontId = id;
+  }
+
+  const activeFont = $derived(getFontById(activeFontId));
+
   // Reactive derived filtered glyph list
   const filteredGlyphs = $derived.by<GlyphItem[]>(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -117,6 +130,10 @@ export function createGlyphStore() {
         if (item.codepoint.toLowerCase().includes(q)) return true;
         return false;
       });
+    }
+
+    if (activeCategory === 'all') {
+      return ALL_GLYPHS;
     }
 
     if (activeCategory === 'fav') {
@@ -142,6 +159,12 @@ export function createGlyphStore() {
     set previewColor(v: string) { previewColor = v; },
     get inspectorGlyph() { return inspectorGlyph; },
     get filteredGlyphs() { return filteredGlyphs; },
+    get activeFontId() { return activeFontId; },
+    set activeFontId(id: string) { activeFontId = id; },
+    get fontInputText() { return fontInputText; },
+    set fontInputText(txt: string) { fontInputText = txt; },
+    get activeFont() { return activeFont; },
+    fonts: SYMBOL_CHAT_FONTS,
     toggleFavorite,
     isFavorite,
     addRecent,
@@ -152,6 +175,8 @@ export function createGlyphStore() {
     setSearchQuery,
     setPreviewColor,
     setInspectorGlyph,
+    setActiveFont,
+    transformWithFont,
   };
 }
 

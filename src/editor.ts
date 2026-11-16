@@ -36,6 +36,22 @@ import {
   type BookEngine,
   type ViewMode,
 } from 'blockgame-book-viewer';
+import {
+  ALL_GLYPHS,
+  GLYPHS_BY_CATEGORY,
+  findGlyphItem,
+  type GlyphCategory,
+  type GlyphItem,
+} from './data/symbolChatDataset';
+import {
+  SYMBOL_CHAT_FONTS,
+  getFontById,
+} from './data/symbolChatFonts';
+import {
+  ensureAtlasLoaded,
+  renderGlyphToCanvas,
+  getCharPixelAdvance,
+} from './components/glyphs/glyphRenderer';
 
 // Re-export canonical constants for backwards compatibility with tests and callers
 export {
@@ -1661,399 +1677,272 @@ async function initViewer(): Promise<void> {
   await viewer.init();
 }
 
-// ─── Comprehensive Unicode Glyph Browser ──────────────────────────────────────
+// ─── Symbol Chat-Inspired Unicode Glyph Browser & Font Engine ─────────────────
 
-interface GlyphItem {
-  char: string;
-  name: string;
-  cat: 'game' | 'box' | 'blocks' | 'shapes' | 'runes' | 'arrows' | 'math' | 'braille' | 'typography' | 'cjk';
-}
+const RECENTS_KEY = 'blockgame_user_recent_glyphs';
+let activeGlyphCat: GlyphCategory = 'all';
+let activeGlyphTint: string = '#FFFFFF';
+let activeFontId: string = 'small_caps';
+let recentGlyphs: string[] = [];
 
-function buildGlyphDataset(): GlyphItem[] {
-  const items: GlyphItem[] = [
-    // 1. Game & Icons
-    { char: '⚔', name: 'Crossed Swords', cat: 'game' },
-    { char: '⛏', name: 'Pickaxe', cat: 'game' },
-    { char: '⚒', name: 'Hammer and Pick', cat: 'game' },
-    { char: '🏹', name: 'Bow and Arrow', cat: 'game' },
-    { char: '🛡', name: 'Shield', cat: 'game' },
-    { char: '🗡', name: 'Dagger', cat: 'game' },
-    { char: '🪓', name: 'Axe', cat: 'game' },
-    { char: '🗝', name: 'Old Key', cat: 'game' },
-    { char: '🔒', name: 'Lock', cat: 'game' },
-    { char: '🔓', name: 'Open Lock', cat: 'game' },
-    { char: '🧭', name: 'Compass', cat: 'game' },
-    { char: '⚓', name: 'Anchor', cat: 'game' },
-    { char: '⚖', name: 'Scales of Justice', cat: 'game' },
-    { char: '🕯', name: 'Candle', cat: 'game' },
-    { char: '📜', name: 'Scroll', cat: 'game' },
-    { char: '🏺', name: 'Amphora / Pot', cat: 'game' },
-    { char: '🛎', name: 'Bell', cat: 'game' },
-    { char: '🧨', name: 'Dynamite / TNT', cat: 'game' },
-    { char: '★', name: 'Black Star', cat: 'game' },
-    { char: '☆', name: 'White Star', cat: 'game' },
-    { char: '✦', name: 'Four Pointed Star', cat: 'game' },
-    { char: '✧', name: 'White Four Point Star', cat: 'game' },
-    { char: '✪', name: 'Circled Star', cat: 'game' },
-    { char: '✫', name: 'Open Centre Star', cat: 'game' },
-    { char: '✯', name: 'Pinwheel Star', cat: 'game' },
-    { char: '⚡', name: 'Lightning / Voltage', cat: 'game' },
-    { char: '☄', name: 'Comet', cat: 'game' },
-    { char: '☽', name: 'Crescent Moon', cat: 'game' },
-    { char: '☾', name: 'Last Quarter Moon', cat: 'game' },
-    { char: '☉', name: 'Sun / Gold', cat: 'game' },
-    { char: '♨', name: 'Hot Springs / Potion Vapor', cat: 'game' },
-    { char: '🔮', name: 'Crystal Ball', cat: 'game' },
-    { char: '💀', name: 'Skull', cat: 'game' },
-    { char: '☠', name: 'Skull and Crossbones', cat: 'game' },
-    { char: '⚰', name: 'Coffin', cat: 'game' },
-    { char: '⚱', name: 'Funeral Urn', cat: 'game' },
-    { char: '☘', name: 'Shamrock', cat: 'game' },
-    { char: '🍄', name: 'Mushroom', cat: 'game' },
-    { char: '🌲', name: 'Evergreen Tree', cat: 'game' },
-    { char: '🌸', name: 'Cherry Blossom', cat: 'game' },
-    { char: '❄', name: 'Snowflake', cat: 'game' },
-    { char: '☕', name: 'Hot Beverage', cat: 'game' },
-    { char: '👑', name: 'Crown', cat: 'game' },
-    { char: '💎', name: 'Diamond / Gem', cat: 'game' },
-
-    // 2. Box Drawing
-    { char: '─', name: 'Horizontal light', cat: 'box' },
-    { char: '│', name: 'Vertical light', cat: 'box' },
-    { char: '┌', name: 'Down and right', cat: 'box' },
-    { char: '┐', name: 'Down and left', cat: 'box' },
-    { char: '└', name: 'Up and right', cat: 'box' },
-    { char: '┘', name: 'Up and left', cat: 'box' },
-    { char: '├', name: 'Vertical and right', cat: 'box' },
-    { char: '┤', name: 'Vertical and left', cat: 'box' },
-    { char: '┬', name: 'Down and horizontal', cat: 'box' },
-    { char: '┴', name: 'Up and horizontal', cat: 'box' },
-    { char: '┼', name: 'Vertical and horizontal', cat: 'box' },
-    { char: '═', name: 'Double horizontal', cat: 'box' },
-    { char: '║', name: 'Double vertical', cat: 'box' },
-    { char: '╔', name: 'Double down and right', cat: 'box' },
-    { char: '╗', name: 'Double down and left', cat: 'box' },
-    { char: '╚', name: 'Double up and right', cat: 'box' },
-    { char: '╝', name: 'Double up and left', cat: 'box' },
-    { char: '╠', name: 'Double vertical and right', cat: 'box' },
-    { char: '╣', name: 'Double vertical and left', cat: 'box' },
-    { char: '╦', name: 'Double down and horizontal', cat: 'box' },
-    { char: '╩', name: 'Double up and horizontal', cat: 'box' },
-    { char: '╬', name: 'Double cross', cat: 'box' },
-    { char: '━', name: 'Heavy horizontal', cat: 'box' },
-    { char: '┃', name: 'Heavy vertical', cat: 'box' },
-    { char: '┏', name: 'Heavy down right', cat: 'box' },
-    { char: '┓', name: 'Heavy down left', cat: 'box' },
-    { char: '┗', name: 'Heavy up right', cat: 'box' },
-    { char: '┛', name: 'Heavy up left', cat: 'box' },
-    { char: '┣', name: 'Heavy vertical right', cat: 'box' },
-    { char: '┫', name: 'Heavy vertical left', cat: 'box' },
-    { char: '┳', name: 'Heavy down horizontal', cat: 'box' },
-    { char: '┻', name: 'Heavy up horizontal', cat: 'box' },
-    { char: '╋', name: 'Heavy cross', cat: 'box' },
-    { char: '╭', name: 'Rounded down right', cat: 'box' },
-    { char: '╮', name: 'Rounded down left', cat: 'box' },
-    { char: '╯', name: 'Rounded up left', cat: 'box' },
-    { char: '╰', name: 'Rounded up right', cat: 'box' },
-
-    // 3. Blocks & Shades
-    { char: '█', name: 'Full Block', cat: 'blocks' },
-    { char: '▀', name: 'Upper Half Block', cat: 'blocks' },
-    { char: '▄', name: 'Lower Half Block', cat: 'blocks' },
-    { char: '▌', name: 'Left Half Block', cat: 'blocks' },
-    { char: '▐', name: 'Right Half Block', cat: 'blocks' },
-    { char: '▓', name: 'Dark Shade (75%)', cat: 'blocks' },
-    { char: '▒', name: 'Medium Shade (50%)', cat: 'blocks' },
-    { char: '░', name: 'Light Shade (25%)', cat: 'blocks' },
-    { char: ' ', name: 'One eighth lower block', cat: 'blocks' },
-    { char: '▂', name: 'One quarter lower block', cat: 'blocks' },
-    { char: '▃', name: 'Three eighths lower block', cat: 'blocks' },
-    { char: '▅', name: 'Five eighths lower block', cat: 'blocks' },
-    { char: '▆', name: 'Three quarters lower block', cat: 'blocks' },
-    { char: '▇', name: 'Seven eighths lower block', cat: 'blocks' },
-    { char: '▏', name: 'Left one eighth block', cat: 'blocks' },
-    { char: '▎', name: 'Left one quarter block', cat: 'blocks' },
-    { char: '▍', name: 'Left three eighths block', cat: 'blocks' },
-    { char: '▋', name: 'Left five eighths block', cat: 'blocks' },
-    { char: '▊', name: 'Left three quarters block', cat: 'blocks' },
-    { char: '▉', name: 'Left seven eighths block', cat: 'blocks' },
-    { char: '▖', name: 'Quadrant lower left', cat: 'blocks' },
-    { char: '▗', name: 'Quadrant lower right', cat: 'blocks' },
-    { char: '▘', name: 'Quadrant upper left', cat: 'blocks' },
-    { char: '▙', name: 'Quadrant upper left lower left right', cat: 'blocks' },
-    { char: '▚', name: 'Quadrant upper left lower right', cat: 'blocks' },
-    { char: '▛', name: 'Quadrant upper left right lower left', cat: 'blocks' },
-    { char: '▜', name: 'Quadrant upper left right lower right', cat: 'blocks' },
-    { char: '▝', name: 'Quadrant upper right', cat: 'blocks' },
-    { char: '▞', name: 'Quadrant upper right lower left', cat: 'blocks' },
-    { char: '▟', name: 'Quadrant lower left right upper right', cat: 'blocks' },
-
-    // 4. Shapes & Suits
-    { char: '■', name: 'Black Square', cat: 'shapes' },
-    { char: '□', name: 'White Square', cat: 'shapes' },
-    { char: '▣', name: 'White Square Containing Black Small Square', cat: 'shapes' },
-    { char: '▪', name: 'Black Small Square', cat: 'shapes' },
-    { char: '▫', name: 'White Small Square', cat: 'shapes' },
-    { char: '▲', name: 'Black Up-Pointing Triangle', cat: 'shapes' },
-    { char: '△', name: 'White Up-Pointing Triangle', cat: 'shapes' },
-    { char: '▼', name: 'Black Down-Pointing Triangle', cat: 'shapes' },
-    { char: '▽', name: 'White Down-Pointing Triangle', cat: 'shapes' },
-    { char: '▶', name: 'Black Right-Pointing Triangle', cat: 'shapes' },
-    { char: '▷', name: 'White Right-Pointing Triangle', cat: 'shapes' },
-    { char: '◀', name: 'Black Left-Pointing Triangle', cat: 'shapes' },
-    { char: '◁', name: 'White Left-Pointing Triangle', cat: 'shapes' },
-    { char: '◆', name: 'Black Diamond', cat: 'shapes' },
-    { char: '◇', name: 'White Diamond', cat: 'shapes' },
-    { char: '◈', name: 'White Diamond Containing Black Small Diamond', cat: 'shapes' },
-    { char: '●', name: 'Black Circle', cat: 'shapes' },
-    { char: '○', name: 'White Circle', cat: 'shapes' },
-    { char: '◎', name: 'Bullseye', cat: 'shapes' },
-    { char: '◐', name: 'Circle with Left Half Black', cat: 'shapes' },
-    { char: '◑', name: 'Circle with Right Half Black', cat: 'shapes' },
-    { char: '♠', name: 'Black Spade Suit', cat: 'shapes' },
-    { char: '♥', name: 'Black Heart Suit', cat: 'shapes' },
-    { char: '♦', name: 'Black Diamond Suit', cat: 'shapes' },
-    { char: '♣', name: 'Black Club Suit', cat: 'shapes' },
-    { char: '♤', name: 'White Spade Suit', cat: 'shapes' },
-    { char: '♡', name: 'White Heart Suit', cat: 'shapes' },
-    { char: '♢', name: 'White Diamond Suit', cat: 'shapes' },
-    { char: '♧', name: 'White Club Suit', cat: 'shapes' },
-    { char: '♚', name: 'Black Chess King', cat: 'shapes' },
-    { char: '♛', name: 'Black Chess Queen', cat: 'shapes' },
-    { char: '♜', name: 'Black Chess Rook', cat: 'shapes' },
-    { char: '♝', name: 'Black Chess Bishop', cat: 'shapes' },
-    { char: '♞', name: 'Black Chess Knight', cat: 'shapes' },
-    { char: '♟', name: 'Black Chess Pawn', cat: 'shapes' },
-
-    // 5. Runes & Magic
-    { char: 'ᚠ', name: 'Fehu (Wealth)', cat: 'runes' },
-    { char: 'ᚢ', name: 'Uruz (Strength)', cat: 'runes' },
-    { char: 'ᚦ', name: 'Thurisaz (Thorn/Giant)', cat: 'runes' },
-    { char: 'ᚨ', name: 'Ansuz (Odin/Breath)', cat: 'runes' },
-    { char: 'ᚱ', name: 'Raidho (Journey)', cat: 'runes' },
-    { char: 'ᚲ', name: 'Kenaz (Torch)', cat: 'runes' },
-    { char: 'ᚷ', name: 'Gebo (Gift)', cat: 'runes' },
-    { char: 'ᚹ', name: 'Wunjo (Joy)', cat: 'runes' },
-    { char: 'ᚺ', name: 'Hagalaz (Hail/Storm)', cat: 'runes' },
-    { char: 'ᚾ', name: 'Nauthiz (Need)', cat: 'runes' },
-    { char: 'ᛁ', name: 'Isa (Ice)', cat: 'runes' },
-    { char: 'ᛃ', name: 'Jera (Harvest/Year)', cat: 'runes' },
-    { char: 'ᛇ', name: 'Eihwaz (Yew/World Tree)', cat: 'runes' },
-    { char: 'ᛈ', name: 'Perthro (Fate/Mystery)', cat: 'runes' },
-    { char: 'ᛉ', name: 'Algiz (Protection)', cat: 'runes' },
-    { char: 'ᛊ', name: 'Sowilo (Sun)', cat: 'runes' },
-    { char: 'ᛏ', name: 'Tiwaz (Victory/Tyr)', cat: 'runes' },
-    { char: 'ᛒ', name: 'Berkano (Birch/Rebirth)', cat: 'runes' },
-    { char: 'ᛖ', name: 'Ehwaz (Horse/Trust)', cat: 'runes' },
-    { char: 'ᛗ', name: 'Mannaz (Mankind)', cat: 'runes' },
-    { char: 'ᛚ', name: 'Laguz (Water/Flow)', cat: 'runes' },
-    { char: 'ᛜ', name: 'Ingwaz (Seed/Earth)', cat: 'runes' },
-    { char: 'ᛟ', name: 'Othala (Heritage)', cat: 'runes' },
-    { char: 'ᛞ', name: 'Dagaz (Day/Dawn)', cat: 'runes' },
-    { char: '᛭', name: 'Runic Cross Punctuation', cat: 'runes' },
-    { char: 'ᛮ', name: 'Runic Arlaug Symbol', cat: 'runes' },
-    { char: 'ᛯ', name: 'Runic Tvimadur Symbol', cat: 'runes' },
-    { char: 'ᛰ', name: 'Runic Belgthor Symbol', cat: 'runes' },
-    { char: '᚛', name: 'Ogham Feather Mark Left', cat: 'runes' },
-    { char: '᚜', name: 'Ogham Feather Mark Right', cat: 'runes' },
-    { char: '♈', name: 'Aries', cat: 'runes' },
-    { char: '♉', name: 'Taurus', cat: 'runes' },
-    { char: '♊', name: 'Gemini', cat: 'runes' },
-    { char: '♋', name: 'Cancer', cat: 'runes' },
-    { char: '♌', name: 'Leo', cat: 'runes' },
-    { char: '♍', name: 'Virgo', cat: 'runes' },
-    { char: '♎', name: 'Libra', cat: 'runes' },
-    { char: '♏', name: 'Scorpio', cat: 'runes' },
-    { char: '♐', name: 'Sagittarius', cat: 'runes' },
-    { char: '♑', name: 'Capricorn', cat: 'runes' },
-    { char: '♒', name: 'Aquarius', cat: 'runes' },
-    { char: '♓', name: 'Pisces', cat: 'runes' },
-
-    // 6. Arrows
-    { char: '→', name: 'Right Arrow', cat: 'arrows' },
-    { char: '←', name: 'Left Arrow', cat: 'arrows' },
-    { char: '↑', name: 'Up Arrow', cat: 'arrows' },
-    { char: '↓', name: 'Down Arrow', cat: 'arrows' },
-    { char: '↔', name: 'Left Right Arrow', cat: 'arrows' },
-    { char: '↕', name: 'Up Down Arrow', cat: 'arrows' },
-    { char: '↖', name: 'North West Arrow', cat: 'arrows' },
-    { char: '↗', name: 'North East Arrow', cat: 'arrows' },
-    { char: '↘', name: 'South East Arrow', cat: 'arrows' },
-    { char: '↙', name: 'South West Arrow', cat: 'arrows' },
-    { char: '⇒', name: 'Right Double Arrow', cat: 'arrows' },
-    { char: '⇐', name: 'Left Double Arrow', cat: 'arrows' },
-    { char: '⇑', name: 'Up Double Arrow', cat: 'arrows' },
-    { char: '⇓', name: 'Down Double Arrow', cat: 'arrows' },
-    { char: '⇔', name: 'Left Right Double Arrow', cat: 'arrows' },
-    { char: '↵', name: 'Downwards Arrow with Corner Leftwards', cat: 'arrows' },
-    { char: '↩', name: 'Leftwards Arrow with Hook', cat: 'arrows' },
-    { char: '↪', name: 'Rightwards Arrow with Hook', cat: 'arrows' },
-    { char: '➔', name: 'Heavy Right Arrow', cat: 'arrows' },
-    { char: '➤', name: 'Black Rightwards Arrowhead', cat: 'arrows' },
-
-    // 7. Math & Greek
-    { char: '±', name: 'Plus-Minus', cat: 'math' },
-    { char: '×', name: 'Multiplication Sign', cat: 'math' },
-    { char: '÷', name: 'Division Sign', cat: 'math' },
-    { char: '≠', name: 'Not Equal', cat: 'math' },
-    { char: '≈', name: 'Almost Equal', cat: 'math' },
-    { char: '≤', name: 'Less-than or Equal', cat: 'math' },
-    { char: '≥', name: 'Greater-than or Equal', cat: 'math' },
-    { char: '∞', name: 'Infinity', cat: 'math' },
-    { char: '√', name: 'Square Root', cat: 'math' },
-    { char: '∑', name: 'N-Ary Summation', cat: 'math' },
-    { char: '∏', name: 'N-Ary Product', cat: 'math' },
-    { char: '∫', name: 'Integral', cat: 'math' },
-    { char: '∂', name: 'Partial Differential', cat: 'math' },
-    { char: '∇', name: 'Nabla / Del', cat: 'math' },
-    { char: '½', name: 'Vulgar Fraction One Half', cat: 'math' },
-    { char: '⅓', name: 'Vulgar Fraction One Third', cat: 'math' },
-    { char: '⅔', name: 'Vulgar Fraction Two Thirds', cat: 'math' },
-    { char: '¼', name: 'Vulgar Fraction One Quarter', cat: 'math' },
-    { char: '¾', name: 'Vulgar Fraction Three Quarters', cat: 'math' },
-    { char: 'Ⅰ', name: 'Roman Numeral One', cat: 'math' },
-    { char: 'Ⅱ', name: 'Roman Numeral Two', cat: 'math' },
-    { char: 'Ⅲ', name: 'Roman Numeral Three', cat: 'math' },
-    { char: 'Ⅳ', name: 'Roman Numeral Four', cat: 'math' },
-    { char: 'Ⅴ', name: 'Roman Numeral Five', cat: 'math' },
-    { char: 'Ⅵ', name: 'Roman Numeral Six', cat: 'math' },
-    { char: 'Ⅶ', name: 'Roman Numeral Seven', cat: 'math' },
-    { char: 'Ⅷ', name: 'Roman Numeral Eight', cat: 'math' },
-    { char: 'Ⅸ', name: 'Roman Numeral Nine', cat: 'math' },
-    { char: 'Ⅹ', name: 'Roman Numeral Ten', cat: 'math' },
-    { char: 'α', name: 'Alpha', cat: 'math' },
-    { char: 'β', name: 'Beta', cat: 'math' },
-    { char: 'γ', name: 'Gamma', cat: 'math' },
-    { char: 'δ', name: 'Delta', cat: 'math' },
-    { char: 'π', name: 'Pi', cat: 'math' },
-    { char: 'Σ', name: 'Greek Capital Sigma', cat: 'math' },
-    { char: 'Ω', name: 'Greek Capital Omega', cat: 'math' },
-
-    // 8. Typography & Punctuation
-    { char: '§', name: 'Section Sign', cat: 'typography' },
-    { char: '«', name: 'Left Double Angle Quote', cat: 'typography' },
-    { char: '»', name: 'Right Double Angle Quote', cat: 'typography' },
-    { char: '“', name: 'Left Double Quote', cat: 'typography' },
-    { char: '”', name: 'Right Double Quote', cat: 'typography' },
-    { char: '‘', name: 'Left Single Quote', cat: 'typography' },
-    { char: '’', name: 'Right Single Quote', cat: 'typography' },
-    { char: '„', name: 'Double Low-9 Quotation Mark', cat: 'typography' },
-    { char: '•', name: 'Bullet', cat: 'typography' },
-    { char: '·', name: 'Middle Dot', cat: 'typography' },
-    { char: '…', name: 'Horizontal Ellipsis', cat: 'typography' },
-    { char: '–', name: 'En Dash', cat: 'typography' },
-    { char: '—', name: 'Em Dash', cat: 'typography' },
-    { char: '©', name: 'Copyright Sign', cat: 'typography' },
-    { char: '®', name: 'Registered Sign', cat: 'typography' },
-    { char: '™', name: 'Trade Mark Sign', cat: 'typography' },
-    { char: '№', name: 'Numero Sign', cat: 'typography' },
-    { char: '$', name: 'Dollar Sign', cat: 'typography' },
-    { char: '€', name: 'Euro Sign', cat: 'typography' },
-    { char: '£', name: 'Pound Sign', cat: 'typography' },
-    { char: '¥', name: 'Yen Sign', cat: 'typography' },
-    { char: '¢', name: 'Cent Sign', cat: 'typography' },
-    { char: '¤', name: 'Currency Sign', cat: 'typography' },
-    { char: '₿', name: 'Bitcoin Sign', cat: 'typography' },
-
-    // 9. CJK & Multilingual
-    { char: '〇', name: 'Ideographic Number Zero', cat: 'cjk' },
-    { char: '一', name: 'Kanji / Hanzi One', cat: 'cjk' },
-    { char: '二', name: 'Kanji / Hanzi Two', cat: 'cjk' },
-    { char: '三', name: 'Kanji / Hanzi Three', cat: 'cjk' },
-    { char: '四', name: 'Kanji / Hanzi Four', cat: 'cjk' },
-    { char: '五', name: 'Kanji / Hanzi Five', cat: 'cjk' },
-    { char: '六', name: 'Kanji / Hanzi Six', cat: 'cjk' },
-    { char: '七', name: 'Kanji / Hanzi Seven', cat: 'cjk' },
-    { char: '八', name: 'Kanji / Hanzi Eight', cat: 'cjk' },
-    { char: '九', name: 'Kanji / Hanzi Nine', cat: 'cjk' },
-    { char: '十', name: 'Kanji / Hanzi Ten', cat: 'cjk' },
-    { char: '百', name: 'Kanji / Hanzi Hundred', cat: 'cjk' },
-    { char: '千', name: 'Kanji / Hanzi Thousand', cat: 'cjk' },
-    { char: '万', name: 'Kanji / Hanzi Ten Thousand', cat: 'cjk' },
-    { char: '本', name: 'Book / Origin (Hon/Ben)', cat: 'cjk' },
-    { char: '書', name: 'Write / Book (Sho/Shu)', cat: 'cjk' },
-    { char: '剣', name: 'Sword (Ken/Jian)', cat: 'cjk' },
-    { char: '盾', name: 'Shield (Tate/Dun)', cat: 'cjk' },
-    { char: '魔法', name: 'Magic (Maho)', cat: 'cjk' },
-    { char: '龍', name: 'Dragon (Ryu/Long)', cat: 'cjk' },
-    { char: '〒', name: 'Postal Mark', cat: 'cjk' },
-    { char: '〠', name: 'Face Postal Mark', cat: 'cjk' },
-    { char: '〄', name: 'Japanese Industrial Standard Symbol', cat: 'cjk' },
-    { char: '①', name: 'Circled Digit One', cat: 'cjk' },
-    { char: '②', name: 'Circled Digit Two', cat: 'cjk' },
-    { char: '③', name: 'Circled Digit Three', cat: 'cjk' },
-    { char: '④', name: 'Circled Digit Four', cat: 'cjk' },
-    { char: '⑤', name: 'Circled Digit Five', cat: 'cjk' },
-    { char: '⑥', name: 'Circled Digit Six', cat: 'cjk' },
-    { char: '⑦', name: 'Circled Digit Seven', cat: 'cjk' },
-    { char: '⑧', name: 'Circled Digit Eight', cat: 'cjk' },
-    { char: '⑨', name: 'Circled Digit Nine', cat: 'cjk' },
-    { char: '⑩', name: 'Circled Number Ten', cat: 'cjk' },
-  ];
-
-  // 10. Generate full 256 Braille Patterns (U+2800 to U+28FF)
-  for (let b = 0; b < 256; b++) {
-    const codePoint = 0x2800 + b;
-    const ch = String.fromCodePoint(codePoint);
-    items.push({
-      char: ch,
-      name: `Braille Pattern 0x${b.toString(16).toUpperCase().padStart(2, '0')}`,
-      cat: 'braille',
-    });
+try {
+  const rawRecents = localStorage.getItem(RECENTS_KEY);
+  if (rawRecents) {
+    const parsed = JSON.parse(rawRecents);
+    if (Array.isArray(parsed)) recentGlyphs = parsed;
   }
+} catch {}
 
-  return items;
+function saveRecentGlyphs(): void {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    localStorage.setItem(RECENTS_KEY, JSON.stringify(recentGlyphs));
+  } catch {}
 }
 
-const GLYPH_DATASET = buildGlyphDataset();
-let activeGlyphCat: GlyphItem['cat'] = 'game';
+function addRecentGlyph(char: string): void {
+  recentGlyphs = [char, ...recentGlyphs.filter((c) => c !== char)].slice(0, 36);
+  saveRecentGlyphs();
+}
+
+function toggleUserFavoriteGlyph(char: string): boolean {
+  if (userFavoriteGlyphs.includes(char)) {
+    userFavoriteGlyphs = userFavoriteGlyphs.filter((c) => c !== char);
+    saveUserFavoriteGlyphs(userFavoriteGlyphs);
+    return false;
+  } else {
+    userFavoriteGlyphs = [char, ...userFavoriteGlyphs];
+    saveUserFavoriteGlyphs(userFavoriteGlyphs);
+    return true;
+  }
+}
+
+function updateGlyphInspector(item: GlyphItem): void {
+  const inspectorCanvas = document.getElementById('glyph-inspector-canvas') as HTMLCanvasElement | null;
+  const inspectorName = document.getElementById('glyph-inspector-name');
+  const inspectorChar = document.getElementById('glyph-inspector-char');
+  const inspectorCp = document.getElementById('glyph-inspector-cp');
+  const inspectorWidth = document.getElementById('glyph-inspector-width');
+  const inspectorCompat = document.getElementById('glyph-inspector-compat');
+
+  if (inspectorCanvas) {
+    renderGlyphToCanvas(inspectorCanvas, item.char, activeGlyphTint, 3);
+  }
+  if (inspectorName) inspectorName.textContent = item.name;
+  if (inspectorChar) inspectorChar.textContent = item.char;
+  if (inspectorCp) inspectorCp.textContent = item.codepoint;
+  const advance = getCharPixelAdvance(item.char);
+  if (inspectorWidth) inspectorWidth.textContent = `${advance}px`;
+  if (inspectorCompat) {
+    if (item.isSmp) {
+      inspectorCompat.textContent = '⚠️ SMP (>U+FFFF) - Vanilla Java renders []';
+      inspectorCompat.className = 'badge stat-warn';
+    } else {
+      inspectorCompat.textContent = '✓ Vanilla Java BMP Compatible';
+      inspectorCompat.className = 'badge badge-ok';
+    }
+  }
+}
+
+function renderQuickFavsBar(): void {
+  const container = document.getElementById('glyph-quick-favs-list');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const favsToShow = userFavoriteGlyphs.slice(0, 20);
+  favsToShow.forEach((char) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'quick-fav-btn';
+    btn.textContent = char;
+    btn.title = `Quick insert "${char}"`;
+    btn.addEventListener('click', () => {
+      insertAtCursor(char);
+      addRecentGlyph(char);
+      showToast(`Inserted "${char}"`, 'info');
+    });
+    container.appendChild(btn);
+  });
+}
+
+function renderFontReplacementPanel(): void {
+  const chipsBar = document.getElementById('font-chips-bar');
+  const convertInput = document.getElementById('font-convert-input') as HTMLInputElement | null;
+  const convertPreview = document.getElementById('font-convert-preview');
+  const alphabetGrid = document.getElementById('font-alphabet-grid');
+  if (!chipsBar || !convertPreview || !alphabetGrid) return;
+
+  chipsBar.innerHTML = '';
+  SYMBOL_CHAT_FONTS.forEach((font) => {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = `font-chip${font.id === activeFontId ? ' active' : ''}`;
+    chip.innerHTML = `<span>${font.name}</span> <small style="opacity:0.75;">${font.sample}</small>`;
+    chip.title = `${font.description} ${font.isSmp ? '(SMP >U+FFFF)' : '(Vanilla BMP)'}`;
+    chip.addEventListener('click', () => {
+      activeFontId = font.id;
+      renderFontReplacementPanel();
+    });
+    chipsBar.appendChild(chip);
+  });
+
+  const font = getFontById(activeFontId);
+  const rawText = convertInput?.value || 'Minecraft Book Studio 123';
+  convertPreview.textContent = font.transform(rawText);
+
+  // Populate alphabet grid of the chosen font
+  alphabetGrid.innerHTML = '';
+  const entries = Object.entries(font.charMap);
+  entries.forEach(([origChar, fontChar]) => {
+    const card = document.createElement('div');
+    card.className = 'glyph-card';
+    card.title = `${font.name}: ${origChar} → ${fontChar} (Click to insert)`;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 28;
+    canvas.height = 28;
+    canvas.className = 'glyph-canvas';
+    renderGlyphToCanvas(canvas, fontChar, activeGlyphTint, 2);
+
+    const advance = getCharPixelAdvance(fontChar);
+    const metaEl = document.createElement('span');
+    metaEl.className = `glyph-card-meta${font.isSmp ? ' smp' : ''}`;
+    metaEl.textContent = font.isSmp ? 'SMP' : `${advance}px`;
+
+    card.appendChild(canvas);
+    card.appendChild(metaEl);
+
+    card.addEventListener('mouseenter', () => {
+      updateGlyphInspector({
+        char: fontChar,
+        name: `${font.name}: "${origChar}"`,
+        category: 'fonts',
+        codepoint: `U+${(fontChar.codePointAt(0) || 0).toString(16).toUpperCase().padStart(4, '0')}`,
+        isSmp: (fontChar.codePointAt(0) || 0) > 0xFFFF,
+      });
+    });
+
+    card.addEventListener('click', () => {
+      insertAtCursor(fontChar);
+      addRecentGlyph(fontChar);
+      showToast(`Inserted "${fontChar}"`, 'info');
+    });
+
+    alphabetGrid.appendChild(card);
+  });
+}
 
 function renderGlyphs(): void {
+  ensureAtlasLoaded();
+  renderQuickFavsBar();
+
+  const fontPanel = document.getElementById('glyph-font-panel');
+  if (activeGlyphCat === 'fonts') {
+    if (fontPanel) fontPanel.style.display = 'flex';
+    glyphGrid.style.display = 'none';
+    renderFontReplacementPanel();
+    return;
+  }
+
+  if (fontPanel) fontPanel.style.display = 'none';
+  glyphGrid.style.display = 'grid';
+
   const query = glyphSearch.value.trim().toLowerCase();
   glyphGrid.innerHTML = '';
 
-  const filtered = GLYPH_DATASET.filter((item) => {
-    if (query) {
-      // Check char, name, or hex code
+  let itemsToRender: GlyphItem[] = [];
+
+  if (query) {
+    itemsToRender = ALL_GLYPHS.filter((item) => {
       const hex = (item.char.codePointAt(0) || 0).toString(16).toLowerCase();
       return (
         item.char.includes(query) ||
         item.name.toLowerCase().includes(query) ||
         hex.includes(query.replace(/^u\+?/i, ''))
       );
-    }
-    return item.cat === activeGlyphCat;
-  });
+    });
+  } else if (activeGlyphCat === 'all') {
+    // One large unified continuous grid of all symbols (Symbol Chat style)
+    itemsToRender = ALL_GLYPHS;
+  } else if (activeGlyphCat === 'fav') {
+    itemsToRender = userFavoriteGlyphs.map((c) => findGlyphItem(c));
+  } else if (activeGlyphCat === 'recent') {
+    itemsToRender = recentGlyphs.map((c) => findGlyphItem(c));
+  } else {
+    itemsToRender = (GLYPHS_BY_CATEGORY as any)[activeGlyphCat] || [];
+  }
 
-  filtered.forEach((item) => {
+  if (itemsToRender.length > 0) {
+    updateGlyphInspector(itemsToRender[0]);
+  }
+
+  itemsToRender.forEach((item) => {
     const card = document.createElement('div');
     card.className = 'glyph-card';
-    card.title = `${item.name} (${item.char}) - Click to insert`;
+    card.title = `${item.name} (${item.char}) • ${item.codepoint} • Click to insert, Right-click to star`;
 
-    const charEl = document.createElement('span');
-    charEl.className = 'glyph-char';
-    charEl.textContent = item.char;
+    // Star favorite button
+    const starBtn = document.createElement('button');
+    starBtn.type = 'button';
+    const isFav = userFavoriteGlyphs.includes(item.char);
+    starBtn.className = `glyph-star-btn${isFav ? ' starred' : ''}`;
+    starBtn.textContent = isFav ? '★' : '☆';
+    starBtn.title = isFav ? 'Remove from favorites' : 'Add to favorites';
+    starBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const starred = toggleUserFavoriteGlyph(item.char);
+      starBtn.textContent = starred ? '★' : '☆';
+      starBtn.className = `glyph-star-btn${starred ? ' starred' : ''}`;
+      renderQuickFavsBar();
+      if (activeGlyphCat === 'fav') renderGlyphs();
+    });
 
-    const width = Math.round(measureLineWidth(parseFormattedText(item.char)));
+    // Minecraft Bitmap Canvas (crisp pixelated monochrome rendering)
+    const canvas = document.createElement('canvas');
+    canvas.width = 28;
+    canvas.height = 28;
+    canvas.className = 'glyph-canvas';
+    renderGlyphToCanvas(canvas, item.char, activeGlyphTint, 2);
 
+    const advance = getCharPixelAdvance(item.char);
     const metaEl = document.createElement('span');
-    metaEl.className = 'glyph-meta';
-    metaEl.textContent = `${width}px`;
+    metaEl.className = `glyph-card-meta${item.isSmp ? ' smp' : ''}`;
+    metaEl.textContent = item.isSmp ? 'SMP' : `${advance}px`;
 
-    card.appendChild(charEl);
+    card.appendChild(starBtn);
+    card.appendChild(canvas);
     card.appendChild(metaEl);
+
+    card.addEventListener('mouseenter', () => {
+      updateGlyphInspector(item);
+    });
+
+    card.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      const starred = toggleUserFavoriteGlyph(item.char);
+      starBtn.textContent = starred ? '★' : '☆';
+      starBtn.className = `glyph-star-btn${starred ? ' starred' : ''}`;
+      renderQuickFavsBar();
+      if (activeGlyphCat === 'fav') renderGlyphs();
+    });
 
     card.addEventListener('click', () => {
       insertAtCursor(item.char);
-      showToast(`Inserted "${item.char}" (${width}px)`, 'info');
-      glyphDialog.close();
+      addRecentGlyph(item.char);
+      showToast(`Inserted "${item.char}" (${advance}px)`, 'info');
     });
 
     glyphGrid.appendChild(card);
   });
 
-  if (filtered.length === 0) {
-    glyphGrid.innerHTML = '<p class="ruler-empty" style="grid-column: 1/-1;">No matching glyphs found</p>';
+  if (itemsToRender.length === 0) {
+    if (activeGlyphCat === 'fav') {
+      glyphGrid.innerHTML = '<p class="ruler-empty" style="grid-column: 1/-1;">No favorites yet! Click the star ☆ on any glyph tile to add it here.</p>';
+    } else if (activeGlyphCat === 'recent') {
+      glyphGrid.innerHTML = '<p class="ruler-empty" style="grid-column: 1/-1;">No recent glyphs yet. Click any symbol to insert it.</p>';
+    } else {
+      glyphGrid.innerHTML = '<p class="ruler-empty" style="grid-column: 1/-1;">No matching glyphs found</p>';
+    }
   }
 }
 
@@ -3544,10 +3433,67 @@ function wireEvents(): void {
     tab.addEventListener('click', () => {
       glyphTabs.querySelectorAll('.glyph-tab').forEach(t => t.classList.remove('active'));
       tab.classList.add('active');
-      activeGlyphCat = tab.dataset.cat as GlyphItem['cat'];
+      activeGlyphCat = tab.dataset.cat as GlyphCategory;
       renderGlyphs();
     });
   });
+
+  // Font Converter & Actions
+  const fontConvertInput = document.getElementById('font-convert-input') as HTMLInputElement | null;
+  const fontConvertPreview = document.getElementById('font-convert-preview');
+  const btnFontInsert = document.getElementById('btn-font-insert');
+  const btnFontApplyLine = document.getElementById('btn-font-apply-line');
+
+  if (fontConvertInput && fontConvertPreview) {
+    fontConvertInput.addEventListener('input', () => {
+      const font = getFontById(activeFontId);
+      fontConvertPreview.textContent = font.transform(fontConvertInput.value || 'Minecraft Book Studio 123');
+    });
+  }
+
+  if (btnFontInsert && fontConvertInput && fontConvertPreview) {
+    btnFontInsert.addEventListener('click', () => {
+      const font = getFontById(activeFontId);
+      const textToInsert = font.transform(fontConvertInput.value);
+      if (textToInsert) {
+        insertAtCursor(textToInsert);
+        showToast(`Inserted ${font.name} text`, 'success');
+      }
+    });
+  }
+
+  if (btnFontApplyLine && fontConvertInput) {
+    btnFontApplyLine.addEventListener('click', () => {
+      const current = currentLines[activeLineIndex] ?? '';
+      if (!current.trim()) {
+        showToast('Active line is empty', 'warn');
+        return;
+      }
+      const font = getFontById(activeFontId);
+      const converted = font.transform(current);
+      pushUndoSnapshot();
+      currentLines[activeLineIndex] = converted;
+      if (lineInputEls[activeLineIndex]) {
+        lineInputEls[activeLineIndex].value = converted;
+      }
+      saveCurrentPageToBook();
+      updateAll();
+      showToast(`Applied ${font.name} to line ${activeLineIndex + 1}`, 'success');
+    });
+  }
+
+  // Tint Swatches for Minecraft Bitmap Glyphs
+  const tintContainer = document.getElementById('glyph-tint-swatches');
+  if (tintContainer) {
+    tintContainer.querySelectorAll<HTMLButtonElement>('.tint-dot').forEach((dot) => {
+      dot.addEventListener('click', () => {
+        tintContainer.querySelectorAll('.tint-dot').forEach(d => d.classList.remove('active'));
+        dot.classList.add('active');
+        activeGlyphTint = dot.dataset.color || '#FFFFFF';
+        renderGlyphs();
+      });
+    });
+  }
 
   // Custom Character Inspector & Inserter
   glyphCustomInput.addEventListener('input', () => {
@@ -3617,6 +3563,14 @@ function wireEvents(): void {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
       e.preventDefault();
       redo();
+      return;
+    }
+
+    // Toggle Glyph Browser (Ctrl+G / Cmd+G)
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'g') {
+      e.preventDefault();
+      renderGlyphs();
+      glyphDialog.showModal();
       return;
     }
 

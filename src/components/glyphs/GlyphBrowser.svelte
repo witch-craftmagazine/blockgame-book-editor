@@ -2,14 +2,21 @@
   import { onMount } from 'svelte';
   import { glyphStore } from '../../state/glyphStore.svelte';
   import { bookStore } from '../../state/bookStore.svelte';
-  import { CATEGORY_DEFINITIONS, type GlyphCategory, findGlyphItem } from '../../data/symbolChatDataset';
+  import { uiStore } from '../../state/uiStore.svelte';
+  import {
+    CATEGORY_DEFINITIONS,
+    type GlyphCategory,
+    type GlyphItem,
+    findGlyphItem,
+  } from '../../data/symbolChatDataset';
+  import { SYMBOL_CHAT_FONTS, type SymbolChatFont } from '../../data/symbolChatFonts';
   import GlyphTile from './GlyphTile.svelte';
   import GlyphCanvas from './GlyphCanvas.svelte';
   import { getCharPixelAdvance } from './glyphRenderer';
 
   const PREVIEW_PALETTE = [
-    { name: 'Dark Slate', hex: '#1D1D21' },
     { name: 'Pure White', hex: '#FFFFFF' },
+    { name: 'Dark Slate', hex: '#1D1D21' },
     { name: 'Gold', hex: '#FFAA00' },
     { name: 'Aqua', hex: '#55FFFF' },
     { name: 'Green', hex: '#55FF55' },
@@ -28,6 +35,28 @@
 
   const inspectorAdvance = $derived(getCharPixelAdvance(inspectorItem.char));
 
+  // Converted font text preview
+  const fontConvertedPreview = $derived.by(() => {
+    const raw = glyphStore.fontInputText || 'Minecraft Book Studio 123';
+    return glyphStore.activeFont.transform(raw);
+  });
+
+  // Alphabet tiles for the selected font
+  const fontAlphabetItems = $derived.by<GlyphItem[]>(() => {
+    const map = glyphStore.activeFont.charMap;
+    const entries = Object.entries(map);
+    return entries.map(([orig, converted]) => {
+      const code = converted.codePointAt(0) ?? 0;
+      return {
+        char: converted,
+        name: `${glyphStore.activeFont.name}: ${orig} → ${converted}`,
+        category: 'fonts',
+        codepoint: `U+${code.toString(16).toUpperCase().padStart(4, '0')}`,
+        isSmp: code > 0xFFFF,
+      };
+    });
+  });
+
   function handleClose() {
     glyphStore.close();
   }
@@ -41,6 +70,25 @@
   function handleQuickInsert(char: string) {
     bookStore.insertAtCursor(char);
     glyphStore.addRecent(char);
+    uiStore.showToast(`Inserted "${char}"`, 'info', 1500);
+  }
+
+  function handleInsertFontConverted() {
+    if (!fontConvertedPreview) return;
+    bookStore.insertAtCursor(fontConvertedPreview);
+    uiStore.showToast(`Inserted converted ${glyphStore.activeFont.name} text`, 'success', 2000);
+  }
+
+  function handleApplyFontToCurrentLine() {
+    const activeIdx = bookStore.activeLineIndex;
+    const currentLine = bookStore.currentLines[activeIdx] ?? '';
+    if (!currentLine.trim()) {
+      uiStore.showToast('Current line is empty', 'warn');
+      return;
+    }
+    const converted = glyphStore.activeFont.transform(currentLine);
+    bookStore.setLine(activeIdx, converted);
+    uiStore.showToast(`Applied ${glyphStore.activeFont.name} to line ${activeIdx + 1}`, 'success');
   }
 
   function handleKeyDown(e: KeyboardEvent) {
@@ -73,7 +121,10 @@
       <div class="modal-header">
         <div class="header-title-row">
           <span class="header-icon">✦</span>
-          <h2 class="header-title">GLYPH BROWSER <span class="tag">Symbol Chat</span></h2>
+          <h2 class="header-title">
+            GLYPH BROWSER <span class="tag">Symbol Chat</span>
+          </h2>
+          <span class="header-hint">• High-Density Minecraft Bitmap Grid</span>
         </div>
 
         <button
@@ -95,7 +146,7 @@
             bind:this={searchInputEl}
             type="text"
             class="search-input"
-            placeholder="Search glyphs by name, symbol, or hex (e.g. sword, 2694, ⚔)..."
+            placeholder="Search all glyphs by name, symbol, or hex (e.g. sword, 2694, ⚔, star)..."
             bind:value={glyphStore.searchQuery}
           />
           {#if glyphStore.searchQuery.length > 0}
@@ -139,7 +190,7 @@
         <div class="quick-favorites-strip">
           <span class="strip-label">⭐ Quick Favs:</span>
           <div class="strip-list">
-            {#each glyphStore.favorites.slice(0, 16) as favChar}
+            {#each glyphStore.favorites.slice(0, 20) as favChar}
               <button
                 type="button"
                 class="quick-fav-chip"
@@ -153,28 +204,104 @@
         </div>
       {/if}
 
-      <!-- 5. High-Density Glyph Grid -->
-      <div class="grid-scroll-area">
-        {#if glyphStore.filteredGlyphs.length === 0}
-          <div class="empty-state">
-            {#if glyphStore.searchQuery.length > 0}
-              <p>No glyphs matching "{glyphStore.searchQuery}"</p>
-            {:else if glyphStore.activeCategory === 'fav'}
-              <p>No favorites yet! Click the star <strong>☆</strong> on any glyph tile to add it here.</p>
-            {:else if glyphStore.activeCategory === 'recent'}
-              <p>No recent glyphs yet. Click any glyph to insert it into your active book line.</p>
-            {/if}
+      <!-- 5. Symbol Chat Font Replacement Tool (When Fonts tab is selected) -->
+      {#if glyphStore.activeCategory === 'fonts' && glyphStore.searchQuery.length === 0}
+        <div class="font-tool-panel">
+          <div class="font-selector-ribbon">
+            <span class="font-ribbon-label">🔠 Symbol Chat Font:</span>
+            <div class="font-chips-list">
+              {#each SYMBOL_CHAT_FONTS as font}
+                <button
+                  type="button"
+                  class="font-chip-btn"
+                  class:active={glyphStore.activeFontId === font.id}
+                  onclick={() => glyphStore.setActiveFont(font.id)}
+                  title="{font.description} {font.isSmp ? '(SMP >U+FFFF)' : '(Vanilla BMP)'}"
+                >
+                  <span class="chip-name">{font.name}</span>
+                  <span class="chip-sample">{font.sample}</span>
+                  {#if !font.isSmp}
+                    <span class="chip-tag bmp">✓ BMP</span>
+                  {:else}
+                    <span class="chip-tag smp">SMP</span>
+                  {/if}
+                </button>
+              {/each}
+            </div>
           </div>
-        {:else}
-          <div class="glyph-grid">
-            {#each glyphStore.filteredGlyphs as item (item.char)}
+
+          <div class="font-converter-row">
+            <div class="converter-input-box">
+              <label for="font-converter-input">Type text to convert:</label>
+              <input
+                id="font-converter-input"
+                type="text"
+                class="font-input"
+                placeholder="Type anything to convert (e.g. Chapter 1: The Legend)..."
+                bind:value={glyphStore.fontInputText}
+              />
+            </div>
+
+            <div class="converter-preview-box">
+              <span class="preview-label">Output ({glyphStore.activeFont.name}):</span>
+              <div class="preview-value">{fontConvertedPreview}</div>
+            </div>
+
+            <div class="converter-actions">
+              <button
+                type="button"
+                class="btn-font-action primary"
+                onclick={handleInsertFontConverted}
+                title="Insert converted text at editor cursor"
+              >
+                Insert Converted
+              </button>
+
+              <button
+                type="button"
+                class="btn-font-action"
+                onclick={handleApplyFontToCurrentLine}
+                title="Convert entire active line in editor to this font"
+              >
+                Apply to Line
+              </button>
+            </div>
+          </div>
+
+          <div class="font-alphabet-header">
+            <span>Click any letter to insert directly into book:</span>
+          </div>
+
+          <div class="font-alphabet-grid">
+            {#each fontAlphabetItems as item (item.char + item.name)}
               <GlyphTile {item} previewColor={glyphStore.previewColor} />
             {/each}
           </div>
-        {/if}
-      </div>
+        </div>
+      {:else}
+        <!-- 6. High-Density Main Grid (All / Category / Search) -->
+        <div class="grid-scroll-area">
+          {#if glyphStore.filteredGlyphs.length === 0}
+            <div class="empty-state">
+              {#if glyphStore.searchQuery.length > 0}
+                <p>No glyphs matching "{glyphStore.searchQuery}"</p>
+              {:else if glyphStore.activeCategory === 'fav'}
+                <p>No favorites yet! Click the star <strong>☆</strong> on any glyph tile to add it here.</p>
+              {:else if glyphStore.activeCategory === 'recent'}
+                <p>No recent glyphs yet. Click any glyph to insert it into your active book line.</p>
+              {/if}
+            </div>
+          {:else}
+            <div class="glyph-grid">
+              {#each glyphStore.filteredGlyphs as item (item.char + item.name)}
+                <GlyphTile {item} previewColor={glyphStore.previewColor} />
+              {/each}
+            </div>
+          {/if}
+        </div>
+      {/if}
 
-      <!-- 6. Inspector & Status Footer -->
+      <!-- 7. Inspector & Status Footer -->
       <div class="inspector-footer">
         <div class="inspector-left">
           <div class="inspector-preview-box">
@@ -201,14 +328,14 @@
               {#if inspectorItem.isSmp}
                 <span class="detail-tag warn">⚠️ SMP (&gt;U+FFFF) Vanilla Box</span>
               {:else}
-                <span class="detail-tag success">✓ Vanilla Java BMP</span>
+                <span class="detail-tag success">✓ Vanilla Java BMP Compatible</span>
               {/if}
             </div>
           </div>
         </div>
 
         <div class="inspector-right">
-          <span class="tint-label">Preview Tint:</span>
+          <span class="tint-label">Bitmap Color Tint:</span>
           <div class="tint-swatches" role="group" aria-label="Preview Color Tint">
             {#each PREVIEW_PALETTE as swatch}
               <button
@@ -232,7 +359,7 @@
   .glyph-modal-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.72);
+    background: rgba(0, 0, 0, 0.76);
     backdrop-filter: blur(4px);
     display: flex;
     align-items: center;
@@ -249,16 +376,16 @@
   }
 
   .glyph-modal-container {
-    width: 780px;
-    max-width: 95vw;
-    height: 600px;
-    max-height: 92vh;
+    width: 860px;
+    max-width: 96vw;
+    height: 660px;
+    max-height: 94vh;
     background: var(--bg-panel, #16151a);
     border: 1px solid var(--border-color, #383542);
     border-radius: 10px;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7);
     overflow: hidden;
   }
 
@@ -304,6 +431,11 @@
     text-transform: uppercase;
   }
 
+  .header-hint {
+    font-size: 11px;
+    color: var(--text-muted, #9e9ba8);
+  }
+
   .btn-close {
     background: transparent;
     border: none;
@@ -346,7 +478,7 @@
     background: var(--bg-card, #201f26);
     border: 1px solid var(--border-color, #383542);
     border-radius: 6px;
-    padding: 8px 32px 8px 32px;
+    padding: 8px 32px;
     font-size: 13px;
     color: var(--text-main, #f0e6d2);
     outline: none;
@@ -492,7 +624,198 @@
     padding: 32px;
   }
 
-  /* 6. Inspector Footer */
+  /* 6. Symbol Chat Font Tool Panel */
+  .font-tool-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    padding: 12px 16px;
+    gap: 12px;
+  }
+
+  .font-selector-ribbon {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .font-ribbon-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-muted, #9e9ba8);
+    letter-spacing: 0.5px;
+  }
+
+  .font-chips-list {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
+  }
+
+  .font-chip-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--bg-card, #201f26);
+    border: 1px solid var(--border-color, #383542);
+    border-radius: 6px;
+    padding: 6px 10px;
+    color: var(--text-main, #f0e6d2);
+    font-size: 12px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.1s ease, border-color 0.1s ease;
+  }
+
+  .font-chip-btn:hover {
+    background: var(--bg-hover, #2d2b36);
+  }
+
+  .font-chip-btn.active {
+    background: rgba(144, 202, 249, 0.15);
+    border-color: var(--accent, #90caf9);
+    color: var(--accent, #90caf9);
+  }
+
+  .chip-sample {
+    font-family: monospace;
+    color: var(--text-muted, #b3afbe);
+    font-size: 11px;
+  }
+
+  .chip-tag {
+    font-size: 9px;
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-weight: 700;
+  }
+
+  .chip-tag.bmp {
+    background: rgba(129, 199, 132, 0.2);
+    color: #81c784;
+  }
+
+  .chip-tag.smp {
+    background: rgba(255, 183, 77, 0.2);
+    color: #ffb74d;
+  }
+
+  .font-converter-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 10px;
+    background: var(--bg-card, #201f26);
+    border: 1px solid var(--border-color, #383542);
+    border-radius: 6px;
+    padding: 10px;
+  }
+
+  .converter-input-box {
+    flex: 1.2;
+    min-width: 220px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .converter-input-box label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted, #9e9ba8);
+  }
+
+  .font-input {
+    background: var(--bg-panel, #16151a);
+    border: 1px solid var(--border-color, #383542);
+    border-radius: 4px;
+    padding: 6px 8px;
+    color: var(--text-main, #f0e6d2);
+    font-size: 13px;
+    outline: none;
+  }
+
+  .font-input:focus {
+    border-color: var(--accent, #90caf9);
+  }
+
+  .converter-preview-box {
+    flex: 1.2;
+    min-width: 220px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .preview-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted, #9e9ba8);
+  }
+
+  .preview-value {
+    background: var(--bg-panel, #16151a);
+    border: 1px solid var(--border-color, #383542);
+    border-radius: 4px;
+    padding: 6px 8px;
+    color: var(--accent, #90caf9);
+    font-family: monospace;
+    font-size: 13px;
+    min-height: 20px;
+    word-break: break-all;
+  }
+
+  .converter-actions {
+    display: flex;
+    gap: 6px;
+  }
+
+  .btn-font-action {
+    background: var(--btn-bg, #2a2833);
+    border: 1px solid var(--border-color, #383542);
+    border-radius: 4px;
+    padding: 7px 12px;
+    color: var(--text-main, #f0e6d2);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.1s ease;
+  }
+
+  .btn-font-action:hover {
+    background: var(--btn-hover, #3a3746);
+  }
+
+  .btn-font-action.primary {
+    background: #1976d2;
+    border-color: #42a5f5;
+    color: #ffffff;
+  }
+
+  .btn-font-action.primary:hover {
+    background: #1565c0;
+  }
+
+  .font-alphabet-header {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted, #9e9ba8);
+  }
+
+  .font-alphabet-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+    gap: 6px;
+    max-height: 220px;
+    overflow-y: auto;
+  }
+
+  /* 7. Inspector Footer */
   .inspector-footer {
     display: flex;
     align-items: center;

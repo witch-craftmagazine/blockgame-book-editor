@@ -14,6 +14,7 @@
  */
 
 export type GlyphCategory =
+  | 'all'
   | 'fav'
   | 'recent'
   | 'borders'
@@ -42,6 +43,7 @@ export interface GlyphItem {
 }
 
 export const CATEGORY_DEFINITIONS: GlyphCategoryMeta[] = [
+  { id: 'all', label: 'All', icon: '🌐', description: 'One large grid displaying all symbols at once' },
   { id: 'fav', label: 'Favorites', icon: '⭐', description: 'Starred characters' },
   { id: 'recent', label: 'Recent', icon: '🕒', description: 'Recently used symbols' },
   { id: 'borders', label: 'Borders', icon: '━', description: 'Box drawing & frames' },
@@ -51,7 +53,7 @@ export const CATEGORY_DEFINITIONS: GlyphCategoryMeta[] = [
   { id: 'math', label: 'Math', icon: '🔢', description: 'Superscripts, fractions & numerals' },
   { id: 'runes', label: 'Runes', icon: 'ᚠ', description: 'Elder Futhark & astrology' },
   { id: 'braille', label: 'Braille', icon: '⠟', description: 'Braille matrix art' },
-  { id: 'fonts', label: 'Fonts', icon: '🔠', description: 'Small caps, circled & script' },
+  { id: 'fonts', label: 'Fonts', icon: '🔠', description: 'Symbol Chat font alphabets' },
   { id: 'kaomoji', label: 'Kaomoji', icon: '🔤', description: 'Faces & text expressions' },
 ];
 
@@ -658,7 +660,7 @@ export const ALL_GLYPHS: GlyphItem[] = [
   ...KAOMOJI_GLYPHS,
 ];
 
-export const GLYPHS_BY_CATEGORY: Record<Exclude<GlyphCategory, 'fav' | 'recent'>, GlyphItem[]> = {
+export const GLYPHS_BY_CATEGORY: Record<Exclude<GlyphCategory, 'fav' | 'recent' | 'all'>, GlyphItem[]> = {
   borders: BORDER_GLYPHS,
   rpg: RPG_GLYPHS,
   arrows: ARROW_GLYPHS,
