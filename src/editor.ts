@@ -55,7 +55,7 @@ let activeLineIndex = 0;
 let isRawMode = false;
 
 let engine: BookEngine = 'java';
-let viewMode: ViewMode = 'double';
+let viewMode: ViewMode = 'single';
 let currentZoom = 1.0;
 let soundEnabled = true;
 
@@ -373,8 +373,106 @@ export function updateGalleryCounts(): void {
   if (galleryTabLibCount) galleryTabLibCount.textContent = savedTemplates.length.toString();
 }
 
-// ─── Unicode Pixel-Width Matrix Catalog & Controller ──────────────────────────
+// ─── Preset & Hidden Presets Management ──────────────────────────────────────
 
+const HIDDEN_PRESETS_KEY = 'blockgame_hidden_presets';
+
+export function getHiddenPresetIds(): Set<string> {
+  if (typeof localStorage === 'undefined') return new Set();
+  try {
+    const raw = localStorage.getItem(HIDDEN_PRESETS_KEY);
+    return raw ? new Set(JSON.parse(raw)) : new Set();
+  } catch {
+    return new Set();
+  }
+}
+
+export function saveHiddenPresetIds(ids: Set<string>): void {
+  if (typeof localStorage === 'undefined') return;
+  localStorage.setItem(HIDDEN_PRESETS_KEY, JSON.stringify(Array.from(ids)));
+}
+
+// ─── Minecraft Unicode & Emoji Compatibility Checker ─────────────────────────
+
+/**
+ * Checks if a string contains Unicode characters above U+FFFF (Supplementary Multilingual Plane, SMP).
+ * In vanilla Minecraft Java Edition, fonts only render 16-bit BMP characters (U+0000 to U+FFFF).
+ * Characters above U+FFFF (like modern emoji: 😀, 🍎, 🔥, 💀, etc.) render as missing glyph boxes ([]).
+ */
+export function detectUnsupportedMinecraftChars(text: string): { count: number; chars: string[] } {
+  const chars: string[] = [];
+  for (const ch of text) {
+    const code = ch.codePointAt(0);
+    if (code && code > 0xFFFF) {
+      if (!chars.includes(ch)) chars.push(ch);
+    }
+  }
+  return { count: chars.length, chars };
+}
+
+// ─── Unicode Pixel-Width Matrix Catalog & Character Sets ─────────────────────
+
+export interface GlyphSet {
+  id: string;
+  name: string;
+  glyphs: string[];
+}
+
+export const CHARACTER_SETS: Record<string, GlyphSet> = {
+  fav: {
+    id: 'fav',
+    name: '★ Favs',
+    glyphs: ['★', '✦', '✧', '═', '║', '╔', '╗', '╚', '╝', '─', '│', '⚔', '⛏', '⚒', '⚖', '⚜', '⚡', '☕', '☠', '☘', '❄', '✓', '✕', '•'],
+  },
+  borders: {
+    id: 'borders',
+    name: '━ Borders',
+    glyphs: ['━', '┃', '┏', '┓', '┗', '┛', '═', '║', '╔', '╗', '╚', '╝', '─', '│', '┌', '┐', '└', '┘', '├', '┤', '┬', '┴', '┼', '╂', '╫', '╬', '╒', '╕', '╘', '╛'],
+  },
+  rpg: {
+    id: 'rpg',
+    name: '⚔ RPG',
+    glyphs: ['⚔', '⛏', '⚒', '⚖', '⚗', '⚙', '⚚', '⚛', '⚜', '⚡', '☕', '☠', '⚰', '⚱', '☘', '❄', '♟', '♔', '♕', '⛨', '♈', '✡', '☯', '☸', '⚓', '⌛'],
+  },
+  arrows: {
+    id: 'arrows',
+    name: '➔ Arrows',
+    glyphs: ['➔', '➜', '◄', '►', '▲', '▼', '◀', '▶', '←', '→', '↑', '↓', '↔', '↕', '↖', '↗', '↘', '↙', '⇦', '⇨', '↺', '↻', '⇄', '⇅', '↞', '↠'],
+  },
+  blocks: {
+    id: 'blocks',
+    name: '█ Blocks',
+    glyphs: ['█', '▓', '▒', '░', '▀', '▄', '▌', '▐', '■', '□', '▪', '▫', '▬', '▭', '▮', '▯', '▰', '▱', '◆', '◇', '◈', '◉', '◊', '○', '●', '◐', '◑'],
+  },
+  decor: {
+    id: 'decor',
+    name: '✨ Decor',
+    glyphs: ['✨', '★', '☆', '✦', '✧', '✪', '✫', '✯', '☄', '☽', '☾', '☉', '♨', '☕', '✉', '✂', '✎', '✒', '✓', '✕', '•', '·', '°', '※', '❦', '❧'],
+  },
+};
+
+const USER_FAV_GLYPHS_KEY = 'blockgame_user_fav_glyphs';
+
+export function loadUserFavoriteGlyphs(): string[] {
+  if (typeof localStorage === 'undefined') return [...CHARACTER_SETS.fav.glyphs];
+  try {
+    const raw = localStorage.getItem(USER_FAV_GLYPHS_KEY);
+    if (!raw) return [...CHARACTER_SETS.fav.glyphs];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : [...CHARACTER_SETS.fav.glyphs];
+  } catch {
+    return [...CHARACTER_SETS.fav.glyphs];
+  }
+}
+
+export function saveUserFavoriteGlyphs(glyphs: string[]): void {
+  if (typeof localStorage === 'undefined') return;
+  localStorage.setItem(USER_FAV_GLYPHS_KEY, JSON.stringify(glyphs));
+}
+
+export let userFavoriteGlyphs: string[] = loadUserFavoriteGlyphs();
+
+// Authentic Minecraft Java BMP Glyphs (All <= 0xFFFF, 100% renderable in vanilla Java Edition)
 export const GLYPH_CATALOG_BY_WIDTH: Record<number, string[]> = {
   1: ['\u200A', '\u200B'],
   2: ['!', '\'', '|', 'l', 'i', '.', ',', ';', ':', '`', '¦', '¡', '│', '╵', '╷'],
@@ -392,31 +490,35 @@ export const GLYPH_CATALOG_BY_WIDTH: Record<number, string[]> = {
   ],
   7: ['—', '–', '≈', '≠', '≤', '≥', '¿', '‰', 'ᛞ', 'ᛟ'],
   8: [
-    '★', '☆', '✦', '✧', '✪', '✫', '✯', '⚡', '☄', '☽', '☾', '☉', '♨', '🔮',
-    '💀', '☠', '⚰', '⚱', '☘', '🍄', '🌲', '🌸', '❄', '☕', '👑', '💎',
-    '⚔', '⛏', '⚒', '🏹', '🛡', '🗡', '🪓', '🗝', '🔒', '🔓', '🧭', '⚓', '⚖', '🕯', '📜', '🏺', '🛎', '🧨',
+    '★', '☆', '✦', '✧', '✪', '✫', '✯', '⚡', '☄', '☽', '☾', '☉', '♨', '☕',
+    '☠', '⚰', '⚱', '☘', '❄', '⚔', '⛏', '⚒', '⚖', '⚗', '⚙', '⚚', '⚛', '⚜', '⚓',
     '▲', '▼', '◄', '►', '◆', '◇', '○', '●', '■', '□', '♠', '♣', '♥', '♦'
   ],
   9: [
     '─', '│', '┌', '┐', '└', '┘', '├', '┤', '┬', '┴', '┼',
     '═', '║', '╒', '╓', '╔', '╕', '╖', '╗', '╘', '╙', '╚', '╛', '╜', '╝',
     '╞', '╟', '╠', '╡', '╢', '╣', '╤', '╥', '╦', '╧', '╨', '╩', '╪', '╫', '╬',
+    '━', '┃', '┏', '┓', '┗', '┛',
     '▀', ' ', '▂', '▃', '▄', '▅', '▆', '▇', '█', '▉', '▊', '▋', '▌', '▍', '▎', '▏', '▐', '░', '▒', '▓'
   ],
-  10: ['←', '→', '↑', '↓', '↔', '↕', '↖', '↗', '↘', '↙', '↚', '↛', '↜', '↝', '↞', '↠', '↢', '↣'],
+  10: ['←', '→', '↑', '↓', '↔', '↕', '↖', '↗', '↘', '↙', '↚', '↛', '↜', '↝', '↞', '↠', '↢', '↣', '➔', '➜'],
   12: ['【', '】', '『', '』', '「', '」', '《', '》', '〈', '〉', '〔', '〕'],
 };
 
-export const FAVORITES_LIST = ['★', '✦', '═', '║', '╔', '╗', '╚', '╝', '⚔', '🛡', '⛏', '🗡', '👑', '💎', '─', '│', '☘', '•', '✓', '✕'];
+export const FAVORITES_LIST = ['★', '✦', '✧', '═', '║', '╔', '╗', '╚', '╝', '⚔', '⛏', '⚒', '⚜', '─', '│', '☘', '•', '✓', '✕'];
 export const WIDTH_STEPS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12];
 
-export let currentMatrixWidth: number | 'fav' = 6;
+export type MatrixMode = { type: 'set'; setId: string } | { type: 'width'; px: number };
+export let currentMatrixMode: MatrixMode = { type: 'set', setId: 'fav' };
 export let currentMatrixPage = 0;
 export const MATRIX_PAGE_SIZE = 14;
 
 export function getGlyphsForCurrentSelection(): string[] {
-  if (currentMatrixWidth === 'fav') return FAVORITES_LIST;
-  return GLYPH_CATALOG_BY_WIDTH[currentMatrixWidth] || [];
+  if (currentMatrixMode.type === 'set') {
+    if (currentMatrixMode.setId === 'fav') return userFavoriteGlyphs;
+    return CHARACTER_SETS[currentMatrixMode.setId]?.glyphs || [];
+  }
+  return GLYPH_CATALOG_BY_WIDTH[currentMatrixMode.px] || [];
 }
 
 export function renderMatrixSlots(): void {
@@ -428,8 +530,19 @@ export function renderMatrixSlots(): void {
   if (currentMatrixPage >= totalPages) currentMatrixPage = 0;
 
   if (matrixPxValue) {
-    matrixPxValue.textContent = currentMatrixWidth === 'fav' ? '★' : currentMatrixWidth.toString();
+    if (currentMatrixMode.type === 'set') {
+      const activeSet = CHARACTER_SETS[currentMatrixMode.setId];
+      matrixPxValue.textContent = activeSet ? activeSet.name.split(' ')[0]! : '★';
+    } else {
+      matrixPxValue.textContent = currentMatrixMode.px.toString();
+    }
   }
+
+  const matrixUnit = document.querySelector('.matrix-unit') as HTMLElement;
+  if (matrixUnit) {
+    matrixUnit.textContent = currentMatrixMode.type === 'set' ? 'set' : 'px';
+  }
+
   if (matrixPageLabel) {
     matrixPageLabel.textContent = `${currentMatrixPage + 1}/${totalPages}`;
   }
@@ -441,17 +554,39 @@ export function renderMatrixSlots(): void {
     const slot = document.createElement('div');
     slot.className = 'matrix-glyph-slot';
     slot.textContent = ch === '\u200A' ? '␠' : ch;
-    const pxLabel = currentMatrixWidth === 'fav' ? `${measureLineWidth(parseFormattedText(ch))}px` : `${currentMatrixWidth}px`;
-    slot.title = `Char: "${ch}" (${pxLabel}) • Click to insert at cursor`;
+    const pxAdvance = measureLineWidth(parseFormattedText(ch));
+    slot.title = `Char: "${ch}" (${pxAdvance}px advance) • Click to insert • Right-click to toggle Favorite`;
+
+    if (userFavoriteGlyphs.includes(ch)) {
+      slot.classList.add('slot-starred');
+    }
 
     slot.addEventListener('click', () => {
       insertAtCursor(ch);
       soundManager.playButtonClick();
-      showToast(`Inserted "${ch}" (${pxLabel})`, 'info');
+      showToast(`Inserted "${ch}" (${pxAdvance}px)`, 'info');
+    });
+
+    slot.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      toggleFavoriteGlyph(ch);
     });
 
     matrixSlotsRibbon.appendChild(slot);
   });
+}
+
+export function toggleFavoriteGlyph(glyph: string): void {
+  const idx = userFavoriteGlyphs.indexOf(glyph);
+  if (idx !== -1) {
+    userFavoriteGlyphs.splice(idx, 1);
+    showToast(`Removed "${glyph}" from Favorites`, 'info');
+  } else {
+    userFavoriteGlyphs.push(glyph);
+    showToast(`Added "${glyph}" to Favorites`, 'success');
+  }
+  saveUserFavoriteGlyphs(userFavoriteGlyphs);
+  renderMatrixSlots();
 }
 
 // ─── DOM References ──────────────────────────────────────────────────────────
@@ -1366,15 +1501,24 @@ function updateGutterAndStats(): void {
   const isOverChars = totalChars > MINECRAFT_PAGE_MAX_CHARS;
   statChars.classList.toggle('stat-warn', isOverChars);
 
+  const unsupported = detectUnsupportedMinecraftChars(pageText);
+
   if (isOverChars) {
     diagSummary.textContent = `⚠ Page char limit (${MINECRAFT_PAGE_MAX_CHARS}) exceeded`;
     diagSummary.className = 'badge stat-warn';
+    diagSummary.title = 'Page exceeds Minecraft 1024-character maximum.';
+  } else if (unsupported.count > 0) {
+    diagSummary.textContent = `⚠ ${unsupported.count} SMP char(s) >U+FFFF (${unsupported.chars.slice(0, 3).join('')}) render as [] in MC`;
+    diagSummary.className = 'badge stat-warn';
+    diagSummary.title = 'Vanilla Minecraft Java Edition font only supports BMP characters up to U+FFFF. Characters outside BMP (like modern emojis) render as missing glyph boxes ([])';
   } else if (totalChars >= 950) {
     diagSummary.textContent = '⚠ Near 1024-char limit';
     diagSummary.className = 'badge stat-warn';
+    diagSummary.title = 'Close to Minecraft 1024 character limit.';
   } else {
     diagSummary.textContent = '✓ 14 Lines • Valid';
     diagSummary.className = 'badge badge-ok';
+    diagSummary.title = 'All lines and characters are valid Minecraft book text.';
   }
 
   metaTitleCount.textContent = `${metaTitle.value.length}/32`;
@@ -2365,10 +2509,13 @@ function wireEvents(): void {
     if (!galleryTemplatesGrid) return;
     galleryTemplatesGrid.innerHTML = '';
 
+    const hiddenIds = getHiddenPresetIds();
     const filtered = savedTemplates.filter(t => {
+      if (t.isPreset && hiddenIds.has(t.id)) return false;
       if (activeLibraryFilter === 'page') return t.scope === 'page';
       if (activeLibraryFilter === 'lines') return t.scope === 'lines';
       if (activeLibraryFilter === 'preset') return t.isPreset;
+      if (activeLibraryFilter === 'custom') return !t.isPreset;
       return true;
     });
 
@@ -2488,10 +2635,26 @@ function wireEvents(): void {
           savedTemplates = savedTemplates.filter(t => t.id !== tpl.id);
           saveUserTemplates(savedTemplates);
           renderGalleryLibrary();
+          renderDeckPastes();
           updateGalleryCounts();
           showToast(`Deleted "${tpl.title}"`, 'info');
         });
         rightGroup.appendChild(delBtn);
+      } else {
+        const hideBtn = document.createElement('button');
+        hideBtn.type = 'button';
+        hideBtn.className = 'btn-card-action';
+        hideBtn.textContent = '✕';
+        hideBtn.title = 'Hide built-in preset (can restore with Reset Presets)';
+        hideBtn.addEventListener('click', () => {
+          const ids = getHiddenPresetIds();
+          ids.add(tpl.id);
+          saveHiddenPresetIds(ids);
+          renderGalleryLibrary();
+          renderDeckPastes();
+          showToast(`Hidden "${tpl.title}"`, 'info');
+        });
+        rightGroup.appendChild(hideBtn);
       }
 
       actions.appendChild(leftGroup);
@@ -2556,8 +2719,16 @@ function wireEvents(): void {
   }
 
   function setupGallerySaveForm(): void {
+    const scopeRadio = document.querySelector<HTMLInputElement>('input[name="save-scope"]:checked');
+    const scope = (scopeRadio?.value as 'page' | 'current-line' | 'non-empty') || 'page';
+
     if (saveItemTitle) {
-      saveItemTitle.value = `${book.title || 'Book'} - Page ${currentPageIndex + 1}`;
+      if (scope === 'current-line') {
+        const text = stripFormatting(currentLines[activeLineIndex] || '').trim();
+        saveItemTitle.value = text ? `Line ${activeLineIndex + 1}: ${text.slice(0, 16)}` : `Line ${activeLineIndex + 1} Snippet`;
+      } else {
+        saveItemTitle.value = `${book.title || 'Book'} - Page ${currentPageIndex + 1}`;
+      }
     }
     const currentLineLabel = document.getElementById('save-scope-current-line-label');
     if (currentLineLabel) {
@@ -2565,6 +2736,14 @@ function wireEvents(): void {
     }
     updateSavePreview();
   }
+
+  const btnGalleryRestoreDefaults = document.getElementById('btn-gallery-restore-defaults');
+  btnGalleryRestoreDefaults?.addEventListener('click', () => {
+    saveHiddenPresetIds(new Set());
+    renderGalleryLibrary();
+    renderDeckPastes();
+    showToast('Restored all default presets', 'success');
+  });
 
   function switchGalleryTab(tab: 'pages' | 'library' | 'save'): void {
     activeGalleryTab = tab;
@@ -2729,40 +2908,29 @@ function wireEvents(): void {
     savedTemplates.push(newTemplate);
     saveUserTemplates(savedTemplates);
     updateGalleryCounts();
+    renderDeckPastes();
     switchGalleryTab('library');
-    showToast(`Saved "${newTemplate.title}" to Library`, 'success');
+    showToast(`Saved "${newTemplate.title}" to Presets Deck and Library`, 'success');
   });
 
   // 9. Matrix Selector & Tools Hub Wire Events
   renderMatrixSlots();
 
   matrixPxUp?.addEventListener('click', () => {
-    if (currentMatrixWidth === 'fav') {
-      currentMatrixWidth = 6;
-    } else {
-      const idx = WIDTH_STEPS.indexOf(currentMatrixWidth);
-      if (idx !== -1 && idx < WIDTH_STEPS.length - 1) {
-        currentMatrixWidth = WIDTH_STEPS[idx + 1]!;
-      } else {
-        currentMatrixWidth = WIDTH_STEPS[0]!;
-      }
-    }
+    let currentPx = currentMatrixMode.type === 'width' ? currentMatrixMode.px : 6;
+    const idx = WIDTH_STEPS.indexOf(currentPx);
+    const nextPx = idx !== -1 && idx < WIDTH_STEPS.length - 1 ? WIDTH_STEPS[idx + 1]! : WIDTH_STEPS[0]!;
+    currentMatrixMode = { type: 'width', px: nextPx };
     currentMatrixPage = 0;
     updateActiveMatrixChip();
     renderMatrixSlots();
   });
 
   matrixPxDown?.addEventListener('click', () => {
-    if (currentMatrixWidth === 'fav') {
-      currentMatrixWidth = 6;
-    } else {
-      const idx = WIDTH_STEPS.indexOf(currentMatrixWidth);
-      if (idx !== -1 && idx > 0) {
-        currentMatrixWidth = WIDTH_STEPS[idx - 1]!;
-      } else {
-        currentMatrixWidth = WIDTH_STEPS[WIDTH_STEPS.length - 1]!;
-      }
-    }
+    let currentPx = currentMatrixMode.type === 'width' ? currentMatrixMode.px : 6;
+    const idx = WIDTH_STEPS.indexOf(currentPx);
+    const prevPx = idx !== -1 && idx > 0 ? WIDTH_STEPS[idx - 1]! : WIDTH_STEPS[WIDTH_STEPS.length - 1]!;
+    currentMatrixMode = { type: 'width', px: prevPx };
     currentMatrixPage = 0;
     updateActiveMatrixChip();
     renderMatrixSlots();
@@ -2793,23 +2961,21 @@ function wireEvents(): void {
   function updateActiveMatrixChip(): void {
     if (!matrixQuickWidths) return;
     matrixQuickWidths.querySelectorAll<HTMLButtonElement>('.matrix-chip').forEach(chip => {
-      const val = chip.dataset.width;
-      const isActive = (val === 'fav' && currentMatrixWidth === 'fav') || (val && parseInt(val, 10) === currentMatrixWidth);
+      const setId = chip.dataset.set;
+      const isActive = currentMatrixMode.type === 'set' && currentMatrixMode.setId === setId;
       chip.classList.toggle('active', !!isActive);
     });
   }
 
   matrixQuickWidths?.querySelectorAll<HTMLButtonElement>('.matrix-chip').forEach(chip => {
     chip.addEventListener('click', () => {
-      const val = chip.dataset.width;
-      if (val === 'fav') {
-        currentMatrixWidth = 'fav';
-      } else if (val) {
-        currentMatrixWidth = parseInt(val, 10);
+      const setId = chip.dataset.set;
+      if (setId) {
+        currentMatrixMode = { type: 'set', setId };
+        currentMatrixPage = 0;
+        updateActiveMatrixChip();
+        renderMatrixSlots();
       }
-      currentMatrixPage = 0;
-      updateActiveMatrixChip();
-      renderMatrixSlots();
     });
   });
 
@@ -2849,39 +3015,133 @@ function wireEvents(): void {
   });
 
   // Below-the-fold Saved Art Deck
+  let activeDeckFilter: 'all' | 'page' | 'lines' | 'custom' = 'all';
+
   function renderDeckPastes(): void {
     if (!deckPastesStrip) return;
     deckPastesStrip.innerHTML = '';
-    DEFAULT_PRESETS.forEach((preset) => {
+
+    const hiddenIds = getHiddenPresetIds();
+    const visibleDefaults = DEFAULT_PRESETS.filter(p => !hiddenIds.has(p.id));
+    const userItems = savedTemplates.filter(t => !t.isPreset);
+    const allDeckItems = [...visibleDefaults, ...userItems];
+
+    const filtered = allDeckItems.filter(item => {
+      if (activeDeckFilter === 'page') return item.scope === 'page';
+      if (activeDeckFilter === 'lines') return item.scope === 'lines';
+      if (activeDeckFilter === 'custom') return !item.isPreset;
+      return true;
+    });
+
+    const badgeEl = document.getElementById('deck-presets-badge');
+    if (badgeEl) {
+      badgeEl.textContent = `${filtered.length} Saved`;
+    }
+
+    if (filtered.length === 0) {
+      const empty = document.createElement('div');
+      empty.style.gridColumn = '1 / -1';
+      empty.style.padding = '16px';
+      empty.style.textAlign = 'center';
+      empty.style.color = 'var(--text-secondary)';
+      empty.style.fontFamily = 'var(--font-mono)';
+      empty.innerHTML = `
+        <p>No presets found for filter "<b>${activeDeckFilter}</b>".</p>
+        <button type="button" class="btn btn-xs btn-primary" id="btn-deck-quick-save-hint" style="margin-top: 6px;">💾 Save Active Row or Page</button>
+      `;
+      deckPastesStrip.appendChild(empty);
+      document.getElementById('btn-deck-quick-save-hint')?.addEventListener('click', () => {
+        openGallery('save');
+      });
+      return;
+    }
+
+    filtered.forEach((preset) => {
       const card = document.createElement('div');
       card.className = 'deck-paste-card';
-      card.title = `Click to stamp "${preset.title}" into book`;
 
       const header = document.createElement('div');
       header.className = 'deck-paste-header';
       header.innerHTML = `
-        <span class="deck-paste-title">${preset.title}</span>
-        <span class="badge ${preset.scope === 'page' ? 'badge-ok' : ''}">${preset.scope.toUpperCase()} • ${preset.category}</span>
+        <span class="deck-paste-title" title="${preset.title}">${preset.title}</span>
+        <span class="badge ${preset.isPreset ? 'badge-ok' : ''}">${preset.isPreset ? 'BUILTIN' : 'CUSTOM'} • ${preset.scope.toUpperCase()}</span>
       `;
       card.appendChild(header);
 
       const preview = document.createElement('div');
       preview.className = 'deck-paste-preview';
+      preview.title = `Click to stamp "${preset.title}" into book`;
       preset.lines.slice(0, 4).forEach(l => {
         preview.appendChild(renderFormattedMiniLine(l));
       });
-      card.appendChild(preview);
-
-      card.addEventListener('click', () => {
+      preview.addEventListener('click', () => {
         applyTemplate(preset);
         soundManager.playButtonClick();
         showToast(`Stamped "${preset.title}" into active page`, 'success');
       });
+      card.appendChild(preview);
 
+      const actions = document.createElement('div');
+      actions.className = 'deck-card-actions';
+
+      const stampBtn = document.createElement('button');
+      stampBtn.type = 'button';
+      stampBtn.className = 'btn-deck-action';
+      stampBtn.textContent = '📥 Stamp';
+      stampBtn.title = `Insert into current page`;
+      stampBtn.addEventListener('click', () => {
+        applyTemplate(preset);
+        soundManager.playButtonClick();
+        showToast(`Stamped "${preset.title}" into active page`, 'success');
+      });
+      actions.appendChild(stampBtn);
+
+      if (preset.isPreset) {
+        const hideBtn = document.createElement('button');
+        hideBtn.type = 'button';
+        hideBtn.className = 'btn-deck-action';
+        hideBtn.textContent = '✕ Hide';
+        hideBtn.title = 'Hide built-in preset (can restore in Gallery)';
+        hideBtn.addEventListener('click', () => {
+          hiddenIds.add(preset.id);
+          saveHiddenPresetIds(hiddenIds);
+          renderDeckPastes();
+          renderGalleryLibrary();
+          showToast(`Hidden "${preset.title}"`, 'info');
+        });
+        actions.appendChild(hideBtn);
+      } else {
+        const delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.className = 'btn-deck-action btn-deck-danger';
+        delBtn.textContent = '🗑 Delete';
+        delBtn.title = 'Permanently delete this saved paste';
+        delBtn.addEventListener('click', () => {
+          savedTemplates = savedTemplates.filter(t => t.id !== preset.id);
+          saveUserTemplates(savedTemplates);
+          renderDeckPastes();
+          renderGalleryLibrary();
+          updateGalleryCounts();
+          showToast(`Deleted "${preset.title}"`, 'info');
+        });
+        actions.appendChild(delBtn);
+      }
+
+      card.appendChild(actions);
       deckPastesStrip.appendChild(card);
     });
   }
   renderDeckPastes();
+
+  // Deck filter chips wire events
+  document.getElementById('deck-filter-chips')?.querySelectorAll<HTMLButtonElement>('.chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.getElementById('deck-filter-chips')?.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      activeDeckFilter = (chip.dataset.deckFilter as any) || 'all';
+      renderDeckPastes();
+    });
+  });
 
   // Collapsible Saved Art Deck handling
   function setDeckCollapsed(collapsed: boolean): void {
@@ -2933,14 +3193,14 @@ function wireEvents(): void {
     openGallery('save');
     const r = document.querySelector<HTMLInputElement>('input[name="save-scope"][value="current-line"]');
     if (r) r.checked = true;
-    updateSavePreview();
+    setupGallerySaveForm();
   });
 
   btnDeckSavePage?.addEventListener('click', () => {
     openGallery('save');
     const r = document.querySelector<HTMLInputElement>('input[name="save-scope"][value="page"]');
     if (r) r.checked = true;
-    updateSavePreview();
+    setupGallerySaveForm();
   });
 
   btnDeckOpenGallery?.addEventListener('click', () => {
@@ -3065,8 +3325,14 @@ function wireEvents(): void {
     const text = glyphCustomInput.value;
     if (text) {
       const width = Math.round(measureLineWidth(parseFormattedText(text)));
-      glyphCustomWidth.textContent = `${width} px`;
-      glyphCustomWidth.className = 'badge badge-ok';
+      const unsup = detectUnsupportedMinecraftChars(text);
+      if (unsup.count > 0) {
+        glyphCustomWidth.textContent = `${width}px • ⚠️ >U+FFFF (SMP emoji - renders as [] in MC)`;
+        glyphCustomWidth.className = 'badge stat-warn';
+      } else {
+        glyphCustomWidth.textContent = `${width}px • ✓ Minecraft Java Compatible (BMP)`;
+        glyphCustomWidth.className = 'badge badge-ok';
+      }
     } else {
       glyphCustomWidth.textContent = '-- px';
       glyphCustomWidth.className = 'badge';
@@ -3082,12 +3348,25 @@ function wireEvents(): void {
     }
   });
 
-  // 14. Theme Toggle
+  // 14. Theme Toggle (True Eye-Friendly Dark & Light Mode with Persistence)
   const themeToggle = document.getElementById('theme-toggle') as HTMLButtonElement;
-  themeToggle.addEventListener('click', () => {
+  try {
+    const savedTheme = localStorage.getItem('blockgame_theme');
+    if (savedTheme === 'light' || savedTheme === 'dark') {
+      document.documentElement.dataset.theme = savedTheme;
+      if (themeToggle) themeToggle.textContent = savedTheme === 'dark' ? '🌙' : '☀️';
+    }
+  } catch {}
+
+  themeToggle?.addEventListener('click', () => {
     const isDark = document.documentElement.dataset.theme === 'dark';
-    document.documentElement.dataset.theme = isDark ? 'light' : 'dark';
-    themeToggle.textContent = isDark ? '☀️' : '🌙';
+    const nextTheme = isDark ? 'light' : 'dark';
+    document.documentElement.dataset.theme = nextTheme;
+    themeToggle.textContent = nextTheme === 'dark' ? '🌙' : '☀️';
+    try {
+      localStorage.setItem('blockgame_theme', nextTheme);
+    } catch {}
+    showToast(`Switched to ${nextTheme === 'dark' ? 'Dark Mode' : 'Light Mode'}`, 'info');
   });
 
   // 15. Global Keyboard Shortcuts

@@ -12,6 +12,9 @@ import {
   getCarriedStyleForLine,
   DEFAULT_PRESETS,
   loadSavedTemplates,
+  detectUnsupportedMinecraftChars,
+  CHARACTER_SETS,
+  GLYPH_CATALOG_BY_WIDTH,
   type SavedTemplate,
 } from '../src/editor';
 import {
@@ -372,5 +375,62 @@ describe('Minecraft Page Limit & Page Gallery Presets', () => {
     expect(state3.icon).toBe('▲');
     expect(state3.text).toBe('Expand Presets');
     expect(mockDeck.classList.has('collapsed')).toBe(true);
+  });
+
+  test('detectUnsupportedMinecraftChars catches SMP characters > U+FFFF while approving BMP characters', () => {
+    // BMP characters supported in Minecraft Java Edition
+    const bmpText = '§6★ Quest 1: ⚔ Slay the Beast ━ Enter ⛨ Castle';
+    const bmpResult = detectUnsupportedMinecraftChars(bmpText);
+    expect(bmpResult.count).toBe(0);
+    expect(bmpResult.chars.length).toBe(0);
+
+    // Modern SMP emoji (> U+FFFF) that render as [] in vanilla Minecraft
+    const smpText = 'Hello! 😀 🍎 Fire 🔥 and skull 💀';
+    const smpResult = detectUnsupportedMinecraftChars(smpText);
+    expect(smpResult.count).toBe(4);
+    expect(smpResult.chars).toContain('😀');
+    expect(smpResult.chars).toContain('🍎');
+    expect(smpResult.chars).toContain('🔥');
+    expect(smpResult.chars).toContain('💀');
+  });
+
+  test('all curated CHARACTER_SETS and GLYPH_CATALOG_BY_WIDTH contain only authentic Minecraft BMP glyphs', () => {
+    // Check every glyph in curated character sets
+    for (const [setName, setObj] of Object.entries(CHARACTER_SETS)) {
+      for (const ch of setObj.glyphs) {
+        const code = ch.codePointAt(0) ?? 0;
+        expect(code).toBeLessThanOrEqual(0xFFFF);
+      }
+    }
+
+    // Check every glyph in the width catalog
+    for (const [pxStr, glyphs] of Object.entries(GLYPH_CATALOG_BY_WIDTH)) {
+      for (const ch of glyphs) {
+        const code = ch.codePointAt(0) ?? 0;
+        expect(code).toBeLessThanOrEqual(0xFFFF);
+      }
+    }
+  });
+
+  test('custom user templates can be deleted and managed alongside presets', () => {
+    const list: SavedTemplate[] = [
+      ...DEFAULT_PRESETS,
+      {
+        id: 'custom-art-1',
+        title: 'My Custom Border',
+        scope: 'lines',
+        category: 'Custom',
+        lines: ['§6━━━ ★ ━━━'],
+        createdAt: Date.now(),
+        isPreset: false,
+      },
+    ];
+
+    expect(list.length).toBe(DEFAULT_PRESETS.length + 1);
+
+    // Delete custom item
+    const updated = list.filter(t => t.id !== 'custom-art-1');
+    expect(updated.length).toBe(DEFAULT_PRESETS.length);
+    expect(updated.find(t => t.id === 'custom-art-1')).toBeUndefined();
   });
 });

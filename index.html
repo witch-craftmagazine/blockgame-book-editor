@@ -46,25 +46,19 @@
           <!-- Dynamically populated with pixel-art slots for the selected width -->
         </div>
 
-        <!-- Fast Width Filter Chips -->
-        <div class="matrix-quick-widths" id="matrix-quick-widths">
-          <button type="button" class="matrix-chip" data-width="2">2p</button>
-          <button type="button" class="matrix-chip" data-width="4">4p</button>
-          <button type="button" class="matrix-chip" data-width="5">5p</button>
-          <button type="button" class="matrix-chip active" data-width="6">6p</button>
-          <button type="button" class="matrix-chip" data-width="8">8p</button>
-          <button type="button" class="matrix-chip" data-width="9">9p</button>
-          <button type="button" class="matrix-chip" data-width="fav" title="Favorites">★</button>
+        <!-- Saved Favorite Character Sets & Categories Chips (Replaced 2p...9p) -->
+        <div class="matrix-quick-widths matrix-quick-sets" id="matrix-quick-widths">
+          <button type="button" class="matrix-chip active" data-set="fav" title="Custom Starred Favorites">★ Favs</button>
+          <button type="button" class="matrix-chip" data-set="borders" title="Borders & Box Frames">━ Borders</button>
+          <button type="button" class="matrix-chip" data-set="rpg" title="RPG, Weapons & Magic">⚔ RPG</button>
+          <button type="button" class="matrix-chip" data-set="arrows" title="Directional Arrows & Pointers">➔ Arrows</button>
+          <button type="button" class="matrix-chip" data-set="blocks" title="Shades & Geometric Blocks">█ Blocks</button>
+          <button type="button" class="matrix-chip" data-set="decor" title="Stars & Flourishes">✨ Decor</button>
         </div>
       </div>
 
-      <!-- Right: Page Navigation, Gallery & Theme -->
+      <!-- Right: Gallery & Theme Toggle (Page navigation moved to Book panel) -->
       <div class="header-right-nav">
-        <div class="page-nav-bar">
-          <button id="prev-page-btn" class="btn btn-xs btn-outline" title="Previous page (←)">◀</button>
-          <span id="page-badge" class="page-badge">Page 1 / 1</span>
-          <button id="next-page-btn" class="btn btn-xs btn-outline" title="Next page (→) • Advances or appends new page like Minecraft">▶</button>
-        </div>
         <button id="btn-open-gallery" class="btn btn-xs btn-primary" title="Open Page & Line Gallery">
           <span class="btn-icon">📑</span> Gallery
         </button>
@@ -200,8 +194,8 @@
         <div class="panel-header">
           <div class="preview-mode-controls">
             <div class="btn-group">
-              <button id="view-mode-single" class="btn btn-xs btn-outline" title="Single page view">Single</button>
-              <button id="view-mode-double" class="btn btn-xs btn-outline active" title="Two-page spread">Double</button>
+              <button id="view-mode-single" class="btn btn-xs btn-outline active" title="Single page view">Single</button>
+              <button id="view-mode-double" class="btn btn-xs btn-outline" title="Two-page spread">Double</button>
             </div>
             <span class="separator-xs"></span>
             <select id="engine-select" class="select-xs" title="Rendering Engine">
@@ -210,8 +204,13 @@
             </select>
           </div>
 
+          <!-- Page Navigation toolbar moved from top bar to book panel -->
           <div class="preview-nav-controls">
-            <span id="preview-page-indicator" class="page-indicator">1 / 1</span>
+            <div class="page-nav-bar" id="book-page-nav-bar">
+              <button id="prev-page-btn" class="btn btn-xs btn-outline" title="Previous page (←)">◀</button>
+              <span id="page-badge" class="page-badge">Page 1 / 1</span>
+              <button id="next-page-btn" class="btn btn-xs btn-outline" title="Next page (→) • Advances or appends new page like Minecraft">▶</button>
+            </div>
           </div>
 
           <div class="preview-zoom-controls">
@@ -242,6 +241,12 @@
             </div>
             <span class="deck-subtitle">Instant-click art presets, borders, and book templates</span>
           </div>
+        </div>
+        <div class="deck-filter-chips" id="deck-filter-chips">
+          <button type="button" class="chip active" data-deck-filter="all">All</button>
+          <button type="button" class="chip" data-deck-filter="page">Pages</button>
+          <button type="button" class="chip" data-deck-filter="lines">Lines</button>
+          <button type="button" class="chip" data-deck-filter="custom">My Saves</button>
         </div>
         <div class="deck-actions">
           <button type="button" id="btn-deck-toggle" class="btn btn-xs btn-primary deck-toggle-btn" title="Toggle Saved Art Deck (Collapse / Expand)">
@@ -352,9 +357,11 @@
                 <button type="button" class="chip" data-filter="page">Pages</button>
                 <button type="button" class="chip" data-filter="lines">Line Snippets</button>
                 <button type="button" class="chip" data-filter="preset">Presets</button>
+                <button type="button" class="chip" data-filter="custom">My Saves</button>
               </div>
               <div class="gallery-pane-actions">
                 <button type="button" id="btn-gallery-switch-save" class="btn btn-xs btn-primary">+ Save New</button>
+                <button type="button" id="btn-gallery-restore-defaults" class="btn btn-xs btn-outline" title="Restore hidden default presets">↺ Reset Presets</button>
                 <button type="button" id="btn-gallery-export-lib" class="btn btn-xs btn-outline" title="Export Library JSON">📤 Export</button>
                 <button type="button" id="btn-gallery-import-lib" class="btn btn-xs btn-outline" title="Import Library JSON">📥 Import</button>
                 <input type="file" id="gallery-import-file-input" accept=".json" style="display: none;" />
@@ -368,6 +375,10 @@
           <!-- Tab 3: Save Current Page or Lines Form -->
           <div class="gallery-tab-pane" id="gallery-pane-save" style="display: none;">
             <div class="gallery-save-form">
+              <p class="dialog-desc" style="margin-bottom: 10px;">
+                Saved items immediately appear in your bottom <b>Saved Art & ASCII Pastes Deck</b> for 1-click stamping, and inside your permanent Library.
+              </p>
+
               <div class="form-row">
                 <label for="save-item-title" class="form-label">Template / Snippet Name</label>
                 <input id="save-item-title" class="meta-input" type="text" placeholder="e.g. Chapter I Header, Table of Contents, Guild Rules..." maxlength="40" />
@@ -382,7 +393,7 @@
                   </label>
                   <label class="radio-label">
                     <input type="radio" name="save-scope" value="current-line" />
-                    <span id="save-scope-current-line-label">Active Line (Line 1)</span>
+                    <span id="save-scope-current-line-label">Active Line Snippet</span>
                   </label>
                   <label class="radio-label">
                     <input type="radio" name="save-scope" value="non-empty" />
@@ -412,7 +423,7 @@
 
               <div class="form-actions">
                 <button type="button" id="btn-cancel-save-gallery" class="btn btn-outline">Cancel</button>
-                <button type="button" id="btn-confirm-save-gallery" class="btn btn-primary">💾 Save to Library</button>
+                <button type="button" id="btn-confirm-save-gallery" class="btn btn-primary">💾 Save to Presets Deck & Library</button>
               </div>
             </div>
           </div>
