@@ -20,6 +20,7 @@ import {
   BOOK_TEXT_WIDTH,
   BEDROCK_BOOK_TEXT_WIDTH,
   parseFormattedText,
+  stripFormatting,
   soundManager,
   type BlockgameBook,
   type BookEngine,
@@ -326,7 +327,7 @@ export const DEFAULT_PRESETS: SavedTemplate[] = [
 
 export let savedTemplates: SavedTemplate[] = [];
 export let activeGalleryTab: 'pages' | 'library' | 'save' = 'pages';
-export let activeLibraryFilter: 'all' | 'page' | 'lines' | 'preset' = 'all';
+export let activeLibraryFilter: 'all' | 'page' | 'lines' | 'preset' | 'custom' = 'all';
 
 export function loadSavedTemplates(): SavedTemplate[] {
   if (typeof localStorage === 'undefined') return [...DEFAULT_PRESETS];
