@@ -27,6 +27,52 @@ export interface SymbolChatFont {
   transform: (text: string) => string;
 }
 
+export const REVERSE_FONT_MAP: Record<string, string> = {};
+
+// Inverted non-ASCII characters map
+const INVERTED_SPECIALS: Record<string, string> = {
+  'ɐ': 'a', 'ɔ': 'c', 'ǝ': 'e', 'ɟ': 'f', 'ƃ': 'g', 'ɥ': 'h', 'ᴉ': 'i', 'ɾ': 'j',
+  'ʞ': 'k', 'ɯ': 'm', 'ɹ': 'r', 'ʇ': 't', 'ʌ': 'v', 'ʍ': 'w', 'ʎ': 'y',
+};
+
+function populateReverseMap(map: Record<string, string>) {
+  for (const [orig, styled] of Object.entries(map)) {
+    const cp = styled.codePointAt(0) || 0;
+    if (cp > 127 && !REVERSE_FONT_MAP[styled]) {
+      REVERSE_FONT_MAP[styled] = orig;
+    }
+  }
+}
+
+export function toNormalText(text: string): string {
+  if (!text) return '';
+  let out = '';
+  let i = 0;
+  while (i < text.length) {
+    // Preserve formatting codes intact (§ codes)
+    if (text[i] === '§' && i + 1 < text.length) {
+      out += text[i] + text[i + 1];
+      i += 2;
+      continue;
+    }
+    const cp = text.codePointAt(i) || 0;
+    const charStr = String.fromCodePoint(cp);
+    out += REVERSE_FONT_MAP[charStr] ?? charStr;
+    i += charStr.length;
+  }
+  return out;
+}
+
+export const NORMAL_FONT: SymbolChatFont = {
+  id: 'normal',
+  name: 'Normal',
+  description: 'Standard plain Latin text (Restores normal characters)',
+  sample: 'abc Text',
+  isSmp: false,
+  charMap: {},
+  transform: (text: string) => toNormalText(text),
+};
+
 function buildFont(
   id: string,
   name: string,
@@ -36,6 +82,7 @@ function buildFont(
   charMap: Record<string, string>,
   reverseText = false
 ): SymbolChatFont {
+  populateReverseMap(charMap);
   return {
     id,
     name,
@@ -44,11 +91,39 @@ function buildFont(
     isSmp,
     charMap,
     transform: (text: string) => {
-      let result = '';
-      for (const char of text) {
-        result += charMap[char] ?? char;
+      // First normalize any previously stylized Unicode text back to normal
+      const normalized = toNormalText(text);
+      if (reverseText) {
+        let result = '';
+        let i = 0;
+        while (i < normalized.length) {
+          if (normalized[i] === '§' && i + 1 < normalized.length) {
+            result += normalized[i] + normalized[i + 1];
+            i += 2;
+            continue;
+          }
+          const cp = normalized.codePointAt(i) || 0;
+          const charStr = String.fromCodePoint(cp);
+          result += charMap[charStr] ?? charStr;
+          i += charStr.length;
+        }
+        return Array.from(result).reverse().join('');
       }
-      return reverseText ? result.split('').reverse().join('') : result;
+
+      let result = '';
+      let i = 0;
+      while (i < normalized.length) {
+        if (normalized[i] === '§' && i + 1 < normalized.length) {
+          result += normalized[i] + normalized[i + 1];
+          i += 2;
+          continue;
+        }
+        const cp = normalized.codePointAt(i) || 0;
+        const charStr = String.fromCodePoint(cp);
+        result += charMap[charStr] ?? charStr;
+        i += charStr.length;
+      }
+      return result;
     },
   };
 }
@@ -191,8 +266,12 @@ export const SYMBOL_CHAT_FONTS: SymbolChatFont[] = [
   buildFont('squared', 'Squared', 'Boxed keyboard keycaps', '🄰🄱🄲', true, SQUARED_MAP),
 ];
 
+// Inverted specials
+Object.assign(REVERSE_FONT_MAP, INVERTED_SPECIALS);
+
 export function getFontById(id: string): SymbolChatFont {
-  return SYMBOL_CHAT_FONTS.find((f) => f.id === id) || SYMBOL_CHAT_FONTS[0];
+  if (id === 'normal') return NORMAL_FONT;
+  return SYMBOL_CHAT_FONTS.find((f) => f.id === id) || NORMAL_FONT;
 }
 
 export function transformWithFont(text: string, fontId: string): string {

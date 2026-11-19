@@ -658,17 +658,31 @@ body {
 }
 
 .deck-paste-preview {
-  height: 54px;
-  background: #e4d5b7;
-  border: 1px solid #5a4225;
-  padding: 2px 4px;
-  overflow: hidden;
-  font-family: var(--font-mono);
-  font-size: 9px;
-  line-height: 9px;
-  color: #1a1a1a;
+  min-height: 84px;
+  max-height: 120px;
+  background: #f3e5c8 !important;
+  border: 1px solid #c4b087;
+  border-radius: 3px;
+  padding: 6px 8px;
+  overflow-y: auto;
+  font-family: 'Minecraft', monospace;
+  font-size: 11px;
+  line-height: 14px;
+  color: #1a1a1a !important;
   user-select: none;
   cursor: pointer;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.card-just-added {
+  outline: 3px solid var(--mc-gold, #ffaa00) !important;
+  animation: cardPulse 1.8s ease-out;
+}
+
+@keyframes cardPulse {
+  0% { transform: scale(1.04); outline-color: #ffaa00; }
+  50% { transform: scale(1.02); outline-color: #55ff55; }
+  100% { transform: scale(1); outline-color: transparent; }
 }
 
 .deck-card-actions {
@@ -1241,19 +1255,15 @@ body {
   background-color: #1f1f2a;
 }
 
-.book-line-row.active {
-  background-color: rgba(83, 204, 223, 0.14);
-  box-shadow: inset 3px 0 0 var(--mc-diamond);
-}
-
-.book-line-row.selected {
-  background-color: rgba(85, 255, 85, 0.14);
-  box-shadow: inset 3px 0 0 #55ff55;
-}
-
+.book-line-row.selected,
 .book-line-row.active.selected {
-  background-color: rgba(83, 204, 223, 0.22);
-  box-shadow: inset 3px 0 0 var(--mc-diamond);
+  background-color: rgba(83, 204, 223, 0.16);
+  box-shadow: inset 3px 0 0 var(--mc-diamond, #53ccdf);
+}
+
+.book-line-row.active:not(.selected) {
+  background-color: rgba(255, 255, 255, 0.04);
+  box-shadow: inset 3px 0 0 rgba(255, 255, 255, 0.2);
 }
 
 .line-select-check {
@@ -1338,6 +1348,10 @@ body {
   background: var(--mc-diamond);
 }
 
+.book-line-gutter .gutter-bar-fill.over {
+  background: var(--mc-red, #ff5555);
+}
+
 .book-line-gutter .gutter-badge {
   font-size: 10px;
   font-weight: 700;
@@ -1355,6 +1369,27 @@ body {
 
 .book-line-gutter .gutter-badge.full {
   color: var(--mc-diamond);
+}
+
+.book-line-gutter .gutter-badge.over {
+  color: var(--mc-red, #ff5555);
+  font-weight: 800;
+  text-shadow: 0 0 4px rgba(255, 85, 85, 0.4);
+}
+
+.book-line-row.over-width {
+  background: rgba(255, 85, 85, 0.12) !important;
+  outline: 1px solid rgba(255, 85, 85, 0.7) !important;
+}
+
+.book-line-input.over-width {
+  color: #ff5555 !important;
+  text-shadow: 0 0 2px rgba(255, 85, 85, 0.3);
+}
+
+.mobile-traffic-dot.dot-over {
+  background: var(--mc-red, #ff5555);
+  box-shadow: 0 0 6px #ff5555;
 }
 
 .book-line-input-wrap {
@@ -1407,12 +1442,18 @@ body {
 /* ─── Font Switcher Panel (Dedicated Box Below Markup Editor) ─────────────── */
 .panel-font-switcher {
   flex: 0 0 auto;
+  min-height: 115px;
   background: var(--mc-gui-bg);
   border: 2px solid var(--mc-gui-outline);
   box-shadow: var(--bevel-raised);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+.panel-font-switcher .font-switcher-body {
+  padding: 8px 10px;
+  gap: 8px;
 }
 
 .panel-font-switcher .panel-header {
@@ -1488,9 +1529,9 @@ body {
   display: flex;
   align-items: center;
   gap: 4px;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   overflow-x: auto;
-  scrollbar-width: none;
+  scrollbar-width: thin;
 }
 
 .font-quick-chips::-webkit-scrollbar {
@@ -1569,6 +1610,11 @@ body {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+#view-mode-single,
+#view-mode-double {
+  display: none !important;
 }
 
 .preview-nav-controls .page-nav-bar {
@@ -2392,10 +2438,135 @@ body {
   color: #ffffff;
 }
 
-.history-card-actions {
+/* ─── Dedicated Bookshelf Modal & Cards ─────────────────────────────────────── */
+.bookshelf-modal-card {
+  max-width: 900px;
+  width: 95vw;
+}
+
+.bookshelf-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.bookshelf-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.bookshelf-header-texts {
+  display: flex;
+  flex-direction: column;
+}
+
+.bookshelf-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  margin-right: 12px;
+}
+
+.bookshelf-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+  max-height: 65vh;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.bookshelf-book-card {
+  background: var(--mc-gui-bg);
+  border: 2px solid var(--mc-gui-outline);
+  box-shadow: var(--bevel-raised);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-radius: 4px;
+  transition: transform 0.1s ease, border-color 0.1s ease;
+}
+
+.bookshelf-book-card:hover {
+  outline: 2px solid var(--mc-gold);
+}
+
+.bookshelf-book-card.active-book {
+  border-color: var(--mc-diamond);
+  box-shadow: 0 0 10px rgba(85, 255, 255, 0.35);
+}
+
+.bookshelf-card-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bookshelf-card-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.bookshelf-card-title {
+  font-size: 13px;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  color: var(--mc-text-dark);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bookshelf-card-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+
+.bookshelf-card-preview {
+  min-height: 84px;
+  max-height: 110px;
+  background: #f3e5c8 !important;
+  border: 1px solid #c4b087;
+  border-radius: 3px;
+  padding: 6px 8px;
+  overflow: hidden;
+  font-family: 'Minecraft', monospace;
+  font-size: 11px;
+  line-height: 14px;
+  color: #1a1a1a !important;
+  cursor: pointer;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.bookshelf-card-actions {
   display: flex;
   align-items: center;
   gap: 6px;
+  margin-top: auto;
+}
+
+/* ─── Preview Copy Page Dropdown ────────────────────────────────────────────── */
+#preview-copy-page-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+#preview-copy-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  z-index: 120;
 }
 
 /* ─── Page & Line Gallery Modal (Block Pixelart Inventory Style) ─────────────── */
@@ -2992,12 +3163,13 @@ body {
   }
 
   .deck-paste-preview {
-    max-height: 48px;
-    height: 48px;
-    overflow: hidden;
-    background: #000000;
+    min-height: 84px;
+    max-height: 110px;
+    overflow-y: auto;
+    background: #f3e5c8 !important;
+    color: #1a1a1a !important;
     border-radius: 3px;
-    padding: 2px 4px;
+    padding: 4px 6px;
     cursor: pointer;
   }
 

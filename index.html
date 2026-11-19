@@ -12,7 +12,6 @@
     <header class="app-header matrix-header">
       <!-- Left: Studio Tools Hub & Quick Symbols Button -->
       <div class="header-left-hub">
-        <span class="app-logo" title="Blockgame Book Studio">📖</span>
         <button id="btn-studio-tools" class="btn btn-xs btn-primary header-menu-btn" title="Book Settings, Title, Author, Import &amp; Export">
           <span class="btn-icon">⚙</span> Menu ▾
         </button>
@@ -56,10 +55,10 @@
         </div>
       </div>
 
-      <!-- Right: History Timeline & Theme Toggle -->
+      <!-- Right: Bookshelf & Theme Toggle -->
       <div class="header-right-nav">
-        <button id="btn-open-history" class="btn btn-xs btn-primary" title="Book History &amp; Snapshots (Manual Saves &amp; Autosaves)">
-          <span class="btn-icon">⏱</span> History
+        <button id="btn-open-bookshelf" class="btn btn-xs btn-primary" title="Bookshelf: Switch books, manage library, or start a new book">
+          <span class="btn-icon">📚</span> Bookshelf
         </button>
         <button id="theme-toggle" class="btn btn-xs btn-icon-only" aria-label="Toggle dark/light theme" title="Toggle Theme">
           🌙
@@ -111,7 +110,6 @@
           <div class="panel-header">
             <div class="editor-header-left">
               <span class="panel-title">Markup Editor</span>
-              <span id="ruler-target-width" class="badge">Target: 114 px/line</span>
               <button id="btn-toggle-editor-mode" class="btn btn-xs btn-outline" title="Switch between 14-Line Book View and Raw Textarea View">Mode: 14 Lines</button>
             </div>
             <div class="editor-header-actions">
@@ -158,58 +156,22 @@
                 <button id="btn-center-line" class="tag-btn tag-util" title="Center text on current line using spaces">≡<span class="btn-text"> Center</span></button>
                 <button id="btn-fill-margin" class="tag-btn tag-util" title="Fill current line to right margin with spaces">⇤⇥<span class="btn-text"> Margin</span></button>
                 <button id="btn-dedup-codes" class="tag-btn tag-util" title="Clean duplicate formatting codes without removing intentional line resets">🧹<span class="btn-text"> Clean</span></button>
-                <div class="copy-page-wrapper" id="copy-page-wrapper">
-                  <button id="btn-copy-page" class="tag-btn tag-util" title="Copy current page to clipboard (Ctrl+Shift+C) • Paste directly into Book &amp; Quill">📋<span class="btn-text"> Copy Page</span></button>
-                  <button id="btn-copy-page-opts" class="tag-btn tag-util copy-opts-btn" title="More copy formats (/give command, &amp; codes, plain text)">▾</button>
-                  <div id="copy-page-menu" class="copy-options-menu" style="display: none;">
-                    <button type="button" class="copy-option-item" data-format="raw">
-                      <span class="copy-option-icon">📋</span>
-                      <span class="copy-option-body">
-                        <span class="copy-option-title">Book &amp; Quill Text (§ Codes)</span>
-                        <span class="copy-option-desc">Default multi-line text for Minecraft Book &amp; Quill (Ctrl+V)</span>
-                      </span>
-                    </button>
-                    <button type="button" class="copy-option-item" data-format="give">
-                      <span class="copy-option-icon">⚡</span>
-                      <span class="copy-option-body">
-                        <span class="copy-option-title">Single-Page /give Command</span>
-                        <span class="copy-option-desc">Java 1.20.5+ / 1.21+ SNBT component for chat or command blocks</span>
-                      </span>
-                    </button>
-                    <button type="button" class="copy-option-item" data-format="ampersand">
-                      <span class="copy-option-icon">🏷</span>
-                      <span class="copy-option-body">
-                        <span class="copy-option-title">Color Codes (&amp; Codes)</span>
-                        <span class="copy-option-desc">Replaces § with &amp; for Essentials / CMI server plugins</span>
-                      </span>
-                    </button>
-                    <button type="button" class="copy-option-item" data-format="plain">
-                      <span class="copy-option-icon">📄</span>
-                      <span class="copy-option-body">
-                        <span class="copy-option-title">Plain Text</span>
-                        <span class="copy-option-desc">Formatting codes stripped for unmodded paste</span>
-                      </span>
-                    </button>
-                  </div>
-                </div>
                 <button id="btn-clear-page" class="tag-btn tag-util btn-danger-tag" title="Clear all text on current page (Ctrl+Z to Undo)">🗑<span class="btn-text"> Clear Page</span></button>
-                <button id="btn-save-snapshot" class="tag-btn tag-util" title="Save snapshot of current page to History (1-Click)">💾<span class="btn-text"> Save</span></button>
-                <button id="btn-toolbar-presets" class="tag-btn tag-util" title="Toggle Saved Art &amp; ASCII Pastes Deck">🎨<span class="btn-text"> Presets</span></button>
               </div>
             </div>
           </div>
 
-          <!-- Collapsible Saved Art, ASCII Pastes & Template Deck -->
-          <section class="saved-art-deck collapsed" id="saved-art-deck" aria-label="Saved Art and ASCII Pastes">
+          <!-- Collapsible Snippet Drawer -->
+          <section class="saved-art-deck collapsed" id="saved-art-deck" aria-label="Snippet Drawer">
             <div class="deck-header">
-              <div class="deck-title-wrap" id="deck-title-toggle" role="button" tabindex="0" title="Click to collapse / expand Saved Art Deck">
+              <div class="deck-title-wrap" id="deck-title-toggle" role="button" tabindex="0" title="Click to collapse / expand Snippet Drawer">
                 <span class="deck-icon">🎨</span>
                 <div class="deck-title-texts">
                   <div class="deck-title-row">
-                    <h2 class="deck-title">Saved Art & ASCII Pastes</h2>
+                    <h2 class="deck-title">Snippet Drawer</h2>
                     <span class="badge" id="deck-presets-badge">8 Presets</span>
                   </div>
-                  <span class="deck-subtitle">Instant-click art presets, borders, and book templates</span>
+                  <span class="deck-subtitle">Instant-click art presets, borders, and book snippets</span>
                 </div>
               </div>
               <div class="deck-filter-chips" id="deck-filter-chips">
@@ -219,12 +181,11 @@
                 <button type="button" class="chip" data-deck-filter="custom">My Saves</button>
               </div>
               <div class="deck-actions">
-                <button type="button" id="btn-deck-toggle" class="btn btn-xs btn-primary deck-toggle-btn" title="Toggle Saved Art Deck (Collapse / Expand)">
-                  <span id="deck-toggle-icon">▲</span> <span id="deck-toggle-text">Expand Presets</span>
+                <button type="button" id="btn-deck-toggle" class="btn btn-xs btn-primary deck-toggle-btn" title="Toggle Snippet Drawer (Collapse / Expand)">
+                  <span id="deck-toggle-icon">▲</span> <span id="deck-toggle-text">Expand Snippets</span>
                 </button>
-                <button type="button" id="btn-deck-save-row" class="btn btn-xs btn-outline" title="Save currently active line to presets">💾 Save Active Row</button>
-                <button type="button" id="btn-deck-save-page" class="btn btn-xs btn-outline" title="Save full current page to presets">💾 Save Full Page</button>
-                <button type="button" id="btn-deck-open-gallery" class="btn btn-xs btn-outline" title="Open full Gallery organizer">📑 Open Page Gallery</button>
+                <button type="button" id="btn-deck-save-row" class="btn btn-xs btn-outline" title="Save currently active line to snippets">💾 Save Active Row</button>
+                <button type="button" id="btn-deck-save-page" class="btn btn-xs btn-outline" title="Save full current page to snippets">💾 Save Full Page</button>
               </div>
             </div>
 
@@ -244,7 +205,6 @@
                   <button type="button" id="btn-mobile-next-line" class="btn btn-xs btn-outline" title="Next line">▼</button>
                 </div>
                 <div class="mobile-line-actions">
-                  <button type="button" id="btn-mobile-presets" class="btn btn-xs btn-outline mobile-presets-btn" title="Toggle Saved Art &amp; ASCII Pastes">🎨 Presets</button>
                   <div class="mobile-line-indicator" title="Line width traffic light (green: fits, amber: near 114px, red: over 114px)">
                     <span class="mobile-traffic-dot dot-ok" id="mobile-traffic-dot"></span>
                   </div>
@@ -279,19 +239,12 @@
             ></textarea>
           </div>
 
-          <!-- Per-page Live Stats & Diagnostics Footer -->
+          <!-- Per-page Live Stats Footer -->
           <footer class="page-stats-bar">
             <div class="stats-group">
-              <span id="stat-lines" class="stat">0 / 14 lines</span>
+              <span id="stat-chars" class="stat">0 / 1024 chars</span>
               <span class="stat-bullet">•</span>
-              <span id="stat-chars" class="stat">0 chars</span>
-              <span class="stat-bullet">•</span>
-              <span id="stat-words" class="stat">0 words</span>
-              <span class="stat-bullet">•</span>
-              <span id="stat-pixels-left" class="stat">114 px left on current line</span>
-            </div>
-            <div class="diag-group">
-              <span id="diag-summary" class="badge badge-ok">✓ No issues</span>
+              <span id="stat-pixels-left" class="stat">114 px left</span>
             </div>
           </footer>
         </section>
@@ -306,9 +259,7 @@
               <span class="badge" id="active-font-badge">Active: Normal</span>
             </div>
             <div class="font-switcher-header-actions">
-              <button type="button" id="btn-font-apply-selection" class="btn btn-xs btn-primary font-apply-btn" title="Convert selected line(s) to this font">
-                ⚡ Transform Lines
-              </button>
+              <button type="button" id="btn-font-apply-line-panel" class="btn btn-xs btn-primary" title="Transform active line to chosen font (or revert to Normal)">Transform Line</button>
             </div>
           </div>
           <div class="font-switcher-body font-switcher-ribbon" id="font-switcher-ribbon" role="toolbar" aria-label="Symbol Chat Font Switcher">
@@ -318,29 +269,34 @@
               </label>
               <select id="font-switcher-select" class="font-switcher-select" title="Switch active typing font">
                 <option value="normal">Normal</option>
-                <option value="small">Small Caps (ꜱᴍᴀʟʟ)</option>
+                <option value="small_caps">Small Caps (ꜱᴍᴀʟʟ)</option>
+                <option value="circled">Circled (Ⓒⓘⓡ)</option>
                 <option value="fullwidth">Fullwidth (Ｆｕｌｌ)</option>
-                <option value="circled">Circled (Ⓒⓘⓡⓒⓛⓔ)</option>
-                <option value="negative_circled">Negative Circled (🅝🅔🅖)</option>
-                <option value="squared">Squared (🅂🅀)</option>
-                <option value="negative_squared">Negative Squared (🆂🆀)</option>
-                <option value="superscript">Superscript (ˢᵘᵖᵉʳ)</option>
-                <option value="subscript">Subscript (ₛᵤᵦ)</option>
-                <option value="mathematical_bold_fraktur">Fraktur (𝔉𝔯𝔞𝔨𝔱𝔲𝔯)</option>
-                <option value="mathematical_script">Script (𝒮𝒸𝓇𝒾𝓅𝓉)</option>
-                <option value="mathematical_double_struck">Double Struck (𝔻𝕠𝕦𝕓𝕝𝕖)</option>
-                <option value="mathematical_monospace">Monospace (𝙼𝚘𝚗𝚘)</option>
-                <option value="inverse">Inverted (pǝʇɹǝʌuI)</option>
+                <option value="superscript">Superscript (ˢᵘᵖ)</option>
+                <option value="subscript">Subscript (ₜₑₓₜ)</option>
+                <option value="inverted">Inverted (ʇxǝʇ)</option>
+                <option value="fraktur">Fraktur (𝔉𝔯𝔞)</option>
+                <option value="double_struck">Double Struck (𝔻𝕠𝕦)</option>
+                <option value="script">Script (𝒮𝒸𝓇)</option>
+                <option value="bold_serif">Bold Serif (𝐁𝐨𝐥)</option>
+                <option value="circled_black">Circled Black (🅐🅑🅒)</option>
+                <option value="squared">Squared (🄰🄱🄲)</option>
               </select>
             </div>
             <div class="font-quick-chips" id="font-quick-chips">
-              <button type="button" class="font-chip active" data-font="normal">Normal</button>
-              <button type="button" class="font-chip" data-font="small">ꜱᴍᴀʟʟ</button>
-              <button type="button" class="font-chip" data-font="fullwidth">Ｆｕｌｌ</button>
-              <button type="button" class="font-chip" data-font="circled">Ⓒⓘⓡ</button>
-              <button type="button" class="font-chip" data-font="superscript">ˢᵘᵖ</button>
-              <button type="button" class="font-chip" data-font="mathematical_bold_fraktur">𝔉𝔯𝔞</button>
-              <button type="button" class="font-chip" data-font="mathematical_script">𝒮𝒸𝓇</button>
+              <button type="button" class="font-chip active" data-font="normal" title="Normal text">Normal</button>
+              <button type="button" class="font-chip" data-font="small_caps" title="Small Caps">ꜱᴍᴀʟʟ</button>
+              <button type="button" class="font-chip" data-font="circled" title="Circled">Ⓒⓘⓡ</button>
+              <button type="button" class="font-chip" data-font="fullwidth" title="Fullwidth">Ｆｕｌｌ</button>
+              <button type="button" class="font-chip" data-font="superscript" title="Superscript">ˢᵘᵖ</button>
+              <button type="button" class="font-chip" data-font="subscript" title="Subscript">ₜₑₓₜ</button>
+              <button type="button" class="font-chip" data-font="inverted" title="Inverted / Upside Down">ʇxǝʇ</button>
+              <button type="button" class="font-chip" data-font="fraktur" title="Fraktur / Gothic">𝔉𝔯𝔞</button>
+              <button type="button" class="font-chip" data-font="double_struck" title="Double Struck">𝔻𝕠𝕦</button>
+              <button type="button" class="font-chip" data-font="script" title="Script / Cursive">𝒮𝒸𝓇</button>
+              <button type="button" class="font-chip" data-font="bold_serif" title="Bold Serif">𝐁𝐨𝐥</button>
+              <button type="button" class="font-chip" data-font="circled_black" title="Circled Black">🅐🅑🅒</button>
+              <button type="button" class="font-chip" data-font="squared" title="Squared">🄰🄱🄲</button>
             </div>
           </div>
         </section>
@@ -350,11 +306,6 @@
       <section class="panel panel-preview" aria-label="Book Preview">
         <div class="panel-header">
           <div class="preview-mode-controls">
-            <div class="btn-group">
-              <button id="view-mode-single" class="btn btn-xs btn-outline active" title="Single page view">Single</button>
-              <button id="view-mode-double" class="btn btn-xs btn-outline" title="Two-page spread">Double</button>
-            </div>
-            <span class="separator-xs"></span>
             <select id="engine-select" class="select-xs" title="Rendering Engine">
               <option value="java">Java (114px)</option>
               <option value="bedrock">Bedrock (122px)</option>
@@ -368,7 +319,40 @@
               <span id="page-badge" class="page-badge">Page 1 / 1</span>
               <button id="next-page-btn" class="btn btn-xs btn-outline" title="Next page (→) • Advances or appends new page like Minecraft">▶</button>
               <span class="separator-xs"></span>
-              <button id="btn-preview-copy-page" class="btn btn-xs btn-outline" title="Copy active page to clipboard for Minecraft paste (Ctrl+Shift+C)">📋 Copy Page</button>
+              <div class="copy-page-wrapper" id="preview-copy-page-wrapper">
+                <button id="btn-preview-copy-page" class="btn btn-xs btn-outline" title="Copy active page to clipboard (Ctrl+Shift+C)">📋 Copy Page</button>
+                <button id="btn-preview-copy-opts" class="btn btn-xs btn-outline copy-opts-btn" title="Choose page copy format">▾</button>
+                <div id="preview-copy-menu" class="copy-options-menu" style="display: none;">
+                  <button type="button" class="copy-option-item" data-format="raw">
+                    <span class="copy-option-icon">📋</span>
+                    <span class="copy-option-body">
+                      <span class="copy-option-title">Book &amp; Quill Text (§ Codes)</span>
+                      <span class="copy-option-desc">Default multi-line text for Minecraft Book &amp; Quill (Ctrl+V)</span>
+                    </span>
+                  </button>
+                  <button type="button" class="copy-option-item" data-format="give">
+                    <span class="copy-option-icon">⚡</span>
+                    <span class="copy-option-body">
+                      <span class="copy-option-title">Single-Page /give Command</span>
+                      <span class="copy-option-desc">Java 1.20.5+ / 1.21+ SNBT component for chat or command blocks</span>
+                    </span>
+                  </button>
+                  <button type="button" class="copy-option-item" data-format="ampersand">
+                    <span class="copy-option-icon">🏷</span>
+                    <span class="copy-option-body">
+                      <span class="copy-option-title">Color Codes (&amp; Codes)</span>
+                      <span class="copy-option-desc">Replaces § with &amp; for Essentials / CMI server plugins</span>
+                    </span>
+                  </button>
+                  <button type="button" class="copy-option-item" data-format="plain">
+                    <span class="copy-option-icon">📄</span>
+                    <span class="copy-option-body">
+                      <span class="copy-option-title">Plain Text</span>
+                      <span class="copy-option-desc">Formatting codes stripped for unmodded paste</span>
+                    </span>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -431,39 +415,31 @@
       </div>
     </dialog>
 
-    <!-- Book History & Snapshots Dialog (Streamlined Replacement for Gallery) -->
-    <dialog id="history-dialog" class="editor-dialog">
-      <div class="dialog-card dialog-card-wide history-modal-card">
-        <header class="dialog-header history-modal-header">
-          <div class="history-title-wrap">
-            <span class="dialog-icon">⏱</span>
-            <div class="history-header-texts">
-              <h2 class="dialog-title">Book History &amp; Snapshots</h2>
-              <span class="dialog-subtitle">Visual timeline of manual saves, line snippets, and autosaves with 1-click restore</span>
+    <!-- Dedicated Bookshelf Dialog (Multi-Book Management) -->
+    <dialog id="bookshelf-dialog" class="editor-dialog">
+      <div class="dialog-card dialog-card-wide bookshelf-modal-card">
+        <header class="dialog-header bookshelf-modal-header">
+          <div class="bookshelf-title-wrap">
+            <span class="dialog-icon">📚</span>
+            <div class="bookshelf-header-texts">
+              <h2 class="dialog-title">Bookshelf</h2>
+              <span class="dialog-subtitle">Manage your written books, create new books, or switch between books</span>
             </div>
           </div>
-          <div class="history-tabs-nav" id="history-tabs-nav" role="tablist">
-            <button type="button" class="history-tab active" data-filter="all">All (<span id="history-count-all">0</span>)</button>
-            <button type="button" class="history-tab" data-filter="manual">Manual Saves (<span id="history-count-manual">0</span>)</button>
-            <button type="button" class="history-tab" data-filter="autosave">Autosaves (<span id="history-count-auto">0</span>)</button>
-            <button type="button" class="history-tab" data-filter="snippet">Line Snippets (<span id="history-count-snippet">0</span>)</button>
+          <div class="bookshelf-header-actions">
+            <button type="button" id="btn-bookshelf-new-book" class="btn btn-xs btn-primary">➕ New Book</button>
           </div>
-          <button type="button" class="dialog-close-btn" data-close="history-dialog">✕</button>
+          <button type="button" class="dialog-close-btn" data-close="bookshelf-dialog">✕</button>
         </header>
 
-        <div class="dialog-body history-modal-body">
-          <div class="history-toolbar">
-            <button type="button" id="btn-history-save-now" class="btn btn-xs btn-primary">💾 Save Current Page State</button>
-            <button type="button" id="btn-history-clear-autosaves" class="btn btn-xs btn-outline">↺ Clear Autosaves</button>
-            <button type="button" id="btn-history-clear-all" class="btn btn-xs btn-outline btn-danger-tag">🗑 Clear History</button>
-          </div>
-          <div class="history-timeline-list" id="history-timeline-list">
-            <!-- Dynamically populated snapshot cards -->
+        <div class="dialog-body bookshelf-modal-body">
+          <div class="bookshelf-grid" id="bookshelf-grid">
+            <!-- Dynamically populated book cards -->
           </div>
         </div>
 
         <footer class="dialog-actions">
-          <button type="button" class="btn btn-primary" data-close="history-dialog">Done</button>
+          <button type="button" class="btn btn-primary" data-close="bookshelf-dialog">Close</button>
         </footer>
       </div>
     </dialog>

@@ -32,7 +32,7 @@ export function createBookStore() {
   let initialBook: BookState = normalizeBook({
     title: 'Untitled Book',
     author: 'Author',
-    pages: ['§6§lWelcome to the Book!§r\n\nEdit this page using the toolbar or type §-codes directly.'],
+    pages: ['§6§lWelcome to the Book!§r\n\nEdit this page using the toolbar or type formatting codes directly.'],
   });
 
   if (typeof localStorage !== 'undefined') {

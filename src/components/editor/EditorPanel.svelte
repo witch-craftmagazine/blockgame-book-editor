@@ -1,6 +1,7 @@
 <script lang="ts">
   import { bookStore } from '../../state/bookStore.svelte';
   import { uiStore } from '../../state/uiStore.svelte';
+  import { libraryStore } from '../../state/libraryStore.svelte';
   import FormattingBar from './FormattingBar.svelte';
   import { transformWithFont } from '../../data/symbolChatFonts';
 
@@ -10,18 +11,31 @@
     bookStore.activeCursorPos = target.selectionStart;
   }
 
+  function handleBeforeInput(idx: number, e: InputEvent) {
+    if (bookStore.activeFontId === 'normal') return;
+    if (e.inputType === 'insertText' && e.data) {
+      e.preventDefault();
+      const target = e.target as HTMLInputElement;
+      const transformed = transformWithFont(e.data, bookStore.activeFontId);
+      const start = target.selectionStart ?? 0;
+      const end = target.selectionEnd ?? 0;
+      const current = target.value;
+      const nextVal = current.slice(0, start) + transformed + current.slice(end);
+      const ok = bookStore.setLine(idx, nextVal);
+      if (!ok) {
+        uiStore.showToast('Page character limit (1024) exceeded', 'warn');
+        return;
+      }
+      target.value = nextVal;
+      const newPos = start + transformed.length;
+      target.setSelectionRange(newPos, newPos);
+      updateCursor(target);
+    }
+  }
+
   function handleLineInput(idx: number, e: Event) {
     const target = e.target as HTMLInputElement;
-    let val = target.value;
-    if (bookStore.activeFontId !== 'normal') {
-      const converted = transformWithFont(val, bookStore.activeFontId);
-      if (converted !== val) {
-        val = converted;
-        const caret = target.selectionStart;
-        target.value = converted;
-        if (caret !== null) target.setSelectionRange(caret, caret);
-      }
-    }
+    const val = target.value;
     const ok = bookStore.setLine(idx, val);
     if (!ok) {
       uiStore.showToast('Page character limit (1024) exceeded', 'warn');
@@ -34,6 +48,7 @@
     bookStore.activeLineIndex = idx;
     if (!bookStore.selectedLineIndices.has(idx)) {
       bookStore.selectedLineIndices = new Set([idx]);
+      lastClickedLineIndex = idx;
     }
     const target = e.target as HTMLInputElement;
     updateCursor(target);
@@ -44,16 +59,15 @@
     updateCursor(target);
   }
 
-  function handleLineCheckbox(idx: number, e: MouseEvent) {
-    const isShift = e.shiftKey;
-    const isCtrlCmd = e.ctrlKey || e.metaKey;
+  function handleLineSelection(idx: number, isShift: boolean, isModifier: boolean) {
     const nextSet = new Set(bookStore.selectedLineIndices);
 
     if (isShift) {
       const start = Math.min(lastClickedLineIndex, idx);
       const end = Math.max(lastClickedLineIndex, idx);
+      if (!isModifier) nextSet.clear();
       for (let i = start; i <= end; i++) nextSet.add(i);
-    } else if (isCtrlCmd) {
+    } else if (isModifier) {
       if (nextSet.has(idx)) {
         if (nextSet.size > 1) nextSet.delete(idx);
       } else {
@@ -61,12 +75,8 @@
       }
       lastClickedLineIndex = idx;
     } else {
-      if (nextSet.has(idx) && nextSet.size === 1) {
-        // keep selected
-      } else {
-        nextSet.clear();
-        nextSet.add(idx);
-      }
+      nextSet.clear();
+      nextSet.add(idx);
       lastClickedLineIndex = idx;
     }
     bookStore.selectedLineIndices = nextSet;
@@ -84,21 +94,8 @@
       linesToSave = [bookStore.currentLines[lineIdx] ?? ''];
       title = `Snippet: Line ${lineIdx + 1}`;
     }
-    try {
-      const raw = localStorage.getItem('blockgame_book_history_v1');
-      const snapshots = raw ? JSON.parse(raw) : [];
-      snapshots.unshift({
-        id: `snap-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-        type: 'snippet',
-        timestamp: Date.now(),
-        title,
-        pageIndex: bookStore.currentPageIndex,
-        totalPages: bookStore.pages.length,
-        lines: linesToSave,
-      });
-      localStorage.setItem('blockgame_book_history_v1', JSON.stringify(snapshots.slice(0, 50)));
-      uiStore.showToast(`Saved "${title}" to History`, 'success');
-    } catch {}
+    libraryStore.addCustomTemplate(title, 'lines', 'Snippet', linesToSave);
+    uiStore.showToast(`Saved "${title}" to Saved Art`, 'success');
   }
 </script>
 
@@ -178,6 +175,7 @@
         class="mobile-line-input"
         placeholder="Type line {bookStore.activeLineIndex + 1} text…"
         value={bookStore.currentLines[bookStore.activeLineIndex] ?? ''}
+        onbeforeinput={(e) => handleBeforeInput(bookStore.activeLineIndex, e as InputEvent)}
         oninput={(e) => handleLineInput(bookStore.activeLineIndex, e)}
         onkeydown={(e) => {
           if (e.key === 'Enter') {
@@ -195,17 +193,26 @@
 
   <div class="lines-container" role="region" aria-label="Minecraft 14-Line Editor">
     {#each bookStore.lineMetrics as metric, idx}
+      <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
       <div
         class="line-row"
         class:active={bookStore.activeLineIndex === idx}
         class:selected={bookStore.selectedLineIndices.has(idx)}
+        onclick={(e) => {
+          const target = e.target as HTMLElement;
+          if (target.closest('.line-select-check') || target.closest('.btn-row-save') || target.closest('.line-input')) return;
+          handleLineSelection(idx, e.shiftKey, e.metaKey || e.ctrlKey);
+        }}
       >
         <input
           type="checkbox"
           class="line-select-check"
           title="Select line for snippet / font action (Shift-click range, Cmd/Ctrl-click toggle)"
           checked={bookStore.selectedLineIndices.has(idx)}
-          onclick={(e) => handleLineCheckbox(idx, e)}
+          onclick={(e) => {
+            e.stopPropagation();
+            handleLineSelection(idx, e.shiftKey, e.metaKey || e.ctrlKey);
+          }}
         />
         <span class="line-number">{idx + 1}</span>
         
@@ -215,6 +222,13 @@
             class="line-input"
             class:overflown={metric.isOverWidth}
             value={metric.text}
+            onbeforeinput={(e) => handleBeforeInput(idx, e as InputEvent)}
+            onmousedown={(e) => {
+              if (e.shiftKey || e.metaKey || e.ctrlKey) {
+                e.preventDefault();
+                handleLineSelection(idx, e.shiftKey, e.metaKey || e.ctrlKey);
+              }
+            }}
             oninput={(e) => handleLineInput(idx, e)}
             onfocus={(e) => handleLineFocus(idx, e)}
             onclick={handleLineCursorChange}
@@ -226,14 +240,28 @@
           <div class="line-ruler-bar" style="width: {Math.min(100, (metric.width / 114) * 100)}%;"></div>
         </div>
 
-        <button
-          type="button"
-          class="btn-row-save"
-          title="Save line snippet to History"
-          onclick={() => saveLineSnippet(idx)}
-        >
-          💾
-        </button>
+        {#if bookStore.selectedLineIndices.size > 1}
+          {#if idx === Math.min(...bookStore.selectedLineIndices)}
+            {@const sorted = [...bookStore.selectedLineIndices].sort((a, b) => a - b)}
+            <button
+              type="button"
+              class="btn-row-save btn-row-save-multi"
+              title="Save selection (Lines {sorted[0] + 1}–{sorted[sorted.length - 1] + 1}, {sorted.length} lines) to Saved Art"
+              onclick={() => saveLineSnippet(idx)}
+            >
+              💾
+            </button>
+          {/if}
+        {:else}
+          <button
+            type="button"
+            class="btn-row-save"
+            title="Save Line {idx + 1} snippet to Saved Art"
+            onclick={() => saveLineSnippet(idx)}
+          >
+            💾
+          </button>
+        {/if}
 
         <span class="line-px-badge" class:overflown={metric.isOverWidth}>
           {metric.width}px
@@ -345,12 +373,20 @@
     transition: background 0.1s ease;
   }
 
-  .line-row.active {
-    background: rgba(255, 255, 255, 0.04);
+  .line-row.selected,
+  .line-row.active.selected {
+    background: rgba(144, 202, 249, 0.16);
+    box-shadow: inset 3px 0 0 var(--accent, #90caf9);
   }
 
-  .line-row.selected {
-    background: rgba(144, 202, 249, 0.08);
+  .line-row.active:not(.selected) {
+    background: rgba(255, 255, 255, 0.04);
+    box-shadow: inset 3px 0 0 rgba(255, 255, 255, 0.2);
+  }
+
+  .btn-row-save-multi {
+    display: flex !important;
+    opacity: 0.9 !important;
   }
 
   .line-select-check {

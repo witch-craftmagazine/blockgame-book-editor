@@ -1,23 +1,21 @@
 <script lang="ts">
   import { bookStore } from '../../state/bookStore.svelte';
   import { uiStore } from '../../state/uiStore.svelte';
-  import { SYMBOL_CHAT_FONTS, transformWithFont } from '../../data/symbolChatFonts';
+  import { SYMBOL_CHAT_FONTS, transformWithFont, toNormalText } from '../../data/symbolChatFonts';
 
   function applyFontToSelection() {
-    if (bookStore.activeFontId === 'normal') {
-      uiStore.showToast('Select a stylized font from the chips/dropdown first', 'info');
-      return;
-    }
     let count = 0;
     bookStore.selectedLineIndices.forEach(idx => {
       const cur = bookStore.currentLines[idx] ?? '';
-      const converted = transformWithFont(cur, bookStore.activeFontId);
+      const converted = bookStore.activeFontId === 'normal'
+        ? toNormalText(cur)
+        : transformWithFont(cur, bookStore.activeFontId);
       if (converted !== cur) {
         bookStore.setLine(idx, converted);
         count++;
       }
     });
-    uiStore.showToast(`Applied ${bookStore.activeFontId} font to ${count || bookStore.selectedLineIndices.size} line(s)`, 'success');
+    uiStore.showToast(`Transformed ${count || bookStore.selectedLineIndices.size} line(s) to ${bookStore.activeFontId}`, 'success');
   }
 </script>
 
@@ -34,9 +32,9 @@
         type="button"
         class="btn-font-apply"
         onclick={applyFontToSelection}
-        title="Apply active font style to selected line(s)"
+        title="Transform active or selected line(s) into active font style (or back to Normal)"
       >
-        ⚡ Transform Lines
+        ⚡ Transform Line
       </button>
     </div>
   </div>
@@ -52,13 +50,19 @@
       </select>
     </div>
     <div class="font-quick-chips">
-      <button type="button" class="font-chip" class:active={bookStore.activeFontId === 'normal'} onclick={() => bookStore.activeFontId = 'normal'}>Normal</button>
-      <button type="button" class="font-chip" class:active={bookStore.activeFontId === 'small_caps'} onclick={() => bookStore.activeFontId = 'small_caps'}>ꜱᴍᴀʟʟ</button>
-      <button type="button" class="font-chip" class:active={bookStore.activeFontId === 'fullwidth'} onclick={() => bookStore.activeFontId = 'fullwidth'}>Ｆｕｌｌ</button>
-      <button type="button" class="font-chip" class:active={bookStore.activeFontId === 'circled'} onclick={() => bookStore.activeFontId = 'circled'}>Ⓒⓘⓡ</button>
-      <button type="button" class="font-chip" class:active={bookStore.activeFontId === 'superscript'} onclick={() => bookStore.activeFontId = 'superscript'}>ˢᵘᵖ</button>
-      <button type="button" class="font-chip" class:active={bookStore.activeFontId === 'fraktur'} onclick={() => bookStore.activeFontId = 'fraktur'}>𝔉𝔯𝔞</button>
-      <button type="button" class="font-chip" class:active={bookStore.activeFontId === 'script'} onclick={() => bookStore.activeFontId = 'script'}>𝒮𝒸𝓇</button>
+      <button type="button" class="font-chip" class:active={bookStore.activeFontId === 'normal'} onclick={() => bookStore.activeFontId = 'normal'} title="Normal">Normal</button>
+      <button type="button" class="font-chip" class:active={bookStore.activeFontId === 'small_caps'} onclick={() => bookStore.activeFontId = 'small_caps'} title="Small Caps">ꜱᴍᴀʟʟ</button>
+      <button type="button" class="font-chip" class:active={bookStore.activeFontId === 'circled'} onclick={() => bookStore.activeFontId = 'circled'} title="Circled">Ⓒⓘⓡ</button>
+      <button type="button" class="font-chip" class:active={bookStore.activeFontId === 'fullwidth'} onclick={() => bookStore.activeFontId = 'fullwidth'} title="Fullwidth">Ｆｕｌｌ</button>
+      <button type="button" class="font-chip" class:active={bookStore.activeFontId === 'superscript'} onclick={() => bookStore.activeFontId = 'superscript'} title="Superscript">ˢᵘᵖ</button>
+      <button type="button" class="font-chip" class:active={bookStore.activeFontId === 'subscript'} onclick={() => bookStore.activeFontId = 'subscript'} title="Subscript">ₜₑₓₜ</button>
+      <button type="button" class="font-chip" class:active={bookStore.activeFontId === 'inverted'} onclick={() => bookStore.activeFontId = 'inverted'} title="Upside Down">ʇxǝʇ</button>
+      <button type="button" class="font-chip" class:active={bookStore.activeFontId === 'fraktur'} onclick={() => bookStore.activeFontId = 'fraktur'} title="Fraktur / Gothic">𝔉𝔯𝔞</button>
+      <button type="button" class="font-chip" class:active={bookStore.activeFontId === 'double_struck'} onclick={() => bookStore.activeFontId = 'double_struck'} title="Double Struck">𝔻𝕠𝕦</button>
+      <button type="button" class="font-chip" class:active={bookStore.activeFontId === 'script'} onclick={() => bookStore.activeFontId = 'script'} title="Script / Cursive">𝒮𝒸𝓇</button>
+      <button type="button" class="font-chip" class:active={bookStore.activeFontId === 'bold_serif'} onclick={() => bookStore.activeFontId = 'bold_serif'} title="Bold Serif">𝐁𝐨𝐥</button>
+      <button type="button" class="font-chip" class:active={bookStore.activeFontId === 'circled_black'} onclick={() => bookStore.activeFontId = 'circled_black'} title="Circled Black">🅐🅑🅒</button>
+      <button type="button" class="font-chip" class:active={bookStore.activeFontId === 'squared'} onclick={() => bookStore.activeFontId = 'squared'} title="Squared">🄰🄱🄲</button>
     </div>
   </div>
 </section>
@@ -112,10 +116,6 @@
     font-family: monospace;
   }
 
-  .header-actions {
-    display: flex;
-    align-items: center;
-  }
 
   .font-switcher-body {
     display: flex;

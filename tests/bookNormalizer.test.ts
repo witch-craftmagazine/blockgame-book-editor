@@ -33,8 +33,8 @@ describe('Book Normalizer & Import Converter', () => {
 
     // Verify first line has gold & bold
     expect(lines[0]).toBe('§6§lWelcome to the');
-    // Verify second line retained gold & bold
-    expect(lines[1]).toBe('§6§lBook!');
+    // Verify second line retained gold & bold and ends with reset §r so subsequent lines stay unbold
+    expect(lines[1]).toBe('§6§lBook!§r');
     // Verify third line is empty gap
     expect(lines[2]).toBe('');
     // Verify continuation lines

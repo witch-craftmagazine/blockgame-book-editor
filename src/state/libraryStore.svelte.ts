@@ -117,18 +117,55 @@ const HIDDEN_KEY = 'blockgame_hidden_presets';
 export type LibraryFilter = 'all' | 'page' | 'lines' | 'preset' | 'custom';
 
 export function createLibraryStore() {
-  let customTemplates = $state<SavedTemplate[]>([]);
-  let hiddenPresetIds = $state<string[]>([]);
-  let activeFilter = $state<LibraryFilter>('all');
+  let initialCustom: SavedTemplate[] = [];
+  let initialHidden: string[] = [];
 
   if (typeof localStorage !== 'undefined') {
     try {
       const rawCustom = localStorage.getItem(STORAGE_KEY);
-      if (rawCustom) customTemplates = JSON.parse(rawCustom);
+      if (rawCustom) initialCustom = JSON.parse(rawCustom);
       const rawHidden = localStorage.getItem(HIDDEN_KEY);
-      if (rawHidden) hiddenPresetIds = JSON.parse(rawHidden);
+      if (rawHidden) initialHidden = JSON.parse(rawHidden);
+
+      // Migrate legacy snippet records from history into saved art
+      const rawHist = localStorage.getItem('blockgame_book_history_v1');
+      if (rawHist) {
+        const histSnapshots = JSON.parse(rawHist);
+        if (Array.isArray(histSnapshots)) {
+          const snippets = histSnapshots.filter((s: any) => s.type === 'snippet');
+          if (snippets.length > 0) {
+            let migrated = false;
+            for (const s of snippets) {
+              if (!initialCustom.some(t => t.id === s.id)) {
+                initialCustom = [
+                  {
+                    id: s.id || `custom-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+                    title: s.title || 'Saved Snippet',
+                    scope: 'lines',
+                    category: 'Snippet',
+                    lines: s.lines || [],
+                    createdAt: s.timestamp || Date.now(),
+                    isPreset: false,
+                  },
+                  ...initialCustom,
+                ];
+                migrated = true;
+              }
+            }
+            if (migrated) {
+              localStorage.setItem(STORAGE_KEY, JSON.stringify(initialCustom));
+            }
+            const purified = histSnapshots.filter((s: any) => s.type !== 'snippet');
+            localStorage.setItem('blockgame_book_history_v1', JSON.stringify(purified));
+          }
+        }
+      }
     } catch {}
   }
+
+  let customTemplates = $state<SavedTemplate[]>(initialCustom);
+  let hiddenPresetIds = $state<string[]>(initialHidden);
+  let activeFilter = $state<LibraryFilter>('all');
 
   function saveCustomToStorage() {
     if (typeof localStorage === 'undefined') return;

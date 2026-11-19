@@ -45,6 +45,7 @@
       <button
         type="button"
         class="view-toggle-btn"
+        style="display: none;"
         onclick={() => uiStore.toggleViewMode()}
         title="Toggle Single / Spread View"
       >
@@ -157,7 +158,11 @@
     gap: 6px;
   }
 
-  .view-toggle-btn, .btn-icon {
+  .view-toggle-btn {
+    display: none;
+  }
+
+  .btn-icon {
     background: var(--btn-bg, #2a2833);
     color: var(--text-main, #f0e6d2);
     border: 1px solid var(--border-color, #383542);

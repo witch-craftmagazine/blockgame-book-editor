@@ -80,7 +80,7 @@ interface UndoSnapshot {
 let book: BlockgameBook = normalizeBook({
   title: 'My Book',
   author: 'Author',
-  pages: ['§6§lWelcome to the Book!§r\n\nEdit this page using the toolbar or type §-codes directly.'],
+  pages: ['§6§lWelcome to the Book!§r\n\nEdit this page using the toolbar or type formatting codes directly.'],
 });
 
 let currentPageIndex = 0;
@@ -329,7 +329,8 @@ export interface SavedTemplate {
   isPreset?: boolean;
 }
 
-const GALLERY_STORAGE_KEY = 'blockgame_book_gallery_templates';
+const GALLERY_STORAGE_KEY = 'blockgame_saved_art';
+const LEGACY_GALLERY_KEY = 'blockgame_book_gallery_templates';
 
 export const DEFAULT_PRESETS: SavedTemplate[] = [
   {
@@ -437,11 +438,17 @@ export const DEFAULT_PRESETS: SavedTemplate[] = [
 export let savedTemplates: SavedTemplate[] = [];
 export let activeGalleryTab: 'pages' | 'library' | 'save' = 'pages';
 export let activeLibraryFilter: 'all' | 'page' | 'lines' | 'preset' | 'custom' = 'all';
+export let activeDeckFilter: 'all' | 'page' | 'lines' | 'custom' = 'all';
+export let setDeckCollapsed: (collapsed: boolean) => void = () => {};
+let refreshDeckPastes: () => void = () => {};
 
 export function loadSavedTemplates(): SavedTemplate[] {
   if (typeof localStorage === 'undefined') return [...DEFAULT_PRESETS];
   try {
-    const raw = localStorage.getItem(GALLERY_STORAGE_KEY);
+    let raw = localStorage.getItem(GALLERY_STORAGE_KEY);
+    if (!raw) {
+      raw = localStorage.getItem(LEGACY_GALLERY_KEY);
+    }
     if (!raw) return [...DEFAULT_PRESETS];
     const userItems: SavedTemplate[] = JSON.parse(raw);
     return [...DEFAULT_PRESETS, ...userItems];
@@ -454,6 +461,44 @@ export function saveUserTemplates(templates: SavedTemplate[]): void {
   if (typeof localStorage === 'undefined') return;
   const userItems = templates.filter(t => !t.isPreset);
   localStorage.setItem(GALLERY_STORAGE_KEY, JSON.stringify(userItems));
+}
+
+const HISTORY_STORAGE_KEY = 'blockgame_book_history';
+
+export function migrateSnippetHistory(): void {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    const raw = localStorage.getItem(HISTORY_STORAGE_KEY);
+    if (!raw) return;
+    const snapshots = JSON.parse(raw);
+    if (!Array.isArray(snapshots)) return;
+
+    const snippets = snapshots.filter((s: any) => s.type === 'snippet');
+    if (snippets.length > 0) {
+      let changed = false;
+      for (const s of snippets) {
+        if (!savedTemplates.some(t => t.id === s.id)) {
+          savedTemplates.unshift({
+            id: s.id || `custom-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+            title: s.title || 'Saved Snippet',
+            scope: 'lines',
+            category: 'Snippet',
+            lines: s.lines || [],
+            createdAt: s.timestamp || Date.now(),
+            isPreset: false,
+          });
+          changed = true;
+        }
+      }
+      if (changed) {
+        saveUserTemplates(savedTemplates);
+        refreshDeckPastes();
+        updateGalleryCounts();
+      }
+      const purified = snapshots.filter((s: any) => s.type !== 'snippet');
+      localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(purified));
+    }
+  } catch {}
 }
 
 export function renderFormattedMiniLine(rawText: string): HTMLElement {
@@ -725,10 +770,6 @@ let btnCenterLine: HTMLButtonElement;
 let btnFillMargin: HTMLButtonElement;
 let btnDedupCodes: HTMLButtonElement;
 let btnClearPage: HTMLButtonElement;
-let btnCopyPage: HTMLButtonElement;
-let btnCopyPageOpts: HTMLButtonElement;
-let copyPageWrapper: HTMLElement | null;
-let copyPageMenu: HTMLElement | null;
 let btnPreviewCopyPage: HTMLButtonElement | null;
 let btnPrevPage: HTMLButtonElement;
 let btnNextPage: HTMLButtonElement;
@@ -736,8 +777,6 @@ let btnZoomIn: HTMLButtonElement;
 let btnZoomOut: HTMLButtonElement;
 let btnZoomFit: HTMLButtonElement;
 let btnSoundToggle: HTMLButtonElement;
-let viewModeSingle: HTMLButtonElement;
-let viewModeDouble: HTMLButtonElement;
 let engineSelect: HTMLSelectElement;
 
 // Dialogs & Gallery
@@ -753,83 +792,162 @@ let glyphCustomInput: HTMLInputElement;
 let glyphCustomWidth: HTMLElement;
 let glyphCustomInsertBtn: HTMLButtonElement;
 
-// Book History & Snapshots Elements
-let historyDialog: HTMLDialogElement;
-let historyTabsNav: HTMLElement | null = null;
-let historyTimelineList: HTMLElement | null = null;
-let btnOpenHistory: HTMLButtonElement | null = null;
-let btnSaveSnapshot: HTMLButtonElement | null = null;
-let btnHistorySaveNow: HTMLButtonElement | null = null;
-let btnHistoryClearAutosaves: HTMLButtonElement | null = null;
-let btnHistoryClearAll: HTMLButtonElement | null = null;
-let historyCountAll: HTMLElement | null = null;
-let historyCountManual: HTMLElement | null = null;
-let historyCountAuto: HTMLElement | null = null;
-let historyCountSnippet: HTMLElement | null = null;
+// Bookshelf Dialog & Book Library Elements
+let bookshelfDialog: HTMLDialogElement | null = null;
+let bookshelfGrid: HTMLElement | null = null;
+let btnOpenBookshelf: HTMLButtonElement | null = null;
+let btnBookshelfNewBook: HTMLButtonElement | null = null;
 
-// ─── History & Snapshots Engine (Streamlined Save & History) ────────────
-export const HISTORY_STORAGE_KEY = 'blockgame_book_history_v1';
-export let activeHistoryFilter: 'all' | 'manual' | 'autosave' | 'snippet' = 'all';
-export let lastHistoryAutosaveTs = 0;
+// ─── Bookshelf & Book Library Engine ──────────────────────────────────────────
+export const BOOKSHELF_STORAGE_KEY = 'blockgame_bookshelf_v1';
+export const BOOKSHELF_ACTIVE_KEY = 'blockgame_bookshelf_active_id';
 
-export interface HistorySnapshot {
+export interface BookshelfBook {
   id: string;
-  type: 'manual' | 'autosave' | 'snippet';
-  timestamp: number;
   title: string;
-  pageIndex: number;
-  totalPages: number;
-  lines: string[];
+  author: string;
+  pages: string[];
+  updatedAt: number;
+  createdAt: number;
 }
 
-export function loadHistorySnapshots(): HistorySnapshot[] {
+export let activeBookId = 'book-starter';
+let inMemoryBookshelf: BookshelfBook[] | null = null;
+
+export function loadBookshelf(): BookshelfBook[] {
+  if (typeof localStorage === 'undefined') {
+    return inMemoryBookshelf ? [...inMemoryBookshelf] : [];
+  }
   try {
-    const raw = localStorage.getItem(HISTORY_STORAGE_KEY);
+    const raw = localStorage.getItem(BOOKSHELF_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
     }
   } catch {}
-  return [];
+  return inMemoryBookshelf ? [...inMemoryBookshelf] : [];
 }
 
-export function saveHistorySnapshots(snapshots: HistorySnapshot[]): void {
+export function saveBookshelf(books: BookshelfBook[]): void {
+  inMemoryBookshelf = [...books];
+  if (typeof localStorage === 'undefined') return;
   try {
-    localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(snapshots.slice(0, 50)));
+    localStorage.setItem(BOOKSHELF_STORAGE_KEY, JSON.stringify(books));
   } catch {}
 }
 
-export function createHistorySnapshot(
-  type: 'manual' | 'autosave' | 'snippet',
-  customTitle?: string,
-  targetLines?: string[]
-): void {
-  const lines = targetLines ? [...targetLines] : [...currentLines];
-  const pageNum = currentPageIndex + 1;
-  const defaultTitle =
-    type === 'manual'
-      ? `${book.title || 'Book'} - Page ${pageNum} Snapshot`
-      : type === 'autosave'
-      ? `Autosave - Page ${pageNum}`
-      : `Snippet (Line ${activeLineIndex + 1})`;
-  const title = customTitle || defaultTitle;
-
-  const snapshot: HistorySnapshot = {
-    id: `snap-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-    type,
-    timestamp: Date.now(),
-    title,
-    pageIndex: currentPageIndex,
-    totalPages: book.pages.length,
-    lines,
+export function syncCurrentBookToBookshelf(): void {
+  const books = loadBookshelf();
+  const existingIdx = books.findIndex(b => b.id === activeBookId);
+  const entry: BookshelfBook = {
+    id: activeBookId,
+    title: book.title || 'Untitled Book',
+    author: book.author || 'Author',
+    pages: [...book.pages],
+    updatedAt: Date.now(),
+    createdAt: existingIdx >= 0 ? books[existingIdx].createdAt : Date.now(),
   };
 
-  const snapshots = [snapshot, ...loadHistorySnapshots().filter(s => s.id !== snapshot.id)].slice(0, 50);
-  saveHistorySnapshots(snapshots);
-
-  if (historyDialog && historyDialog.open) {
-    renderHistoryTimeline();
+  if (existingIdx >= 0) {
+    books[existingIdx] = entry;
+  } else {
+    books.unshift(entry);
   }
+  saveBookshelf(books);
+  try {
+    localStorage.setItem(BOOKSHELF_ACTIVE_KEY, activeBookId);
+  } catch {}
+}
+
+export function switchToBook(id: string): void {
+  // Save current book first
+  saveCurrentPageToBook();
+  syncCurrentBookToBookshelf();
+
+  const books = loadBookshelf();
+  const target = books.find(b => b.id === id);
+  if (!target) return;
+
+  activeBookId = target.id;
+  try {
+    localStorage.setItem(BOOKSHELF_ACTIVE_KEY, activeBookId);
+  } catch {}
+
+  const targetWidth = engine === 'bedrock' ? BEDROCK_BOOK_TEXT_WIDTH : BOOK_TEXT_WIDTH;
+  book = normalizeBook({
+    title: target.title,
+    author: target.author,
+    pages: target.pages.length > 0 ? [...target.pages] : [''],
+  }, { maxWidth: targetWidth });
+
+  metaTitle.value = book.title;
+  metaAuthor.value = book.author;
+  currentPageIndex = 0;
+  activeLineIndex = 0;
+  undoStack.length = 0;
+  redoStack.length = 0;
+
+  loadPageIntoEditor(0);
+  syncViewerToBook();
+  updateAll(true);
+  bookshelfDialog?.close();
+  soundManager.playButtonClick();
+  showToast(`Switched to "${book.title}"`, 'success');
+}
+
+export function createNewBook(title = 'Untitled Book'): void {
+  saveCurrentPageToBook();
+  syncCurrentBookToBookshelf();
+
+  const newId = `book-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+  const newBookEntry: BookshelfBook = {
+    id: newId,
+    title,
+    author: book.author || 'Author',
+    pages: [''],
+    updatedAt: Date.now(),
+    createdAt: Date.now(),
+  };
+
+  const books = [newBookEntry, ...loadBookshelf()];
+  saveBookshelf(books);
+  switchToBook(newId);
+}
+
+export function duplicateBook(id: string): void {
+  const books = loadBookshelf();
+  const src = books.find(b => b.id === id);
+  if (!src) return;
+
+  const newId = `book-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+  const clone: BookshelfBook = {
+    id: newId,
+    title: `${src.title} (Copy)`,
+    author: src.author,
+    pages: [...src.pages],
+    updatedAt: Date.now(),
+    createdAt: Date.now(),
+  };
+
+  const updated = [clone, ...books];
+  saveBookshelf(updated);
+  renderBookshelf();
+  showToast(`Duplicated "${src.title}"`, 'success');
+}
+
+export function deleteBook(id: string): void {
+  const books = loadBookshelf().filter(b => b.id !== id);
+  saveBookshelf(books);
+  if (id === activeBookId) {
+    if (books.length > 0) {
+      switchToBook(books[0].id);
+    } else {
+      createNewBook('Untitled Book');
+    }
+  } else {
+    renderBookshelf();
+  }
+  showToast('Book removed from Bookshelf', 'info');
 }
 
 export function formatRelativeTime(ts: number): string {
@@ -840,144 +958,102 @@ export function formatRelativeTime(ts: number): string {
   return new Date(ts).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
-export function renderHistoryTimeline(): void {
-  const timelineList = historyTimelineList;
-  if (!timelineList) return;
-  timelineList.innerHTML = '';
-  const all = loadHistorySnapshots();
+export function renderBookshelf(): void {
+  const grid = bookshelfGrid || document.getElementById('bookshelf-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
 
-  // Update tab counts
-  const manualCount = all.filter(s => s.type === 'manual').length;
-  const autoCount = all.filter(s => s.type === 'autosave').length;
-  const snippetCount = all.filter(s => s.type === 'snippet').length;
+  syncCurrentBookToBookshelf();
+  const books = loadBookshelf();
 
-  if (historyCountAll) historyCountAll.textContent = all.length.toString();
-  if (historyCountManual) historyCountManual.textContent = manualCount.toString();
-  if (historyCountAuto) historyCountAuto.textContent = autoCount.toString();
-  if (historyCountSnippet) historyCountSnippet.textContent = snippetCount.toString();
-
-  const filtered = all.filter(s => {
-    if (activeHistoryFilter === 'all') return true;
-    return s.type === activeHistoryFilter;
-  });
-
-  if (filtered.length === 0) {
-    const empty = document.createElement('div');
-    empty.className = 'history-empty-state';
-    empty.style.textAlign = 'center';
-    empty.style.padding = '32px 16px';
-    empty.style.color = 'var(--text-muted)';
-    empty.innerHTML = `
-      <p style="font-size: 14px; margin-bottom: 6px;">No snapshots in "<b>${activeHistoryFilter}</b>".</p>
-      <span style="font-size: 12px;">Snapshots are created when you click <b>Save</b> or as you edit.</span>
-    `;
-    timelineList.appendChild(empty);
-    return;
-  }
-
-  filtered.forEach(snap => {
+  books.forEach((b) => {
     const card = document.createElement('div');
-    card.className = 'history-snapshot-card';
+    const isActive = b.id === activeBookId;
+    card.className = `bookshelf-book-card${isActive ? ' active-book' : ''}`;
 
     const header = document.createElement('div');
-    header.className = 'history-card-header';
-
-    const meta = document.createElement('div');
-    meta.className = 'history-card-meta';
-    const badgeClass = snap.type === 'manual' ? 'badge-ok' : (snap.type === 'autosave' ? 'badge-info' : 'badge-warn');
-    meta.innerHTML = `
-      <span class="badge ${badgeClass}">${snap.type.toUpperCase()}</span>
-      <span class="history-card-title">${snap.title}</span>
+    header.className = 'bookshelf-card-header';
+    header.innerHTML = `
+      <div class="bookshelf-card-title-row">
+        <span class="bookshelf-card-title" title="${b.title}">${b.title || 'Untitled'}</span>
+        ${isActive ? '<span class="badge badge-ok">★ EDITING</span>' : ''}
+      </div>
+      <div class="bookshelf-card-meta">
+        <span class="bookshelf-card-author">By ${b.author || 'Author'}</span>
+        <span class="bookshelf-card-pages">${b.pages.length} ${b.pages.length === 1 ? 'Page' : 'Pages'}</span>
+      </div>
     `;
-
-    const time = document.createElement('span');
-    time.className = 'history-card-time';
-    time.textContent = formatRelativeTime(snap.timestamp);
-    time.title = new Date(snap.timestamp).toLocaleString();
-
-    header.appendChild(meta);
-    header.appendChild(time);
     card.appendChild(header);
 
+    // Parchment mini-preview of Page 1
     const preview = document.createElement('div');
-    preview.className = 'history-card-preview';
-    snap.lines.slice(0, 3).forEach(l => {
+    preview.className = 'bookshelf-card-preview';
+    preview.title = isActive ? 'Currently editing this book' : `Click to switch to "${b.title}"`;
+    const pageLines = (b.pages[0] ?? '').split('\n').slice(0, 5);
+    pageLines.forEach((l) => {
       preview.appendChild(renderFormattedMiniLine(l));
     });
+    if (!isActive) {
+      preview.addEventListener('click', () => switchToBook(b.id));
+    }
     card.appendChild(preview);
 
     const actions = document.createElement('div');
-    actions.className = 'history-card-actions';
+    actions.className = 'bookshelf-card-actions';
 
-    const restoreBtn = document.createElement('button');
-    restoreBtn.type = 'button';
-    restoreBtn.className = 'btn btn-xs btn-primary';
-    restoreBtn.textContent = '↺ Restore';
-    restoreBtn.title = 'Roll back current page to this snapshot state';
-    restoreBtn.addEventListener('click', () => {
-      pushUndoSnapshot();
-      if (snap.type === 'snippet') {
-        // Insert snippet at active line
-        for (let i = 0; i < snap.lines.length && activeLineIndex + i < MINECRAFT_LINES_PER_PAGE; i++) {
-          currentLines[activeLineIndex + i] = snap.lines[i] ?? '';
-          if (lineInputEls[activeLineIndex + i]) lineInputEls[activeLineIndex + i].value = currentLines[activeLineIndex + i];
-        }
-      } else {
-        // Restore full page lines
-        currentLines = [...snap.lines];
-        while (currentLines.length < MINECRAFT_LINES_PER_PAGE) currentLines.push('');
-        currentLines = currentLines.slice(0, MINECRAFT_LINES_PER_PAGE);
-        for (let i = 0; i < MINECRAFT_LINES_PER_PAGE; i++) {
-          if (lineInputEls[i]) lineInputEls[i].value = currentLines[i] ?? '';
-        }
-      }
-      updateAll(true);
-      historyDialog?.close();
-      soundManager.playButtonClick();
-      showToast(`Restored snapshot "${snap.title}"`, 'success');
-    });
-    actions.appendChild(restoreBtn);
+    if (isActive) {
+      const activeBtn = document.createElement('button');
+      activeBtn.type = 'button';
+      activeBtn.className = 'btn btn-xs btn-primary';
+      activeBtn.textContent = '✓ Editing';
+      activeBtn.disabled = true;
+      actions.appendChild(activeBtn);
+    } else {
+      const switchBtn = document.createElement('button');
+      switchBtn.type = 'button';
+      switchBtn.className = 'btn btn-xs btn-primary';
+      switchBtn.textContent = '✏ Switch';
+      switchBtn.title = `Switch to editing "${b.title}"`;
+      switchBtn.addEventListener('click', () => switchToBook(b.id));
+      actions.appendChild(switchBtn);
+    }
 
-    const copyBtn = document.createElement('button');
-    copyBtn.type = 'button';
-    copyBtn.className = 'btn btn-xs btn-outline';
-    copyBtn.textContent = '📋 Copy';
-    copyBtn.title = 'Copy lines to clipboard';
-    copyBtn.addEventListener('click', async () => {
-      try {
-        await navigator.clipboard.writeText(snap.lines.join('\n'));
-        showToast('Copied snapshot lines to clipboard', 'success');
-      } catch {}
-    });
-    actions.appendChild(copyBtn);
+    const dupBtn = document.createElement('button');
+    dupBtn.type = 'button';
+    dupBtn.className = 'btn btn-xs btn-outline';
+    dupBtn.textContent = '📑 Copy';
+    dupBtn.title = 'Duplicate this book';
+    dupBtn.addEventListener('click', () => duplicateBook(b.id));
+    actions.appendChild(dupBtn);
 
     const delBtn = document.createElement('button');
     delBtn.type = 'button';
-    delBtn.className = 'btn btn-xs btn-ghost btn-danger-tag';
+    delBtn.className = 'btn btn-xs btn-outline btn-danger-tag';
     delBtn.textContent = '🗑';
-    delBtn.title = 'Delete snapshot';
+    delBtn.title = 'Delete this book';
     delBtn.addEventListener('click', () => {
-      const remaining = loadHistorySnapshots().filter(s => s.id !== snap.id);
-      saveHistorySnapshots(remaining);
-      renderHistoryTimeline();
-      showToast('Snapshot deleted', 'info');
+      if (confirm(`Delete "${b.title}" from Bookshelf?`)) {
+        deleteBook(b.id);
+      }
     });
     actions.appendChild(delBtn);
 
     card.appendChild(actions);
-    timelineList.appendChild(card);
+    grid.appendChild(card);
   });
 }
 
-export function openHistory(): void {
-  renderHistoryTimeline();
-  historyDialog?.showModal();
+export function openBookshelf(): void {
+  renderBookshelf();
+  bookshelfDialog?.showModal();
 }
+
+// Deprecated alias for openHistory
+export const openHistory = openBookshelf;
 
 // Desktop Font Switcher Ribbon
 let fontSwitcherSelect: HTMLSelectElement | null = null;
 let fontQuickChips: HTMLElement | null = null;
-let btnFontApplySelection: HTMLButtonElement | null = null;
 
 // Multi-line selection
 let selectedLineIndices = new Set<number>([0]);
@@ -1003,9 +1079,7 @@ let deckToggleIcon: HTMLElement;
 let deckToggleText: HTMLElement;
 let deckTitleToggle: HTMLElement;
 let deckPastesStrip: HTMLElement;
-let btnDeckSaveRow: HTMLButtonElement;
-let btnDeckSavePage: HTMLButtonElement;
-let btnDeckOpenGallery: HTMLButtonElement;
+let btnDeckSaveRow: HTMLButtonElement | null = null;
 let btnMobilePresets: HTMLButtonElement | null = null;
 let btnToolbarPresets: HTMLButtonElement | null = null;
 
@@ -1042,16 +1116,11 @@ function initDOM(): void {
 
   btnUndo             = document.getElementById('btn-undo')              as HTMLButtonElement;
   btnRedo             = document.getElementById('btn-redo')              as HTMLButtonElement;
-  btnOpenHistory      = document.getElementById('btn-open-history')      as HTMLButtonElement | null;
-  btnSaveSnapshot     = document.getElementById('btn-save-snapshot')     as HTMLButtonElement | null;
+  btnOpenBookshelf    = document.getElementById('btn-open-bookshelf')    as HTMLButtonElement | null;
   btnCenterLine       = document.getElementById('btn-center-line')       as HTMLButtonElement;
   btnFillMargin       = document.getElementById('btn-fill-margin')       as HTMLButtonElement;
   btnDedupCodes       = document.getElementById('btn-dedup-codes')       as HTMLButtonElement;
   btnClearPage        = document.getElementById('btn-clear-page')        as HTMLButtonElement;
-  btnCopyPage         = document.getElementById('btn-copy-page')         as HTMLButtonElement;
-  btnCopyPageOpts     = document.getElementById('btn-copy-page-opts')     as HTMLButtonElement;
-  copyPageWrapper     = document.getElementById('copy-page-wrapper');
-  copyPageMenu        = document.getElementById('copy-page-menu');
   btnPreviewCopyPage  = document.getElementById('btn-preview-copy-page')  as HTMLButtonElement | null;
   btnPrevPage         = document.getElementById('prev-page-btn')         as HTMLButtonElement;
   btnNextPage         = document.getElementById('next-page-btn')         as HTMLButtonElement;
@@ -1059,8 +1128,6 @@ function initDOM(): void {
   btnZoomOut          = document.getElementById('btn-zoom-out')          as HTMLButtonElement;
   btnZoomFit          = document.getElementById('btn-zoom-fit')          as HTMLButtonElement;
   btnSoundToggle      = document.getElementById('btn-sound-toggle')      as HTMLButtonElement;
-  viewModeSingle      = document.getElementById('view-mode-single')      as HTMLButtonElement;
-  viewModeDouble      = document.getElementById('view-mode-double')      as HTMLButtonElement;
   engineSelect        = document.getElementById('engine-select')         as HTMLSelectElement;
 
   importDialog        = document.getElementById('import-dialog')         as HTMLDialogElement;
@@ -1075,22 +1142,14 @@ function initDOM(): void {
   glyphCustomWidth    = document.getElementById('glyph-custom-width')!;
   glyphCustomInsertBtn = document.getElementById('glyph-custom-insert-btn') as HTMLButtonElement;
 
-  // History & Snapshots Modal
-  historyDialog       = document.getElementById('history-dialog')         as HTMLDialogElement;
-  historyTabsNav      = document.getElementById('history-tabs-nav');
-  historyTimelineList = document.getElementById('history-timeline-list');
-  btnHistorySaveNow   = document.getElementById('btn-history-save-now')   as HTMLButtonElement | null;
-  btnHistoryClearAutosaves = document.getElementById('btn-history-clear-autosaves') as HTMLButtonElement | null;
-  btnHistoryClearAll  = document.getElementById('btn-history-clear-all')  as HTMLButtonElement | null;
-  historyCountAll     = document.getElementById('history-count-all');
-  historyCountManual  = document.getElementById('history-count-manual');
-  historyCountAuto    = document.getElementById('history-count-auto');
-  historyCountSnippet = document.getElementById('history-count-snippet');
+  // Dedicated Bookshelf Modal
+  bookshelfDialog     = document.getElementById('bookshelf-dialog')      as HTMLDialogElement | null;
+  bookshelfGrid       = document.getElementById('bookshelf-grid');
+  btnBookshelfNewBook = document.getElementById('btn-bookshelf-new-book') as HTMLButtonElement | null;
 
   // Desktop Font Switcher Ribbon
   fontSwitcherSelect  = document.getElementById('font-switcher-select')  as HTMLSelectElement | null;
   fontQuickChips      = document.getElementById('font-quick-chips');
-  btnFontApplySelection = document.getElementById('btn-font-apply-selection') as HTMLButtonElement | null;
 
   // Top Matrix Selector & Hub
   btnStudioTools      = document.getElementById('btn-studio-tools')       as HTMLButtonElement;
@@ -1112,9 +1171,7 @@ function initDOM(): void {
   deckToggleText      = document.getElementById('deck-toggle-text')       as HTMLElement;
   deckTitleToggle     = document.getElementById('deck-title-toggle')      as HTMLElement;
   deckPastesStrip     = document.getElementById('deck-pastes-strip')      as HTMLElement;
-  btnDeckSaveRow      = document.getElementById('btn-deck-save-row')      as HTMLButtonElement;
-  btnDeckSavePage     = document.getElementById('btn-deck-save-page')     as HTMLButtonElement;
-  btnDeckOpenGallery  = document.getElementById('btn-deck-open-gallery')  as HTMLButtonElement;
+  btnDeckSaveRow      = document.getElementById('btn-deck-save-row')      as HTMLButtonElement | null;
   btnMobilePresets    = document.getElementById('btn-mobile-presets')    as HTMLButtonElement | null;
   btnToolbarPresets   = document.getElementById('btn-toolbar-presets')   as HTMLButtonElement | null;
 
@@ -1209,8 +1266,40 @@ function build14LineRows(): void {
 
     // Gutter click selects and focuses input
     gutter.addEventListener('click', (e) => {
+      e.stopPropagation();
       handleLineSelection(i, e.shiftKey, e.metaKey || e.ctrlKey, false);
       input.focus();
+    });
+
+    // Row click selects line when clicking gutter/empty row space
+    row.addEventListener('click', (e) => {
+      if (e.target === check || e.target === saveBtn || e.target === input) return;
+      handleLineSelection(i, e.shiftKey, e.metaKey || e.ctrlKey, false);
+      input.focus();
+    });
+
+    // Intercept mousedown on line input for Shift/Cmd/Ctrl multi-selection
+    input.addEventListener('mousedown', (e: MouseEvent) => {
+      if (e.shiftKey || e.metaKey || e.ctrlKey) {
+        e.preventDefault();
+        handleLineSelection(i, e.shiftKey, e.metaKey || e.ctrlKey, false);
+      }
+    });
+
+    // Intercept input insertion for non-destructive stylized font typing
+    input.addEventListener('beforeinput', (e: InputEvent) => {
+      if (activeFontId === 'normal') return;
+      if (e.inputType === 'insertText' && e.data) {
+        e.preventDefault();
+        const transformed = transformWithFont(e.data, activeFontId);
+        const start = input.selectionStart ?? 0;
+        const end = input.selectionEnd ?? 0;
+        const current = input.value;
+        input.value = current.slice(0, start) + transformed + current.slice(end);
+        const newPos = start + transformed.length;
+        input.setSelectionRange(newPos, newPos);
+        onLineInput(i);
+      }
     });
 
     // Input Events
@@ -1269,11 +1358,33 @@ function handleLineSelection(lineIdx: number, isShift: boolean, isModifier: bool
 }
 
 function updateActiveRowClass(): void {
+  const isMulti = selectedLineIndices.size > 1;
+  const firstSelected = isMulti ? Math.min(...selectedLineIndices) : -1;
+  const sorted = isMulti ? [...selectedLineIndices].sort((a, b) => a - b) : [];
+  const multiTitle = isMulti
+    ? `Save selection (Lines ${sorted[0] + 1}–${sorted[sorted.length - 1] + 1}, ${sorted.length} lines) to Snippet Drawer`
+    : '';
+
   lineRowEls.forEach((r, idx) => {
     r.classList.toggle('active', idx === activeLineIndex);
     r.classList.toggle('selected', selectedLineIndices.has(idx));
     const chk = r.querySelector<HTMLInputElement>('.line-select-check');
     if (chk) chk.checked = selectedLineIndices.has(idx);
+
+    const saveBtn = r.querySelector<HTMLButtonElement>('.btn-row-save');
+    if (saveBtn) {
+      if (isMulti) {
+        if (idx === firstSelected) {
+          saveBtn.style.display = 'flex';
+          saveBtn.title = multiTitle;
+        } else {
+          saveBtn.style.display = 'none';
+        }
+      } else {
+        saveBtn.style.display = '';
+        saveBtn.title = `Save Line ${idx + 1} snippet to Snippet Drawer`;
+      }
+    }
   });
 }
 
@@ -1289,26 +1400,47 @@ function saveLineSnippet(lineIdx: number): void {
     title = `Snippet: Line ${lineIdx + 1}`;
   }
 
-  createHistorySnapshot('snippet', title, linesToSave);
+  const newTemplate: SavedTemplate = {
+    id: `custom-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+    title,
+    scope: 'lines',
+    category: 'Snippet',
+    lines: linesToSave,
+    createdAt: Date.now(),
+    isPreset: false,
+  };
+  savedTemplates = [newTemplate, ...savedTemplates];
+  saveUserTemplates(savedTemplates);
+
+  // Auto-expand Snippet Drawer so user sees the newly saved snippet immediately
+  setDeckCollapsed(false);
+  if (activeDeckFilter === 'page') {
+    activeDeckFilter = 'all';
+    document.getElementById('deck-filter-chips')?.querySelectorAll<HTMLButtonElement>('.chip').forEach(c => {
+      c.classList.toggle('active', c.dataset.deckFilter === 'all');
+    });
+  }
+
+  refreshDeckPastes();
+  updateGalleryCounts();
+
+  // Highlight and scroll the newly added card into view
+  setTimeout(() => {
+    const firstCard = deckPastesStrip?.querySelector('.deck-paste-card') as HTMLElement | null;
+    if (firstCard) {
+      firstCard.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
+      firstCard.classList.add('card-just-added');
+      setTimeout(() => firstCard.classList.remove('card-just-added'), 1800);
+    }
+  }, 50);
+
   soundManager.playButtonClick();
-  showToast(`Saved "${title}" (${linesToSave.length} line${linesToSave.length > 1 ? 's' : ''}) to History`, 'success');
+  showToast(`Saved "${title}" to Snippet Drawer`, 'success');
 }
 
 function onLineInput(lineIdx: number): void {
   const input = lineInputEls[lineIdx];
   if (!input) return;
-
-  // Live Stylized Font Transformation if non-normal font is selected
-  if (activeFontId !== 'normal') {
-    const converted = transformWithFont(input.value, activeFontId);
-    if (converted !== input.value) {
-      const caret = input.selectionStart;
-      input.value = converted;
-      if (caret !== null) {
-        input.setSelectionRange(caret, caret);
-      }
-    }
-  }
 
   const prevVal = currentLines[lineIdx];
   currentLines[lineIdx] = input.value;
@@ -1753,13 +1885,9 @@ function triggerAutosave(): void {
         currentPageIndex,
       };
       localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(data));
+      syncCurrentBookToBookshelf();
       const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
       autosaveText.textContent = `Saved ${timeStr}`;
-
-      if (Date.now() - lastHistoryAutosaveTs > 30000) {
-        lastHistoryAutosaveTs = Date.now();
-        createHistorySnapshot('autosave');
-      }
     } catch {
       autosaveText.textContent = 'Autosave error';
     } finally {
@@ -1770,6 +1898,23 @@ function triggerAutosave(): void {
 
 function restoreAutosave(): boolean {
   try {
+    const savedActiveId = localStorage.getItem(BOOKSHELF_ACTIVE_KEY);
+    const books = loadBookshelf();
+    if (books.length > 0) {
+      const active = (savedActiveId && books.find(b => b.id === savedActiveId)) || books[0];
+      if (active) {
+        activeBookId = active.id;
+        const targetWidth = engine === 'bedrock' ? BEDROCK_BOOK_TEXT_WIDTH : BOOK_TEXT_WIDTH;
+        book = normalizeBook({
+          title: active.title,
+          author: active.author,
+          pages: active.pages.length > 0 ? active.pages : [''],
+        }, { maxWidth: targetWidth });
+        currentPageIndex = 0;
+        return true;
+      }
+    }
+
     const raw = localStorage.getItem(AUTOSAVE_KEY);
     if (!raw) return false;
     const parsed = JSON.parse(raw);
@@ -1777,6 +1922,7 @@ function restoreAutosave(): boolean {
       const targetWidth = engine === 'bedrock' ? BEDROCK_BOOK_TEXT_WIDTH : BOOK_TEXT_WIDTH;
       book = normalizeBook(parsed.book, { maxWidth: targetWidth });
       currentPageIndex = Math.max(0, Math.min(parsed.currentPageIndex || 0, book.pages.length - 1));
+      syncCurrentBookToBookshelf();
       return true;
     }
   } catch {
@@ -1871,7 +2017,9 @@ function syncViewerToBook(): void {
 
 function updateGutterAndStats(): void {
   const mw = maxWidth();
-  rulerTargetWidth.textContent = `Target: ${mw} px/line`;
+  if (rulerTargetWidth) {
+    rulerTargetWidth.textContent = `Target: ${mw} px/line`;
+  }
 
   // Update Gutter Meters across all 14 Lines
   for (let i = 0; i < MINECRAFT_LINES_PER_PAGE; i++) {
@@ -1879,53 +2027,76 @@ function updateGutterAndStats(): void {
     const style = getCarriedStyleForLine(currentLines, i);
     const lineW = Math.round(measureLineWidth(parseFormattedText(lineText, style)));
     const pct = Math.min(100, (lineW / mw) * 100);
-    const isFull = lineW >= mw;
-    const isWarn = pct > 90 && !isFull;
+    const isOver = lineW > mw;
+    const isFull = lineW === mw;
+    const isWarn = pct > 90 && !isFull && !isOver;
+
+    if (lineRowEls[i]) {
+      lineRowEls[i].classList.toggle('over-width', isOver);
+    }
+    if (lineInputEls[i]) {
+      lineInputEls[i].classList.toggle('over-width', isOver);
+    }
 
     if (lineGutterFillEls[i]) {
-      lineGutterFillEls[i].style.width = `${pct}%`;
-      lineGutterFillEls[i].className = `gutter-bar-fill${isFull ? ' full' : isWarn ? ' warn' : ''}`;
+      lineGutterFillEls[i].style.width = `${Math.min(100, pct)}%`;
+      lineGutterFillEls[i].className = `gutter-bar-fill${isOver ? ' over' : isFull ? ' full' : isWarn ? ' warn' : ''}`;
     }
     if (lineGutterBadgeEls[i]) {
       lineGutterBadgeEls[i].textContent = `${lineW}px`;
-      lineGutterBadgeEls[i].className = `gutter-badge${isFull ? ' full' : isWarn ? ' warn' : ''}`;
+      lineGutterBadgeEls[i].className = `gutter-badge${isOver ? ' over' : isFull ? ' full' : isWarn ? ' warn' : ''}`;
+      if (isOver) {
+        lineGutterBadgeEls[i].title = `${lineW}px exceeds Minecraft maximum of ${mw}px`;
+      } else {
+        lineGutterBadgeEls[i].title = `${lineW}px / ${mw}px`;
+      }
     }
   }
 
   // Footer Stats
   const pageText = isRawMode ? textarea.value : getPageTextFromLines(currentLines);
   const totalChars = pageText.length;
-  const words = pageText.trim() ? pageText.trim().split(/\s+/).length : 0;
   const activeStyle = getCarriedStyleForLine(currentLines, activeLineIndex);
   const activeW = Math.round(measureLineWidth(parseFormattedText(currentLines[activeLineIndex] ?? '', activeStyle)));
   const pxLeft = Math.max(0, mw - activeW);
 
-  statLines.textContent = `14 lines (L${activeLineIndex + 1} active)`;
-  statChars.textContent = `${totalChars} / ${MINECRAFT_PAGE_MAX_CHARS} chars`;
-  statWords.textContent = `${words} words`;
-  statPixelsLeft.textContent = `${pxLeft} px left on L${activeLineIndex + 1}`;
+  if (statChars) {
+    statChars.textContent = `${totalChars} / ${MINECRAFT_PAGE_MAX_CHARS} chars`;
+    statChars.classList.toggle('stat-warn', totalChars > MINECRAFT_PAGE_MAX_CHARS);
+  }
+  if (statPixelsLeft) {
+    statPixelsLeft.textContent = `${pxLeft} px left`;
+  }
+
+  if (statLines) {
+    statLines.textContent = `14 lines (L${activeLineIndex + 1} active)`;
+  }
+  if (statWords) {
+    const words = pageText.trim() ? pageText.trim().split(/\s+/).length : 0;
+    statWords.textContent = `${words} words`;
+  }
 
   const isOverChars = totalChars > MINECRAFT_PAGE_MAX_CHARS;
-  statChars.classList.toggle('stat-warn', isOverChars);
-
   const unsupported = detectUnsupportedMinecraftChars(pageText);
 
-  if (isOverChars) {
-    diagSummary.textContent = `⚠ Page char limit (${MINECRAFT_PAGE_MAX_CHARS}) exceeded`;
-    diagSummary.className = 'badge stat-warn';
-    diagSummary.title = 'Page exceeds Minecraft 1024-character maximum.';
-  } else if (unsupported.count > 0) {
-    diagSummary.textContent = `⚠ ${unsupported.count} SMP char(s) >U+FFFF (${unsupported.chars.slice(0, 3).join('')}) render as [] in MC`;
-    diagSummary.className = 'badge stat-warn';
-    diagSummary.title = 'Vanilla Minecraft Java Edition font only supports BMP characters up to U+FFFF. Characters outside BMP (like modern emojis) render as missing glyph boxes ([])';
-  } else if (totalChars >= 950) {
-    diagSummary.textContent = '⚠ Near 1024-char limit';
-    diagSummary.className = 'badge stat-warn';
-    diagSummary.title = 'Close to Minecraft 1024 character limit.';
-  } else {
-    diagSummary.textContent = '✓ 14 Lines • Valid';
-    diagSummary.className = 'badge badge-ok';
-    diagSummary.title = 'All lines and characters are valid Minecraft book text.';
+  if (diagSummary) {
+    if (isOverChars) {
+      diagSummary.textContent = `⚠ Page char limit (${MINECRAFT_PAGE_MAX_CHARS}) exceeded`;
+      diagSummary.className = 'badge stat-warn';
+      diagSummary.title = 'Page exceeds Minecraft 1024-character maximum.';
+    } else if (unsupported.count > 0) {
+      diagSummary.textContent = `⚠ ${unsupported.count} SMP char(s) >U+FFFF (${unsupported.chars.slice(0, 3).join('')}) render as [] in MC`;
+      diagSummary.className = 'badge stat-warn';
+      diagSummary.title = 'Vanilla Minecraft Java Edition font only supports BMP characters up to U+FFFF. Characters outside BMP (like modern emojis) render as missing glyph boxes ([])';
+    } else if (totalChars >= 950) {
+      diagSummary.textContent = '⚠ Near 1024-char limit';
+      diagSummary.className = 'badge stat-warn';
+      diagSummary.title = 'Close to Minecraft 1024 character limit.';
+    } else {
+      diagSummary.textContent = '✓ Valid';
+      diagSummary.className = 'badge badge-ok';
+      diagSummary.title = 'All lines and characters are valid Minecraft book text.';
+    }
   }
 
   metaTitleCount.textContent = `${metaTitle.value.length}/32`;
@@ -1935,6 +2106,17 @@ function updateGutterAndStats(): void {
   if (mobileLineInput && document.activeElement !== mobileLineInput) {
     mobileLineInput.value = currentLines[activeLineIndex] ?? '';
     mobileLineInput.placeholder = `Type line ${activeLineIndex + 1} text…`;
+  }
+
+  const mobileDot = document.getElementById('mobile-traffic-dot');
+  if (mobileDot) {
+    if (activeW > mw) {
+      mobileDot.className = 'mobile-traffic-dot dot-over';
+    } else if (activeW >= mw * 0.9) {
+      mobileDot.className = 'mobile-traffic-dot dot-warn';
+    } else {
+      mobileDot.className = 'mobile-traffic-dot dot-ok';
+    }
   }
   if (mobileLinePill) {
     mobileLinePill.textContent = `Line ${activeLineIndex + 1} / ${MINECRAFT_LINES_PER_PAGE}`;
@@ -2443,6 +2625,21 @@ function renderExportFormats(): void {
 function wireEvents(): void {
   // Mobile Active Line Stepper & Input Events
   if (mobileLineInput) {
+    mobileLineInput.addEventListener('beforeinput', (e: InputEvent) => {
+      if (activeFontId === 'normal') return;
+      if (e.inputType === 'insertText' && e.data) {
+        e.preventDefault();
+        const transformed = transformWithFont(e.data, activeFontId);
+        const start = mobileLineInput!.selectionStart ?? 0;
+        const end = mobileLineInput!.selectionEnd ?? 0;
+        const current = mobileLineInput!.value;
+        mobileLineInput!.value = current.slice(0, start) + transformed + current.slice(end);
+        const newPos = start + transformed.length;
+        mobileLineInput!.setSelectionRange(newPos, newPos);
+        mobileLineInput!.dispatchEvent(new Event('input'));
+      }
+    });
+
     mobileLineInput.addEventListener('input', () => {
       const prevVal = currentLines[activeLineIndex];
       currentLines[activeLineIndex] = mobileLineInput!.value;
@@ -2696,40 +2893,49 @@ function wireEvents(): void {
     }
   }
 
-  // 7b. Copy Page (Quick single page export for Minecraft paste)
-  btnCopyPage?.addEventListener('click', (e) => {
-    e.preventDefault();
-    triggerCopyPageFeedback('raw', btnCopyPage);
-  });
-
-  btnCopyPage?.addEventListener('contextmenu', (e) => {
-    e.preventDefault();
-    if (copyPageMenu) {
-      copyPageMenu.style.display = copyPageMenu.style.display !== 'none' ? 'none' : 'flex';
-    }
-  });
+  // 7b. Copy Page in Book Preview (With format selection dropdown)
+  let activeCopyFormat: PageCopyFormat = 'raw';
+  const btnPreviewCopyOpts = document.getElementById('btn-preview-copy-opts');
+  const previewCopyMenu = document.getElementById('preview-copy-menu');
 
   btnPreviewCopyPage?.addEventListener('click', (e) => {
     e.preventDefault();
-    triggerCopyPageFeedback('raw', btnPreviewCopyPage);
+    triggerCopyPageFeedback(activeCopyFormat, btnPreviewCopyPage);
   });
 
-  btnCopyPageOpts?.addEventListener('click', (e) => {
+  btnPreviewCopyOpts?.addEventListener('click', (e) => {
     e.preventDefault();
     e.stopPropagation();
-    if (copyPageMenu) {
-      const isVisible = copyPageMenu.style.display !== 'none';
-      copyPageMenu.style.display = isVisible ? 'none' : 'flex';
+    if (previewCopyMenu) {
+      const isVis = previewCopyMenu.style.display !== 'none';
+      previewCopyMenu.style.display = isVis ? 'none' : 'flex';
     }
   });
 
-  copyPageMenu?.querySelectorAll<HTMLButtonElement>('.copy-option-item').forEach((item) => {
+  previewCopyMenu?.querySelectorAll<HTMLButtonElement>('.copy-option-item').forEach((item) => {
     item.addEventListener('click', (e) => {
       e.preventDefault();
-      const fmt = (item.dataset.format as PageCopyFormat) || 'raw';
-      if (copyPageMenu) copyPageMenu.style.display = 'none';
-      triggerCopyPageFeedback(fmt, btnCopyPage);
+      activeCopyFormat = (item.dataset.format as PageCopyFormat) || 'raw';
+      if (previewCopyMenu) previewCopyMenu.style.display = 'none';
+      triggerCopyPageFeedback(activeCopyFormat, btnPreviewCopyPage);
     });
+  });
+
+  document.addEventListener('click', (e) => {
+    if (previewCopyMenu && !previewCopyMenu.contains(e.target as Node) && e.target !== btnPreviewCopyOpts) {
+      previewCopyMenu.style.display = 'none';
+    }
+  });
+
+  // Dedicated Bookshelf Wire Events
+  btnOpenBookshelf?.addEventListener('click', (e) => {
+    e.preventDefault();
+    openBookshelf();
+  });
+
+  btnBookshelfNewBook?.addEventListener('click', (e) => {
+    e.preventDefault();
+    createNewBook();
   });
 
   // 7c. Clear Page (Instant reset of current page with Undo history)
@@ -2791,6 +2997,7 @@ function wireEvents(): void {
 
   // 8. Saved Presets & History Wire Events
   savedTemplates = loadSavedTemplates();
+  migrateSnippetHistory();
 
   function applyTemplate(tpl: SavedTemplate): void {
     pushUndoSnapshot();
@@ -2817,42 +3024,6 @@ function wireEvents(): void {
       showToast(`Inserted ${tpl.lines.length} lines from "${tpl.title}"`, 'success');
     }
   }
-
-  btnOpenHistory?.addEventListener('click', () => openHistory());
-
-  btnSaveSnapshot?.addEventListener('click', () => {
-    createHistorySnapshot('manual');
-    soundManager.playButtonClick();
-    showToast(`Page ${currentPageIndex + 1} snapshot saved to History!`, 'success');
-  });
-
-  btnHistorySaveNow?.addEventListener('click', () => {
-    createHistorySnapshot('manual');
-    renderHistoryTimeline();
-    showToast('Snapshot saved', 'success');
-  });
-
-  btnHistoryClearAutosaves?.addEventListener('click', () => {
-    const remaining = loadHistorySnapshots().filter(s => s.type !== 'autosave');
-    saveHistorySnapshots(remaining);
-    renderHistoryTimeline();
-    showToast('Cleared autosaves from history', 'info');
-  });
-
-  btnHistoryClearAll?.addEventListener('click', () => {
-    saveHistorySnapshots([]);
-    renderHistoryTimeline();
-    showToast('History cleared', 'info');
-  });
-
-  historyTabsNav?.querySelectorAll<HTMLButtonElement>('.history-tab').forEach(tabBtn => {
-    tabBtn.addEventListener('click', () => {
-      historyTabsNav?.querySelectorAll('.history-tab').forEach(t => t.classList.remove('active'));
-      tabBtn.classList.add('active');
-      activeHistoryFilter = (tabBtn.dataset.filter as any) || 'all';
-      renderHistoryTimeline();
-    });
-  });
 
   // ─── Font Switcher Wiring ───────────────────────────────────────────────
   function setActiveFont(fontId: string): void {
@@ -2881,21 +3052,27 @@ function wireEvents(): void {
     });
   });
 
-  btnFontApplySelection?.addEventListener('click', () => {
-    if (activeFontId === 'normal') {
-      showToast('Select a stylized font from the dropdown/chips first', 'info');
+  // Dedicated "Transform Line" button on Font Switcher panel
+  const btnFontApplyLinePanel = document.getElementById('btn-font-apply-line-panel');
+  btnFontApplyLinePanel?.addEventListener('click', () => {
+    const current = currentLines[activeLineIndex] ?? '';
+    if (!current.trim()) {
+      showToast('Active line is empty', 'warn');
       return;
     }
+    const font = getFontById(activeFontId);
+    const converted = font.transform(current);
     pushUndoSnapshot();
-    const targetIndices = selectedLineIndices.size > 0 ? [...selectedLineIndices] : [activeLineIndex];
-    for (const idx of targetIndices) {
-      currentLines[idx] = transformWithFont(currentLines[idx] ?? '', activeFontId);
-      if (lineInputEls[idx]) lineInputEls[idx].value = currentLines[idx];
+    currentLines[activeLineIndex] = converted;
+    if (lineInputEls[activeLineIndex]) {
+      lineInputEls[activeLineIndex].value = converted;
     }
-    updateAll(true);
-    soundManager.playButtonClick();
-    showToast(`Transformed ${targetIndices.length} line(s) with ${activeFontId}`, 'success');
+    saveCurrentPageToBook();
+    updateAll();
+    showToast(`Applied ${font.name} to line ${activeLineIndex + 1}`, 'success');
   });
+
+
 
   // 9. Matrix Selector & Tools Hub Wire Events
   renderMatrixSlots();
@@ -2999,8 +3176,6 @@ function wireEvents(): void {
   });
 
   // Below-the-fold Saved Art Deck
-  let activeDeckFilter: 'all' | 'page' | 'lines' | 'custom' = 'all';
-
   function renderDeckPastes(): void {
     if (!deckPastesStrip) return;
     deckPastesStrip.innerHTML = '';
@@ -3008,7 +3183,7 @@ function wireEvents(): void {
     const hiddenIds = getHiddenPresetIds();
     const visibleDefaults = DEFAULT_PRESETS.filter(p => !hiddenIds.has(p.id));
     const userItems = savedTemplates.filter(t => !t.isPreset);
-    const allDeckItems = [...visibleDefaults, ...userItems];
+    const allDeckItems = [...userItems, ...visibleDefaults];
 
     const filtered = allDeckItems.filter(item => {
       if (activeDeckFilter === 'page') return item.scope === 'page';
@@ -3031,12 +3206,8 @@ function wireEvents(): void {
       empty.style.fontFamily = 'var(--font-mono)';
       empty.innerHTML = `
         <p>No presets found for filter "<b>${activeDeckFilter}</b>".</p>
-        <button type="button" class="btn btn-xs btn-primary" id="btn-deck-quick-save-hint" style="margin-top: 6px;">💾 Save Active Row or Page</button>
       `;
       deckPastesStrip.appendChild(empty);
-      document.getElementById('btn-deck-quick-save-hint')?.addEventListener('click', () => {
-        openHistory();
-      });
       return;
     }
 
@@ -3055,7 +3226,7 @@ function wireEvents(): void {
       const preview = document.createElement('div');
       preview.className = 'deck-paste-preview';
       preview.title = `Click to stamp "${preset.title}" into book`;
-      preset.lines.slice(0, 4).forEach(l => {
+      preset.lines.slice(0, 8).forEach(l => {
         preview.appendChild(renderFormattedMiniLine(l));
       });
       preview.addEventListener('click', () => {
@@ -3113,6 +3284,7 @@ function wireEvents(): void {
       deckPastesStrip.appendChild(card);
     });
   }
+  refreshDeckPastes = renderDeckPastes;
   renderDeckPastes();
 
   // Deck filter chips wire events
@@ -3126,17 +3298,17 @@ function wireEvents(): void {
   });
 
   // Collapsible Saved Art Deck handling
-  function setDeckCollapsed(collapsed: boolean): void {
+  setDeckCollapsed = function (collapsed: boolean): void {
     if (!savedArtDeck) return;
     if (collapsed) {
       savedArtDeck.classList.add('collapsed');
       if (deckToggleIcon) deckToggleIcon.textContent = '▲';
-      if (deckToggleText) deckToggleText.textContent = 'Expand Presets';
+      if (deckToggleText) deckToggleText.textContent = 'Expand Snippets';
       btnDeckToggle?.classList.remove('btn-outline');
       btnDeckToggle?.classList.add('btn-primary');
       if (btnMobilePresets) {
         btnMobilePresets.classList.remove('active');
-        btnMobilePresets.textContent = '🎨 Presets';
+        btnMobilePresets.textContent = '🎨 Snippets';
       }
       if (btnToolbarPresets) {
         btnToolbarPresets.classList.remove('active');
@@ -3149,7 +3321,7 @@ function wireEvents(): void {
       btnDeckToggle?.classList.add('btn-outline');
       if (btnMobilePresets) {
         btnMobilePresets.classList.add('active');
-        btnMobilePresets.textContent = '✕ Presets';
+        btnMobilePresets.textContent = '✕ Snippets';
       }
       if (btnToolbarPresets) {
         btnToolbarPresets.classList.add('active');
@@ -3159,7 +3331,7 @@ function wireEvents(): void {
     try {
       localStorage.setItem('blockgame_art_deck_collapsed', collapsed ? 'true' : 'false');
     } catch {}
-  }
+  };
 
   function toggleDeckCollapsed(): void {
     const isCollapsed = savedArtDeck?.classList.contains('collapsed');
@@ -3198,31 +3370,6 @@ function wireEvents(): void {
 
   btnDeckSaveRow?.addEventListener('click', () => {
     saveLineSnippet(activeLineIndex);
-  });
-
-  btnDeckSavePage?.addEventListener('click', () => {
-    createHistorySnapshot('manual');
-    soundManager.playButtonClick();
-    showToast(`Page ${currentPageIndex + 1} saved to History`, 'success');
-  });
-
-  btnDeckOpenGallery?.addEventListener('click', () => {
-    openHistory();
-  });
-
-  // 9. View Mode Toggle (Single vs Double Spread)
-  viewModeSingle.addEventListener('click', () => {
-    viewMode = 'single';
-    viewModeSingle.classList.add('active');
-    viewModeDouble.classList.remove('active');
-    viewer?.setViewMode('single');
-  });
-
-  viewModeDouble.addEventListener('click', () => {
-    viewMode = 'double';
-    viewModeDouble.classList.add('active');
-    viewModeSingle.classList.remove('active');
-    viewer?.setViewMode('double');
   });
 
   // 10. Engine Selector (Java vs Bedrock)
@@ -3274,19 +3421,6 @@ function wireEvents(): void {
     if (e.key === 'Escape') {
       if (studioToolsFlyout && studioToolsFlyout.style.display !== 'none') {
         studioToolsFlyout.style.display = 'none';
-      }
-      if (copyPageMenu && copyPageMenu.style.display !== 'none') {
-        copyPageMenu.style.display = 'none';
-      }
-    }
-  });
-
-  // Clicking outside copy page menu closes it
-  window.addEventListener('click', (e) => {
-    const target = e.target as HTMLElement | null;
-    if (copyPageMenu && copyPageMenu.style.display !== 'none') {
-      if (!copyPageWrapper?.contains(target)) {
-        copyPageMenu.style.display = 'none';
       }
     }
   });
@@ -3477,7 +3611,7 @@ function wireEvents(): void {
     // Copy Current Page (Ctrl+Shift+C / Cmd+Shift+C)
     if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'c') {
       e.preventDefault();
-      triggerCopyPageFeedback('raw', btnCopyPage);
+      if (btnPreviewCopyPage) triggerCopyPageFeedback('raw', btnPreviewCopyPage);
       return;
     }
 

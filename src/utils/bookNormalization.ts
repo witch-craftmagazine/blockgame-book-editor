@@ -3,10 +3,8 @@ import {
   LINES_PER_PAGE,
   BLOCKGAME_COLORS,
   splitTextToLines,
-  paginateLines,
   type BlockgameBook,
   type FormattedSpan,
-  type LineLayout,
 } from 'blockgame-book-viewer';
 
 export interface NormalizationOptions {
@@ -20,30 +18,60 @@ for (const [code, hex] of Object.entries(BLOCKGAME_COLORS)) {
   HEX_TO_CODE[hex.toLowerCase()] = code;
 }
 
+export interface FormattedSpanStyle {
+  color: string;
+  bold: boolean;
+  italic: boolean;
+  underlined: boolean;
+  strikethrough: boolean;
+  obfuscated: boolean;
+}
+
 /**
  * Reconstructs a Minecraft-formatted string (using §-codes) from an array of spans.
  * - Carries active styles (e.g. §c§l) cleanly across wrapped segments.
+ * - Emits §r when styles are cleared (e.g. turning bold or italics off).
  * - Avoids prepending §0 on unformatted plain text.
  */
-export function spansToMinecraftText(spans: FormattedSpan[]): string {
-  if (!spans || spans.length === 0) return '';
-  let out = '';
-  const currentStyle = {
+export function spansToMinecraftText(
+  spans: FormattedSpan[],
+  currentStyle: FormattedSpanStyle = {
     color: '#000000',
     bold: false,
     italic: false,
     underlined: false,
     strikethrough: false,
     obfuscated: false,
-  };
+  }
+): string {
+  if (!spans || spans.length === 0) return '';
+  let out = '';
 
   for (const span of spans) {
     if (!span.text) continue;
     let codePrefix = '';
     const spanColor = (span.color || '#000000').toLowerCase();
-    const currColor = (currentStyle.color || '#000000').toLowerCase();
+
+    // Check if any active style needs to be turned off
+    const needsStyleReset =
+      (currentStyle.bold && !span.bold) ||
+      (currentStyle.italic && !span.italic) ||
+      (currentStyle.underlined && !span.underlined) ||
+      (currentStyle.strikethrough && !span.strikethrough) ||
+      (currentStyle.obfuscated && !span.obfuscated);
+
+    if (needsStyleReset) {
+      codePrefix += '§r';
+      currentStyle.color = '#000000';
+      currentStyle.bold = false;
+      currentStyle.italic = false;
+      currentStyle.underlined = false;
+      currentStyle.strikethrough = false;
+      currentStyle.obfuscated = false;
+    }
 
     // Color code check
+    const currColor = (currentStyle.color || '#000000').toLowerCase();
     if (spanColor !== currColor) {
       const code = HEX_TO_CODE[spanColor];
       if (code !== undefined) {
@@ -89,8 +117,9 @@ export function spansToMinecraftText(spans: FormattedSpan[]): string {
 /**
  * Normalizes a single page text string into an array of page strings:
  * 1. Wraps lines exceeding maxWidth at word/whitespace boundaries using Minecraft metrics.
- * 2. Carries style codes to wrapped lines.
- * 3. Chunks pages into <= maxLinesPerPage (default 14).
+ * 2. Carries style codes to wrapped lines within paragraphs.
+ * 3. Preserves trailing style resets (§r) so subsequent paragraphs do not inherit bold or colors.
+ * 4. Chunks pages into <= maxLinesPerPage (default 14).
  */
 export function normalizePageText(
   pageText: string,
@@ -103,13 +132,37 @@ export function normalizePageText(
     return [''];
   }
 
-  // Use Minecraft Java line breaker
-  const wrappedLines: LineLayout[] = splitTextToLines(pageText, maxWidth);
-  const paginatedPages = paginateLines(wrappedLines, maxLinesPerPage);
+  const rawParagraphs = pageText.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  const allNormalizedLines: string[] = [];
 
-  return paginatedPages.map((pageLines) => {
-    return pageLines.map((l) => spansToMinecraftText(l.spans)).join('\n');
-  });
+  for (let pIdx = 0; pIdx < rawParagraphs.length; pIdx++) {
+    const p = rawParagraphs[pIdx];
+    if (p.length === 0) {
+      allNormalizedLines.push('');
+      continue;
+    }
+
+    const endsWithReset = p.trimEnd().endsWith('§r');
+    const wrapped = splitTextToLines(p, maxWidth);
+
+    for (let wIdx = 0; wIdx < wrapped.length; wIdx++) {
+      const isLastInParagraph = wIdx === wrapped.length - 1;
+      let lineStr = spansToMinecraftText(wrapped[wIdx].spans);
+      if (isLastInParagraph && endsWithReset && !lineStr.endsWith('§r')) {
+        lineStr += '§r';
+      }
+      allNormalizedLines.push(lineStr);
+    }
+  }
+
+  // Chunk lines into pages of <= maxLinesPerPage
+  const pages: string[] = [];
+  for (let i = 0; i < allNormalizedLines.length; i += maxLinesPerPage) {
+    const pageLines = allNormalizedLines.slice(i, i + maxLinesPerPage);
+    pages.push(pageLines.join('\n'));
+  }
+
+  return pages.length > 0 ? pages : [''];
 }
 
 /**

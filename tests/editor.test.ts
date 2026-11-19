@@ -18,9 +18,20 @@ import {
   GLYPH_CATALOG_BY_WIDTH,
   formatPageForClipboard,
   writeTextToClipboard,
+  BOOKSHELF_STORAGE_KEY,
+  loadBookshelf,
+  saveBookshelf,
+  type BookshelfBook,
   type PageCopyFormat,
   type SavedTemplate,
 } from '../src/editor';
+import {
+  SYMBOL_CHAT_FONTS,
+  NORMAL_FONT,
+  transformWithFont,
+  getFontById,
+  toNormalText,
+} from '../src/data/symbolChatFonts';
 import {
   CORE_ASSETS,
   parseBook,
@@ -612,45 +623,258 @@ describe('Minecraft Page Limit & Page Gallery Presets', () => {
     selectLine(3, false, true);
     expect(selected.size).toBe(4);
     expect(selected.has(3)).toBe(false);
+
+    // Plain click row 6 clears and selects row 6
+    selectLine(6, false, false);
+    expect(selected.size).toBe(1);
+    expect(selected.has(6)).toBe(true);
   });
 
-  test('history snapshots support manual, autosave, and line snippet scopes', () => {
-    interface TestSnapshot {
+  test('beforeinput font character transformation preserves pre-existing text and surrogate pairs', () => {
+    // Non-destructive input typing simulation
+    let lineValue = 'Chapter 1: ';
+    const activeFont = 'fraktur';
+
+    function simulateBeforeInput(char: string, fontId: string, caretPos: number) {
+      if (fontId === 'normal') {
+        lineValue = lineValue.slice(0, caretPos) + char + lineValue.slice(caretPos);
+        return caretPos + char.length;
+      }
+      const transformed = transformWithFont(char, fontId);
+      lineValue = lineValue.slice(0, caretPos) + transformed + lineValue.slice(caretPos);
+      return caretPos + transformed.length;
+    }
+
+    // Type 'A' at end of 'Chapter 1: '
+    let caret = lineValue.length;
+    caret = simulateBeforeInput('A', activeFont, caret);
+    expect(lineValue).toBe('Chapter 1: 𝔄');
+    // Pre-existing 'Chapter 1: ' must not be altered into Fraktur!
+    expect(lineValue.startsWith('Chapter 1: ')).toBe(true);
+
+    // Surrogate pair safety: 𝔄 is an SMP character (U+1D504), UTF-16 code units length is 2
+    expect('𝔄'.length).toBe(2);
+    expect(caret).toBe('Chapter 1: '.length + 2);
+
+    // Type 'b' at end
+    caret = simulateBeforeInput('b', activeFont, caret);
+    expect(lineValue).toBe('Chapter 1: 𝔄𝔟');
+
+    // Type normal character in normal font
+    caret = simulateBeforeInput('!', 'normal', caret);
+    expect(lineValue).toBe('Chapter 1: 𝔄𝔟!');
+  });
+
+  test('snippet persistence strictly routes to SavedTemplate under libraryStore with scope: "lines"', () => {
+    const savedTemplatesList: SavedTemplate[] = [];
+
+    function saveLineSnippetMock(selectedIndices: Set<number>, allLines: string[]): SavedTemplate {
+      let linesToSave: string[] = [];
+      let title = '';
+      if (selectedIndices.size > 1) {
+        const sorted = [...selectedIndices].sort((a, b) => a - b);
+        linesToSave = sorted.map(i => allLines[i] ?? '');
+        title = `Snippet: Lines ${sorted[0] + 1}-${sorted[sorted.length - 1] + 1}`;
+      } else {
+        const idx = [...selectedIndices][0] ?? 0;
+        linesToSave = [allLines[idx] ?? ''];
+        title = `Snippet: Line ${idx + 1}`;
+      }
+
+      const template: SavedTemplate = {
+        id: `custom-${Date.now()}-${Math.random()}`,
+        title,
+        scope: 'lines',
+        category: 'Snippet',
+        lines: linesToSave,
+        createdAt: Date.now(),
+        isPreset: false,
+      };
+      savedTemplatesList.unshift(template);
+      return template;
+    }
+
+    const testLines = ['Line 1 text', 'Line 2 text', 'Line 3 text', 'Line 4 text'];
+    
+    // Single line save
+    const tpl1 = saveLineSnippetMock(new Set([1]), testLines);
+    expect(tpl1.scope).toBe('lines');
+    expect(tpl1.category).toBe('Snippet');
+    expect(tpl1.title).toBe('Snippet: Line 2');
+    expect(tpl1.lines).toEqual(['Line 2 text']);
+
+    // Multi-line save (lines 0, 1, 2)
+    const tplMulti = saveLineSnippetMock(new Set([0, 1, 2]), testLines);
+    expect(tplMulti.scope).toBe('lines');
+    expect(tplMulti.category).toBe('Snippet');
+    expect(tplMulti.title).toBe('Snippet: Lines 1-3');
+    expect(tplMulti.lines).toEqual(['Line 1 text', 'Line 2 text', 'Line 3 text']);
+
+    expect(savedTemplatesList.length).toBe(2);
+  });
+
+  test('history snapshots are restricted to page and book scopes, with snippet migration support', () => {
+    interface HistoryRecord {
       id: string;
       type: 'manual' | 'autosave' | 'snippet';
       title: string;
       lines: string[];
+      timestamp: number;
     }
 
-    const history: TestSnapshot[] = [];
+    const rawHistory: HistoryRecord[] = [
+      { id: 'snap-1', type: 'manual', title: 'Manual Page 1', lines: ['Line A'], timestamp: 1000 },
+      { id: 'snap-2', type: 'autosave', title: 'Autosave Page 1', lines: ['Line B'], timestamp: 2000 },
+      { id: 'snap-3', type: 'snippet', title: 'Snippet: Line 1', lines: ['Snippet text'], timestamp: 3000 },
+    ];
 
-    function addSnapshot(type: 'manual' | 'autosave' | 'snippet', title: string, lines: string[]) {
-      history.unshift({
-        id: `snap-${Date.now()}-${Math.random()}`,
-        type,
-        title,
-        lines: [...lines],
+    // Migration logic: extracts snippets to saved templates and purifies history
+    const migratedSavedArt: SavedTemplate[] = [];
+    const snippets = rawHistory.filter(s => s.type === 'snippet');
+    for (const sn of snippets) {
+      migratedSavedArt.push({
+        id: sn.id,
+        title: sn.title,
+        scope: 'lines',
+        category: 'Snippet',
+        lines: sn.lines,
+        createdAt: sn.timestamp,
+        isPreset: false,
       });
-      if (history.length > 50) history.pop();
     }
+    const purifiedHistory = rawHistory.filter(s => s.type !== 'snippet');
 
-    addSnapshot('manual', 'Page 1 Manual Save', ['Line 1', 'Line 2']);
-    addSnapshot('autosave', 'Autosave - Page 1', ['Line 1 edited']);
-    addSnapshot('snippet', 'Snippet: Line 1', ['Line 1 edited']);
+    expect(migratedSavedArt.length).toBe(1);
+    expect(migratedSavedArt[0].title).toBe('Snippet: Line 1');
+    expect(migratedSavedArt[0].scope).toBe('lines');
 
-    expect(history.length).toBe(3);
-    expect(history[0].type).toBe('snippet');
-    expect(history[1].type).toBe('autosave');
-    expect(history[2].type).toBe('manual');
+    // Purified history only contains manual & autosave
+    expect(purifiedHistory.length).toBe(2);
+    expect(purifiedHistory.every(h => h.type === 'manual' || h.type === 'autosave')).toBe(true);
+  });
 
-    // Filter by type
-    const manualOnly = history.filter(s => s.type === 'manual');
-    expect(manualOnly.length).toBe(1);
-    expect(manualOnly[0].title).toBe('Page 1 Manual Save');
+  test('complete parity of all 12 fonts in SYMBOL_CHAT_FONTS', () => {
+    const expectedIds = [
+      'small_caps',
+      'circled',
+      'fullwidth',
+      'superscript',
+      'subscript',
+      'inverted',
+      'fraktur',
+      'double_struck',
+      'script',
+      'bold_serif',
+      'circled_black',
+      'squared',
+    ];
 
-    // Clear autosaves
-    const cleaned = history.filter(s => s.type !== 'autosave');
-    expect(cleaned.length).toBe(2);
-    expect(cleaned.some(s => s.type === 'autosave')).toBe(false);
+    expect(SYMBOL_CHAT_FONTS.length).toBe(12);
+    const registeredIds = SYMBOL_CHAT_FONTS.map(f => f.id);
+    expect(registeredIds).toEqual(expectedIds);
+
+    // Every font must produce stylized non-empty transforms for ASCII letters
+    for (const font of SYMBOL_CHAT_FONTS) {
+      const transformed = font.transform('test');
+      expect(transformed).toBeDefined();
+      expect(transformed.length).toBeGreaterThanOrEqual(4);
+      const fontFound = getFontById(font.id);
+      expect(fontFound.id).toBe(font.id);
+    }
+  });
+
+  test('bidirectional font transformation reverts stylized Unicode back to normal text and preserves formatting codes', () => {
+    const rawLine = '§6§lChapter 1: The Legend§r';
+    
+    // Transform to Small Caps
+    const smallCaps = transformWithFont(rawLine, 'small_caps');
+    expect(smallCaps.includes('§6§l')).toBe(true);
+    expect(smallCaps.includes('§r')).toBe(true);
+    expect(smallCaps.includes('ᴄʜᴀᴘᴛᴇʀ')).toBe(true);
+
+    // Revert back to Normal using toNormalText
+    const reverted = toNormalText(smallCaps);
+    expect(reverted).toBe('§6§lchapter 1: the legend§r');
+
+    // Revert back using getFontById('normal')
+    const normalFont = getFontById('normal');
+    expect(normalFont.id).toBe('normal');
+    const transformedNormal = normalFont.transform(smallCaps);
+    expect(transformedNormal).toBe('§6§lchapter 1: the legend§r');
+
+    // Transition between two fonts: Small Caps -> Circled
+    const circled = transformWithFont(smallCaps, 'circled');
+    expect(circled.includes('ⓒ')).toBe(true);
+  });
+
+  test('line width overflow detection: bold formatting expands character advance beyond 114px', () => {
+    // Normal text under 114px
+    const plain = 'Edit this page using';
+    const plainWidth = measureLineWidth(parseFormattedText(plain));
+    expect(plainWidth).toBe(98);
+    expect(plainWidth).toBeLessThanOrEqual(114);
+
+    // Bold text expands by 1px per character: 98 + 20 chars = 118px > 114px
+    const boldText = '§lEdit this page using';
+    const boldWidth = measureLineWidth(parseFormattedText(boldText));
+    expect(boldWidth).toBe(118);
+    expect(boldWidth).toBeGreaterThan(114);
+
+    // Carried bold style across lines also triggers overflow
+    const linesWithUnclearedBold = ['§6§lTitle', 'Edit this page using'];
+    const carriedStyle = getCarriedStyleForLine(linesWithUnclearedBold, 1);
+    expect(carriedStyle.bold).toBe(true);
+    const carriedWidth = measureLineWidth(parseFormattedText(linesWithUnclearedBold[1], carriedStyle));
+    expect(carriedWidth).toBe(118);
+    expect(carriedWidth > 114).toBe(true);
+
+    // When reset §r is present, style clears and line stays <= 114px
+    const linesWithReset = ['§6§lTitle§r', 'Edit this page using'];
+    const clearedStyle = getCarriedStyleForLine(linesWithReset, 1);
+    expect(clearedStyle.bold).toBe(false);
+    const clearedWidth = measureLineWidth(parseFormattedText(linesWithReset[1], clearedStyle));
+    expect(clearedWidth).toBe(98);
+    expect(clearedWidth).toBeLessThanOrEqual(114);
+  });
+
+  test('Bookshelf library supports saving multiple books, active book switching, and duplication', () => {
+    const bookshelf: BookshelfBook[] = [
+      {
+        id: 'book-1',
+        title: 'Book One',
+        author: 'Author A',
+        pages: ['Page 1 content'],
+        updatedAt: 1000,
+        createdAt: 1000,
+      },
+      {
+        id: 'book-2',
+        title: 'Book Two',
+        author: 'Author B',
+        pages: ['Page 1', 'Page 2'],
+        updatedAt: 2000,
+        createdAt: 2000,
+      },
+    ];
+
+    saveBookshelf(bookshelf);
+    const loaded = loadBookshelf();
+    expect(loaded.length).toBe(2);
+    expect(loaded[0].title).toBe('Book One');
+    expect(loaded[1].title).toBe('Book Two');
+
+    // Duplicate Book Two
+    const clone: BookshelfBook = {
+      id: 'book-2-copy',
+      title: `${loaded[1].title} (Copy)`,
+      author: loaded[1].author,
+      pages: [...loaded[1].pages],
+      updatedAt: 3000,
+      createdAt: 3000,
+    };
+    saveBookshelf([clone, ...loaded]);
+    const afterDup = loadBookshelf();
+    expect(afterDup.length).toBe(3);
+    expect(afterDup[0].title).toBe('Book Two (Copy)');
   });
 });
