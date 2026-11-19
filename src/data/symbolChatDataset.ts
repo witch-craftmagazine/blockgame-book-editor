@@ -69,8 +69,6 @@ export const CATEGORY_DEFINITIONS: GlyphCategoryMeta[] = [
   { id: 'blocks', label: 'Blocks', icon: '█', description: 'Dithering & shading' },
   { id: 'math', label: 'Math', icon: '🔢', description: 'Superscripts, fractions & numerals' },
   { id: 'runes', label: 'Runes', icon: 'ᚠ', description: 'Elder Futhark & astrology' },
-  { id: 'braille', label: 'Braille', icon: '⠟', description: 'Braille matrix art' },
-  { id: 'fonts', label: 'Fonts', icon: '🔠', description: 'Symbol Chat font alphabets' },
   { id: 'kaomoji', label: 'Kaomoji', icon: '🔤', description: 'Faces & text expressions' },
 ];
 

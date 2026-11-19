@@ -21,6 +21,10 @@ import {
   BOOKSHELF_STORAGE_KEY,
   loadBookshelf,
   saveBookshelf,
+  deleteBook,
+  activeBookId,
+  currentMatrixMode,
+  getGlyphsForCurrentSelection,
   type BookshelfBook,
   type PageCopyFormat,
   type SavedTemplate,
@@ -876,5 +880,45 @@ describe('Minecraft Page Limit & Page Gallery Presets', () => {
     const afterDup = loadBookshelf();
     expect(afterDup.length).toBe(3);
     expect(afterDup[0].title).toBe('Book Two (Copy)');
+  });
+
+  test('Top matrix toolbar supports "all" and "recent" glyph sets', () => {
+    // Mode "all"
+    currentMatrixMode.type = 'set';
+    currentMatrixMode.setId = 'all';
+    const allGlyphs = getGlyphsForCurrentSelection();
+    expect(allGlyphs.length).toBeGreaterThan(100);
+    expect(allGlyphs).toContain('⚔');
+    expect(allGlyphs).toContain('★');
+
+    // Mode "recent"
+    currentMatrixMode.setId = 'recent';
+    const recent = getGlyphsForCurrentSelection();
+    expect(Array.isArray(recent)).toBe(true);
+
+    // Reset back to fav
+    currentMatrixMode.setId = 'fav';
+  });
+
+  test('deleteBook cleanly removes book and creates Untitled Book when last book is deleted', () => {
+    const singleBook: BookshelfBook[] = [
+      {
+        id: 'sole-book',
+        title: 'Only Book',
+        author: 'Solo',
+        pages: ['Sole content'],
+        updatedAt: 1000,
+        createdAt: 1000,
+      },
+    ];
+    saveBookshelf(singleBook);
+    expect(loadBookshelf().length).toBe(1);
+
+    // Deleting the sole book resets bookshelf with a fresh Untitled Book
+    deleteBook('sole-book');
+    const remaining = loadBookshelf();
+    expect(remaining.length).toBe(1);
+    expect(remaining[0].title).toBe('Untitled Book');
+    expect(remaining[0].pages).toEqual(['']);
   });
 });

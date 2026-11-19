@@ -13,8 +13,8 @@ import {
 import { getCharPixelAdvance } from '../src/components/glyphs/glyphRenderer';
 
 describe('Symbol Chat Glyph Dataset & Taxonomy', () => {
-  test('defines all 18 expected categories with labels, icons and "all" unified grid', () => {
-    expect(CATEGORY_DEFINITIONS.length).toBe(18);
+  test('defines all 16 expected categories with labels, icons and "all" unified grid', () => {
+    expect(CATEGORY_DEFINITIONS.length).toBe(16);
     const ids = CATEGORY_DEFINITIONS.map((c) => c.id);
     expect(ids).toContain('all');
     expect(ids).toContain('fav');
@@ -31,8 +31,6 @@ describe('Symbol Chat Glyph Dataset & Taxonomy', () => {
     expect(ids).toContain('blocks');
     expect(ids).toContain('math');
     expect(ids).toContain('runes');
-    expect(ids).toContain('braille');
-    expect(ids).toContain('fonts');
     expect(ids).toContain('kaomoji');
   });
 

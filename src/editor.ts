@@ -43,7 +43,6 @@ import {
   type GlyphItem,
 } from './data/symbolChatDataset';
 import {
-  SYMBOL_CHAT_FONTS,
   getFontById,
   transformWithFont,
 } from './data/symbolChatFonts';
@@ -653,6 +652,8 @@ export const MATRIX_PAGE_SIZE = 14;
 
 export function getGlyphsForCurrentSelection(): string[] {
   if (currentMatrixMode.type === 'set') {
+    if (currentMatrixMode.setId === 'all') return ALL_GLYPHS.map(g => g.char);
+    if (currentMatrixMode.setId === 'recent') return recentGlyphs;
     if (currentMatrixMode.setId === 'fav') return userFavoriteGlyphs;
     return CHARACTER_SETS[currentMatrixMode.setId]?.glyphs || [];
   }
@@ -669,8 +670,14 @@ export function renderMatrixSlots(): void {
 
   if (matrixPxValue) {
     if (currentMatrixMode.type === 'set') {
-      const activeSet = CHARACTER_SETS[currentMatrixMode.setId];
-      matrixPxValue.textContent = activeSet ? activeSet.name.split(' ')[0]! : '★';
+      if (currentMatrixMode.setId === 'all') {
+        matrixPxValue.textContent = 'All';
+      } else if (currentMatrixMode.setId === 'recent') {
+        matrixPxValue.textContent = 'Rec';
+      } else {
+        const activeSet = CHARACTER_SETS[currentMatrixMode.setId];
+        matrixPxValue.textContent = activeSet ? activeSet.name.split(' ')[0]! : '★';
+      }
     } else {
       matrixPxValue.textContent = currentMatrixMode.px.toString();
     }
@@ -701,6 +708,7 @@ export function renderMatrixSlots(): void {
 
     slot.addEventListener('click', () => {
       insertAtCursor(ch);
+      addRecentGlyph(ch);
       soundManager.playButtonClick();
       showToast(`Inserted "${ch}" (${pxAdvance}px)`, 'info');
     });
@@ -788,9 +796,8 @@ let glyphDialog: HTMLDialogElement;
 let glyphGrid: HTMLElement;
 let glyphSearch: HTMLInputElement;
 let glyphTabs: HTMLElement;
-let glyphCustomInput: HTMLInputElement;
-let glyphCustomWidth: HTMLElement;
-let glyphCustomInsertBtn: HTMLButtonElement;
+let glyphWidthFilter: HTMLSelectElement | null = null;
+let selectedGlyphWidth: string = 'all';
 
 // Bookshelf Dialog & Book Library Elements
 let bookshelfDialog: HTMLDialogElement | null = null;
@@ -936,18 +943,89 @@ export function duplicateBook(id: string): void {
 }
 
 export function deleteBook(id: string): void {
-  const books = loadBookshelf().filter(b => b.id !== id);
-  saveBookshelf(books);
-  if (id === activeBookId) {
-    if (books.length > 0) {
-      switchToBook(books[0].id);
-    } else {
-      createNewBook('Untitled Book');
+  const books = loadBookshelf();
+  const bookToDelete = books.find(b => b.id === id);
+  const title = bookToDelete?.title || 'this book';
+
+  if (typeof window !== 'undefined' && typeof window.confirm === 'function') {
+    if (!window.confirm(`Are you sure you want to delete "${title}"? This cannot be undone.`)) {
+      return;
     }
+  }
+
+  const remaining = books.filter(b => b.id !== id);
+  saveBookshelf(remaining);
+
+  if (remaining.length === 0) {
+    // Deleting the only existing book — initialize a fresh blank Untitled Book!
+    const newId = `book-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    activeBookId = newId;
+    try {
+      localStorage.setItem(BOOKSHELF_ACTIVE_KEY, activeBookId);
+    } catch {}
+
+    book = {
+      title: 'Untitled Book',
+      author: book?.author || 'Author',
+      pages: [''],
+    };
+    const freshEntry: BookshelfBook = {
+      id: newId,
+      title: book.title,
+      author: book.author,
+      pages: [''],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    saveBookshelf([freshEntry]);
+
+    if (metaTitle) metaTitle.value = book.title;
+    if (metaAuthor) metaAuthor.value = book.author;
+    currentPageIndex = 0;
+    activeLineIndex = 0;
+    undoStack.length = 0;
+    redoStack.length = 0;
+
+    if (typeof document !== 'undefined') {
+      loadPageIntoEditor(0);
+      syncViewerToBook();
+      updateAll(true);
+      renderBookshelf();
+    }
+    showToast(`Deleted "${title}". Created new Untitled Book.`, 'info');
+  } else if (id === activeBookId) {
+    // Switch directly to the first remaining book without syncing the deleted book back!
+    const target = remaining[0];
+    activeBookId = target.id;
+    try {
+      localStorage.setItem(BOOKSHELF_ACTIVE_KEY, activeBookId);
+    } catch {}
+
+    const targetWidth = engine === 'bedrock' ? BEDROCK_BOOK_TEXT_WIDTH : BOOK_TEXT_WIDTH;
+    book = normalizeBook({
+      title: target.title,
+      author: target.author,
+      pages: target.pages.length > 0 ? [...target.pages] : [''],
+    }, { maxWidth: targetWidth });
+
+    if (metaTitle) metaTitle.value = book.title;
+    if (metaAuthor) metaAuthor.value = book.author;
+    currentPageIndex = 0;
+    activeLineIndex = 0;
+    undoStack.length = 0;
+    redoStack.length = 0;
+
+    if (typeof document !== 'undefined') {
+      loadPageIntoEditor(0);
+      syncViewerToBook();
+      updateAll(true);
+      renderBookshelf();
+    }
+    showToast(`Deleted "${title}". Switched to "${book.title}".`, 'info');
   } else {
     renderBookshelf();
+    showToast(`Removed "${title}" from Bookshelf`, 'info');
   }
-  showToast('Book removed from Bookshelf', 'info');
 }
 
 export function formatRelativeTime(ts: number): string {
@@ -959,6 +1037,7 @@ export function formatRelativeTime(ts: number): string {
 }
 
 export function renderBookshelf(): void {
+  if (typeof document === 'undefined') return;
   const grid = bookshelfGrid || document.getElementById('bookshelf-grid');
   if (!grid) return;
   grid.innerHTML = '';
@@ -985,11 +1064,11 @@ export function renderBookshelf(): void {
     `;
     card.appendChild(header);
 
-    // Parchment mini-preview of Page 1
+    // Parchment mini-preview of Page 1 (146:180 aspect ratio, full page layout)
     const preview = document.createElement('div');
     preview.className = 'bookshelf-card-preview';
     preview.title = isActive ? 'Currently editing this book' : `Click to switch to "${b.title}"`;
-    const pageLines = (b.pages[0] ?? '').split('\n').slice(0, 5);
+    const pageLines = (b.pages[0] ?? '').split('\n').slice(0, 14);
     pageLines.forEach((l) => {
       preview.appendChild(renderFormattedMiniLine(l));
     });
@@ -1052,7 +1131,6 @@ export function openBookshelf(): void {
 export const openHistory = openBookshelf;
 
 // Desktop Font Switcher Ribbon
-let fontSwitcherSelect: HTMLSelectElement | null = null;
 let fontQuickChips: HTMLElement | null = null;
 
 // Multi-line selection
@@ -1138,9 +1216,7 @@ function initDOM(): void {
   glyphGrid           = document.getElementById('glyph-grid')!;
   glyphSearch         = document.getElementById('glyph-search')          as HTMLInputElement;
   glyphTabs           = document.getElementById('glyph-tabs')!;
-  glyphCustomInput    = document.getElementById('glyph-custom-input')   as HTMLInputElement;
-  glyphCustomWidth    = document.getElementById('glyph-custom-width')!;
-  glyphCustomInsertBtn = document.getElementById('glyph-custom-insert-btn') as HTMLButtonElement;
+  glyphWidthFilter    = document.getElementById('glyph-width-filter')   as HTMLSelectElement | null;
 
   // Dedicated Bookshelf Modal
   bookshelfDialog     = document.getElementById('bookshelf-dialog')      as HTMLDialogElement | null;
@@ -1148,7 +1224,6 @@ function initDOM(): void {
   btnBookshelfNewBook = document.getElementById('btn-bookshelf-new-book') as HTMLButtonElement | null;
 
   // Desktop Font Switcher Ribbon
-  fontSwitcherSelect  = document.getElementById('font-switcher-select')  as HTMLSelectElement | null;
   fontQuickChips      = document.getElementById('font-quick-chips');
 
   // Top Matrix Selector & Hub
@@ -2259,107 +2334,9 @@ function updateGlyphInspector(item: GlyphItem): void {
   }
 }
 
-function renderQuickFavsBar(): void {
-  const container = document.getElementById('glyph-quick-favs-list');
-  if (!container) return;
-  container.innerHTML = '';
-
-  const favsToShow = userFavoriteGlyphs.slice(0, 20);
-  favsToShow.forEach((char) => {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'quick-fav-btn';
-    btn.textContent = char;
-    btn.title = `Quick insert "${char}"`;
-    btn.addEventListener('click', () => {
-      insertAtCursor(char);
-      addRecentGlyph(char);
-      showToast(`Inserted "${char}"`, 'info');
-    });
-    container.appendChild(btn);
-  });
-}
-
-function renderFontReplacementPanel(): void {
-  const chipsBar = document.getElementById('font-chips-bar');
-  const convertInput = document.getElementById('font-convert-input') as HTMLInputElement | null;
-  const convertPreview = document.getElementById('font-convert-preview');
-  const alphabetGrid = document.getElementById('font-alphabet-grid');
-  if (!chipsBar || !convertPreview || !alphabetGrid) return;
-
-  chipsBar.innerHTML = '';
-  SYMBOL_CHAT_FONTS.forEach((font) => {
-    const chip = document.createElement('button');
-    chip.type = 'button';
-    chip.className = `font-chip${font.id === activeFontId ? ' active' : ''}`;
-    chip.innerHTML = `<span>${font.name}</span> <small style="opacity:0.75;">${font.sample}</small>`;
-    chip.title = `${font.description} ${font.isSmp ? '(SMP >U+FFFF)' : '(Vanilla BMP)'}`;
-    chip.addEventListener('click', () => {
-      activeFontId = font.id;
-      renderFontReplacementPanel();
-    });
-    chipsBar.appendChild(chip);
-  });
-
-  const font = getFontById(activeFontId);
-  const rawText = convertInput?.value || 'Minecraft Book Studio 123';
-  convertPreview.textContent = font.transform(rawText);
-
-  // Populate alphabet grid of the chosen font
-  alphabetGrid.innerHTML = '';
-  const entries = Object.entries(font.charMap);
-  entries.forEach(([origChar, fontChar]) => {
-    const card = document.createElement('div');
-    card.className = 'glyph-card';
-    card.title = `${font.name}: ${origChar} → ${fontChar} (Click to insert)`;
-
-    const canvas = document.createElement('canvas');
-    canvas.width = 28;
-    canvas.height = 28;
-    canvas.className = 'glyph-canvas';
-    renderGlyphToCanvas(canvas, fontChar, activeGlyphTint, 2);
-
-    const advance = getCharPixelAdvance(fontChar);
-    const metaEl = document.createElement('span');
-    metaEl.className = `glyph-card-meta${font.isSmp ? ' smp' : ''}`;
-    metaEl.textContent = font.isSmp ? 'SMP' : `${advance}px`;
-
-    card.appendChild(canvas);
-    card.appendChild(metaEl);
-
-    card.addEventListener('mouseenter', () => {
-      updateGlyphInspector({
-        char: fontChar,
-        name: `${font.name}: "${origChar}"`,
-        category: 'fonts',
-        codepoint: `U+${(fontChar.codePointAt(0) || 0).toString(16).toUpperCase().padStart(4, '0')}`,
-        isSmp: (fontChar.codePointAt(0) || 0) > 0xFFFF,
-      });
-    });
-
-    card.addEventListener('click', () => {
-      insertAtCursor(fontChar);
-      addRecentGlyph(fontChar);
-      showToast(`Inserted "${fontChar}"`, 'info');
-    });
-
-    alphabetGrid.appendChild(card);
-  });
-}
-
 function renderGlyphs(): void {
   ensureAtlasLoaded();
-  renderQuickFavsBar();
 
-  const fontPanel = document.getElementById('glyph-font-panel');
-  if (activeGlyphCat === 'fonts') {
-    if (fontPanel) fontPanel.style.display = 'flex';
-    glyphGrid.style.display = 'none';
-    renderFontReplacementPanel();
-    return;
-  }
-
-  if (fontPanel) fontPanel.style.display = 'none';
   glyphGrid.style.display = 'grid';
 
   const query = glyphSearch.value.trim().toLowerCase();
@@ -2387,6 +2364,12 @@ function renderGlyphs(): void {
     itemsToRender = (GLYPHS_BY_CATEGORY as any)[activeGlyphCat] || [];
   }
 
+  // Filter by pixel width if selected
+  if (selectedGlyphWidth !== 'all') {
+    const targetPx = parseInt(selectedGlyphWidth, 10);
+    itemsToRender = itemsToRender.filter((item) => getCharPixelAdvance(item.char) === targetPx);
+  }
+
   if (itemsToRender.length > 0) {
     updateGlyphInspector(itemsToRender[0]);
   }
@@ -2408,7 +2391,6 @@ function renderGlyphs(): void {
       const starred = toggleUserFavoriteGlyph(item.char);
       starBtn.textContent = starred ? '★' : '☆';
       starBtn.className = `glyph-star-btn${starred ? ' starred' : ''}`;
-      renderQuickFavsBar();
       if (activeGlyphCat === 'fav') renderGlyphs();
     });
 
@@ -2437,7 +2419,6 @@ function renderGlyphs(): void {
       const starred = toggleUserFavoriteGlyph(item.char);
       starBtn.textContent = starred ? '★' : '☆';
       starBtn.className = `glyph-star-btn${starred ? ' starred' : ''}`;
-      renderQuickFavsBar();
       if (activeGlyphCat === 'fav') renderGlyphs();
     });
 
@@ -3028,22 +3009,17 @@ function wireEvents(): void {
   // ─── Font Switcher Wiring ───────────────────────────────────────────────
   function setActiveFont(fontId: string): void {
     activeFontId = fontId;
-    if (fontSwitcherSelect) fontSwitcherSelect.value = fontId;
     fontQuickChips?.querySelectorAll('.font-chip').forEach(chip => {
       chip.classList.toggle('active', chip.getAttribute('data-font') === fontId);
     });
     const activeFontBadge = document.getElementById('active-font-badge');
     if (activeFontBadge) {
-      const selectedOption = fontSwitcherSelect?.querySelector(`option[value="${fontId}"]`) as HTMLOptionElement | null;
-      const label = fontId === 'normal' ? 'Normal' : (selectedOption?.text?.split(' (')[0] || fontId);
+      const activeChip = fontQuickChips?.querySelector(`.font-chip[data-font="${fontId}"]`) as HTMLElement | null;
+      const label = activeChip?.textContent?.trim() || (fontId === 'normal' ? 'Normal' : fontId);
       activeFontBadge.textContent = `Active: ${label}`;
     }
     showToast(`Font: ${fontId === 'normal' ? 'Normal' : fontId}`, 'info');
   }
-
-  fontSwitcherSelect?.addEventListener('change', () => {
-    if (fontSwitcherSelect) setActiveFont(fontSwitcherSelect.value);
-  });
 
   fontQuickChips?.querySelectorAll<HTMLButtonElement>('.font-chip').forEach(chip => {
     chip.addEventListener('click', () => {
@@ -3472,49 +3448,11 @@ function wireEvents(): void {
     });
   });
 
-  // Font Converter & Actions
-  const fontConvertInput = document.getElementById('font-convert-input') as HTMLInputElement | null;
-  const fontConvertPreview = document.getElementById('font-convert-preview');
-  const btnFontInsert = document.getElementById('btn-font-insert');
-  const btnFontApplyLine = document.getElementById('btn-font-apply-line');
-
-  if (fontConvertInput && fontConvertPreview) {
-    fontConvertInput.addEventListener('input', () => {
-      const font = getFontById(activeFontId);
-      fontConvertPreview.textContent = font.transform(fontConvertInput.value || 'Minecraft Book Studio 123');
-    });
-  }
-
-  if (btnFontInsert && fontConvertInput && fontConvertPreview) {
-    btnFontInsert.addEventListener('click', () => {
-      const font = getFontById(activeFontId);
-      const textToInsert = font.transform(fontConvertInput.value);
-      if (textToInsert) {
-        insertAtCursor(textToInsert);
-        showToast(`Inserted ${font.name} text`, 'success');
-      }
-    });
-  }
-
-  if (btnFontApplyLine && fontConvertInput) {
-    btnFontApplyLine.addEventListener('click', () => {
-      const current = currentLines[activeLineIndex] ?? '';
-      if (!current.trim()) {
-        showToast('Active line is empty', 'warn');
-        return;
-      }
-      const font = getFontById(activeFontId);
-      const converted = font.transform(current);
-      pushUndoSnapshot();
-      currentLines[activeLineIndex] = converted;
-      if (lineInputEls[activeLineIndex]) {
-        lineInputEls[activeLineIndex].value = converted;
-      }
-      saveCurrentPageToBook();
-      updateAll();
-      showToast(`Applied ${font.name} to line ${activeLineIndex + 1}`, 'success');
-    });
-  }
+  // Pixel Width Filter
+  glyphWidthFilter?.addEventListener('change', () => {
+    selectedGlyphWidth = glyphWidthFilter?.value || 'all';
+    renderGlyphs();
+  });
 
   // Tint Swatches for Minecraft Bitmap Glyphs
   const tintContainer = document.getElementById('glyph-tint-swatches');
@@ -3528,34 +3466,6 @@ function wireEvents(): void {
       });
     });
   }
-
-  // Custom Character Inspector & Inserter
-  glyphCustomInput.addEventListener('input', () => {
-    const text = glyphCustomInput.value;
-    if (text) {
-      const width = Math.round(measureLineWidth(parseFormattedText(text)));
-      const unsup = detectUnsupportedMinecraftChars(text);
-      if (unsup.count > 0) {
-        glyphCustomWidth.textContent = `${width}px • ⚠️ >U+FFFF (SMP emoji - renders as [] in MC)`;
-        glyphCustomWidth.className = 'badge stat-warn';
-      } else {
-        glyphCustomWidth.textContent = `${width}px • ✓ Minecraft Java Compatible (BMP)`;
-        glyphCustomWidth.className = 'badge badge-ok';
-      }
-    } else {
-      glyphCustomWidth.textContent = '-- px';
-      glyphCustomWidth.className = 'badge';
-    }
-  });
-
-  glyphCustomInsertBtn.addEventListener('click', () => {
-    const text = glyphCustomInput.value;
-    if (text) {
-      insertAtCursor(text);
-      showToast(`Inserted custom characters`, 'info');
-      glyphDialog.close();
-    }
-  });
 
   // 14. Theme Toggle (True Eye-Friendly Dark & Light Mode with Persistence)
   const themeToggle = document.getElementById('theme-toggle') as HTMLButtonElement;

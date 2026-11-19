@@ -46,7 +46,9 @@
 
         <!-- Saved Favorite Character Sets & Categories Chips (Replaced 2p...9p) -->
         <div class="matrix-quick-widths matrix-quick-sets" id="matrix-quick-widths">
+          <button type="button" class="matrix-chip" data-set="all" title="Browse all Minecraft bitmap glyphs">🌐 All</button>
           <button type="button" class="matrix-chip active" data-set="fav" title="Custom Starred Favorites">★ Favs</button>
+          <button type="button" class="matrix-chip" data-set="recent" title="Recently Used Symbols">🕒 Recent</button>
           <button type="button" class="matrix-chip" data-set="borders" title="Borders & Box Frames">━ Borders</button>
           <button type="button" class="matrix-chip" data-set="rpg" title="RPG, Weapons & Magic">⚔ RPG</button>
           <button type="button" class="matrix-chip" data-set="arrows" title="Directional Arrows & Pointers">➔ Arrows</button>
@@ -263,26 +265,6 @@
             </div>
           </div>
           <div class="font-switcher-body font-switcher-ribbon" id="font-switcher-ribbon" role="toolbar" aria-label="Symbol Chat Font Switcher">
-            <div class="font-select-group">
-              <label for="font-switcher-select" class="font-switcher-label">
-                <span class="font-switcher-text">Style:</span>
-              </label>
-              <select id="font-switcher-select" class="font-switcher-select" title="Switch active typing font">
-                <option value="normal">Normal</option>
-                <option value="small_caps">Small Caps (ꜱᴍᴀʟʟ)</option>
-                <option value="circled">Circled (Ⓒⓘⓡ)</option>
-                <option value="fullwidth">Fullwidth (Ｆｕｌｌ)</option>
-                <option value="superscript">Superscript (ˢᵘᵖ)</option>
-                <option value="subscript">Subscript (ₜₑₓₜ)</option>
-                <option value="inverted">Inverted (ʇxǝʇ)</option>
-                <option value="fraktur">Fraktur (𝔉𝔯𝔞)</option>
-                <option value="double_struck">Double Struck (𝔻𝕠𝕦)</option>
-                <option value="script">Script (𝒮𝒸𝓇)</option>
-                <option value="bold_serif">Bold Serif (𝐁𝐨𝐥)</option>
-                <option value="circled_black">Circled Black (🅐🅑🅒)</option>
-                <option value="squared">Squared (🄰🄱🄲)</option>
-              </select>
-            </div>
             <div class="font-quick-chips" id="font-quick-chips">
               <button type="button" class="font-chip active" data-font="normal" title="Normal text">Normal</button>
               <button type="button" class="font-chip" data-font="small_caps" title="Small Caps">ꜱᴍᴀʟʟ</button>
@@ -463,16 +445,20 @@
               class="glyph-search-input"
               placeholder="🔍 Search all glyphs by name, symbol, or hex (e.g. 2694, star, sword, arrow)…"
             />
-            <div class="glyph-tester">
-              <input
-                type="text"
-                id="glyph-custom-input"
-                class="glyph-custom-input"
-                placeholder="Inspect char…"
-                maxlength="8"
-              />
-              <span id="glyph-custom-width" class="badge">-- px</span>
-              <button type="button" id="glyph-custom-insert-btn" class="btn btn-xs btn-primary">Insert</button>
+            <div class="glyph-width-filter-wrap">
+              <label for="glyph-width-filter" class="glyph-width-label">Width:</label>
+              <select id="glyph-width-filter" class="select-xs glyph-width-select" title="Filter glyphs by Minecraft pixel width">
+                <option value="all">All Widths</option>
+                <option value="1">1 px</option>
+                <option value="2">2 px</option>
+                <option value="3">3 px</option>
+                <option value="4">4 px</option>
+                <option value="5">5 px</option>
+                <option value="6">6 px</option>
+                <option value="7">7 px</option>
+                <option value="8">8 px</option>
+                <option value="9">9 px</option>
+              </select>
             </div>
           </div>
 
@@ -493,42 +479,7 @@
             <button class="glyph-tab" data-cat="blocks">█ Blocks</button>
             <button class="glyph-tab" data-cat="math">🔢 Math</button>
             <button class="glyph-tab" data-cat="runes">ᚠ Runes</button>
-            <button class="glyph-tab" data-cat="braille">⠟ Braille</button>
-            <button class="glyph-tab" data-cat="fonts">🔠 Fonts</button>
             <button class="glyph-tab" data-cat="kaomoji">🔤 Kaomoji</button>
-          </div>
-
-          <!-- Quick Favorites Strip -->
-          <div class="glyph-quick-favs-row" id="glyph-quick-favs-row">
-            <span class="quick-favs-label">⭐ Quick Favs:</span>
-            <div class="quick-favs-list" id="glyph-quick-favs-list"></div>
-          </div>
-
-          <!-- Symbol Chat Font Replacement & Converter Panel (Toggled for Fonts Tab) -->
-          <div class="glyph-font-panel" id="glyph-font-panel" style="display: none;">
-            <div class="font-selector-header">
-              <span class="font-panel-title">🔠 Symbol Chat Unicode Fonts:</span>
-              <div class="font-chips-bar" id="font-chips-bar"></div>
-            </div>
-            <div class="font-converter-bar">
-              <div class="font-converter-input-wrap">
-                <input
-                  type="text"
-                  id="font-convert-input"
-                  class="font-convert-input"
-                  placeholder="Type anything to convert (e.g. Chapter 1: The Legend)..."
-                />
-              </div>
-              <div class="font-converter-preview-wrap">
-                <span id="font-convert-preview" class="font-convert-preview">ᴄʜᴀᴘᴛᴇʀ 1: ᴛʜᴇ ʟᴇɢᴇɴᴅ</span>
-              </div>
-              <div class="font-converter-btns">
-                <button type="button" id="btn-font-insert" class="btn btn-xs btn-primary">Insert Converted</button>
-                <button type="button" id="btn-font-apply-line" class="btn btn-xs btn-outline">Apply to Line</button>
-              </div>
-            </div>
-            <div class="font-alphabet-label">Click any letter to insert directly into book:</div>
-            <div class="font-alphabet-grid" id="font-alphabet-grid"></div>
           </div>
 
           <!-- High-Density Glyphs Grid -->
