@@ -63,7 +63,7 @@ export function renderGlyphToCanvas(
   colorHex = '#f0e6d2',
   scale = 2
 ): void {
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
   if (!ctx) return;
 
   ctx.imageSmoothingEnabled = false;
