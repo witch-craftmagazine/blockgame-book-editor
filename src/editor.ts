@@ -645,19 +645,38 @@ export const GLYPH_CATALOG_BY_WIDTH: Record<number, string[]> = {
 export const FAVORITES_LIST = ['★', '✦', '✧', '═', '║', '╔', '╗', '╚', '╝', '⚔', '⛏', '⚒', '⚜', '─', '│', '☘', '•', '✓', '✕'];
 export const WIDTH_STEPS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12];
 
-export type MatrixMode = { type: 'set'; setId: string } | { type: 'width'; px: number };
-export let currentMatrixMode: MatrixMode = { type: 'set', setId: 'fav' };
+export type MatrixMode = { type: 'set'; setId: string; px?: number } | { type: 'width'; px: number };
+export let currentMatrixSetId = 'all';
+export let currentMatrixPx = 6;
+export let currentMatrixMode: MatrixMode = { type: 'set', setId: 'all', px: 6 };
 export let currentMatrixPage = 0;
 export const MATRIX_PAGE_SIZE = 14;
 
-export function getGlyphsForCurrentSelection(): string[] {
-  if (currentMatrixMode.type === 'set') {
-    if (currentMatrixMode.setId === 'all') return ALL_GLYPHS.map(g => g.char);
-    if (currentMatrixMode.setId === 'recent') return recentGlyphs;
-    if (currentMatrixMode.setId === 'fav') return userFavoriteGlyphs;
-    return CHARACTER_SETS[currentMatrixMode.setId]?.glyphs || [];
+export function getBaseGlyphsForSet(setId: string): string[] {
+  if (setId === 'all') return ALL_GLYPHS.map(g => g.char);
+  if (setId === 'recent') return recentGlyphs;
+  if (setId === 'fav') return userFavoriteGlyphs;
+  return CHARACTER_SETS[setId]?.glyphs || [];
+}
+
+export function getAvailableWidthsForSet(setId: string): number[] {
+  const glyphs = getBaseGlyphsForSet(setId);
+  const widths = new Set<number>();
+  for (const ch of glyphs) {
+    const adv = getCharPixelAdvance(ch);
+    if (adv > 0 && adv <= 12) widths.add(adv);
   }
-  return GLYPH_CATALOG_BY_WIDTH[currentMatrixMode.px] || [];
+  const sorted = Array.from(widths).sort((a, b) => a - b);
+  return sorted.length > 0 ? sorted : WIDTH_STEPS;
+}
+
+export function getGlyphsForCurrentSelection(): string[] {
+  const setId = currentMatrixMode.type === 'set' ? currentMatrixMode.setId : currentMatrixSetId;
+  const targetPx = currentMatrixMode.px ?? currentMatrixPx;
+  const baseGlyphs = getBaseGlyphsForSet(setId);
+
+  // Filter the glyphs in this set by the selected pixel size
+  return baseGlyphs.filter(ch => getCharPixelAdvance(ch) === targetPx);
 }
 
 export function renderMatrixSlots(): void {
@@ -668,24 +687,15 @@ export function renderMatrixSlots(): void {
   const totalPages = Math.max(1, Math.ceil(list.length / MATRIX_PAGE_SIZE));
   if (currentMatrixPage >= totalPages) currentMatrixPage = 0;
 
+  // Pixel selector badge ALWAYS displays the pixel width (never a set name!)
+  const targetPx = currentMatrixMode.px ?? currentMatrixPx;
   if (matrixPxValue) {
-    if (currentMatrixMode.type === 'set') {
-      if (currentMatrixMode.setId === 'all') {
-        matrixPxValue.textContent = 'All';
-      } else if (currentMatrixMode.setId === 'recent') {
-        matrixPxValue.textContent = 'Rec';
-      } else {
-        const activeSet = CHARACTER_SETS[currentMatrixMode.setId];
-        matrixPxValue.textContent = activeSet ? activeSet.name.split(' ')[0]! : '★';
-      }
-    } else {
-      matrixPxValue.textContent = currentMatrixMode.px.toString();
-    }
+    matrixPxValue.textContent = targetPx.toString();
   }
 
   const matrixUnit = document.querySelector('.matrix-unit') as HTMLElement;
   if (matrixUnit) {
-    matrixUnit.textContent = currentMatrixMode.type === 'set' ? 'set' : 'px';
+    matrixUnit.textContent = 'px';
   }
 
   if (matrixPageLabel) {
@@ -694,6 +704,19 @@ export function renderMatrixSlots(): void {
 
   const startIdx = currentMatrixPage * MATRIX_PAGE_SIZE;
   const pageItems = list.slice(startIdx, startIdx + MATRIX_PAGE_SIZE);
+
+  if (pageItems.length === 0) {
+    const empty = document.createElement('div');
+    empty.style.color = '#888888';
+    empty.style.fontSize = '11px';
+    empty.style.fontFamily = 'var(--font-mono)';
+    empty.style.padding = '0 8px';
+    empty.style.display = 'flex';
+    empty.style.alignItems = 'center';
+    empty.textContent = `No ${targetPx}px glyphs in this set`;
+    matrixSlotsRibbon.appendChild(empty);
+    return;
+  }
 
   pageItems.forEach((ch) => {
     const slot = document.createElement('div');
@@ -3054,22 +3077,26 @@ function wireEvents(): void {
   renderMatrixSlots();
 
   matrixPxUp?.addEventListener('click', () => {
-    let currentPx = currentMatrixMode.type === 'width' ? currentMatrixMode.px : 6;
-    const idx = WIDTH_STEPS.indexOf(currentPx);
-    const nextPx = idx !== -1 && idx < WIDTH_STEPS.length - 1 ? WIDTH_STEPS[idx + 1]! : WIDTH_STEPS[0]!;
-    currentMatrixMode = { type: 'width', px: nextPx };
+    const setId = currentMatrixMode.type === 'set' ? currentMatrixMode.setId : currentMatrixSetId;
+    const available = getAvailableWidthsForSet(setId);
+    const targetPx = currentMatrixMode.px ?? currentMatrixPx;
+    const idx = available.indexOf(targetPx);
+    const nextPx = idx !== -1 && idx < available.length - 1 ? available[idx + 1] : available[0];
+    currentMatrixPx = nextPx;
+    currentMatrixMode.px = nextPx;
     currentMatrixPage = 0;
-    updateActiveMatrixChip();
     renderMatrixSlots();
   });
 
   matrixPxDown?.addEventListener('click', () => {
-    let currentPx = currentMatrixMode.type === 'width' ? currentMatrixMode.px : 6;
-    const idx = WIDTH_STEPS.indexOf(currentPx);
-    const prevPx = idx !== -1 && idx > 0 ? WIDTH_STEPS[idx - 1]! : WIDTH_STEPS[WIDTH_STEPS.length - 1]!;
-    currentMatrixMode = { type: 'width', px: prevPx };
+    const setId = currentMatrixMode.type === 'set' ? currentMatrixMode.setId : currentMatrixSetId;
+    const available = getAvailableWidthsForSet(setId);
+    const targetPx = currentMatrixMode.px ?? currentMatrixPx;
+    const idx = available.indexOf(targetPx);
+    const prevPx = idx !== -1 && idx > 0 ? available[idx - 1] : available[available.length - 1];
+    currentMatrixPx = prevPx;
+    currentMatrixMode.px = prevPx;
     currentMatrixPage = 0;
-    updateActiveMatrixChip();
     renderMatrixSlots();
   });
 
@@ -3097,10 +3124,10 @@ function wireEvents(): void {
 
   function updateActiveMatrixChip(): void {
     if (!matrixQuickWidths) return;
+    const activeSet = currentMatrixMode.type === 'set' ? currentMatrixMode.setId : currentMatrixSetId;
     matrixQuickWidths.querySelectorAll<HTMLButtonElement>('.matrix-chip').forEach(chip => {
       const setId = chip.dataset.set;
-      const isActive = currentMatrixMode.type === 'set' && currentMatrixMode.setId === setId;
-      chip.classList.toggle('active', !!isActive);
+      chip.classList.toggle('active', setId === activeSet);
     });
   }
 
@@ -3108,7 +3135,16 @@ function wireEvents(): void {
     chip.addEventListener('click', () => {
       const setId = chip.dataset.set;
       if (setId) {
-        currentMatrixMode = { type: 'set', setId };
+        currentMatrixSetId = setId;
+        const available = getAvailableWidthsForSet(setId);
+        if (!available.includes(currentMatrixPx)) {
+          const closest = available.reduce((prev, curr) =>
+            Math.abs(curr - currentMatrixPx) < Math.abs(prev - currentMatrixPx) ? curr : prev,
+            available[0]
+          );
+          currentMatrixPx = closest;
+        }
+        currentMatrixMode = { type: 'set', setId, px: currentMatrixPx };
         currentMatrixPage = 0;
         updateActiveMatrixChip();
         renderMatrixSlots();

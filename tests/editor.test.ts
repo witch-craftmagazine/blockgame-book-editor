@@ -882,22 +882,31 @@ describe('Minecraft Page Limit & Page Gallery Presets', () => {
     expect(afterDup[0].title).toBe('Book Two (Copy)');
   });
 
-  test('Top matrix toolbar supports "all" and "recent" glyph sets', () => {
-    // Mode "all"
+  test('Top matrix toolbar supports "all" and "recent" glyph sets and size filtering', () => {
+    // Mode "all" at 8px (contains swords and stars)
     currentMatrixMode.type = 'set';
     currentMatrixMode.setId = 'all';
-    const allGlyphs = getGlyphsForCurrentSelection();
-    expect(allGlyphs.length).toBeGreaterThan(100);
-    expect(allGlyphs).toContain('⚔');
-    expect(allGlyphs).toContain('★');
+    currentMatrixMode.px = 8;
+    const all8px = getGlyphsForCurrentSelection();
+    expect(all8px.length).toBeGreaterThan(100);
+    expect(all8px).toContain('⚔');
+    expect(all8px).toContain('★');
+
+    // Mode "all" at 6px (symbols like lightning and hearts)
+    currentMatrixMode.px = 6;
+    const all6px = getGlyphsForCurrentSelection();
+    expect(all6px.length).toBeGreaterThan(50);
+    expect(all6px).toContain('⚡');
+    expect(all6px).toContain('♥');
 
     // Mode "recent"
     currentMatrixMode.setId = 'recent';
     const recent = getGlyphsForCurrentSelection();
     expect(Array.isArray(recent)).toBe(true);
 
-    // Reset back to fav
-    currentMatrixMode.setId = 'fav';
+    // Reset back to all
+    currentMatrixMode.setId = 'all';
+    currentMatrixMode.px = 6;
   });
 
   test('deleteBook cleanly removes book and creates Untitled Book when last book is deleted', () => {
