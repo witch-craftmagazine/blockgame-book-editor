@@ -3123,10 +3123,6 @@ function initMobileKeyboardTracking(): void {
       document.body.classList.toggle('keyboard-active', isKeyboardOpen);
       document.querySelector('.app-layout')?.classList.toggle('keyboard-active', isKeyboardOpen);
       document.getElementById('mobile-line-deck')?.classList.toggle('keyboard-active', isKeyboardOpen);
-
-      if (isKeyboardOpen && mobileLineInput && document.activeElement === mobileLineInput) {
-        mobileLineInput.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-      }
     };
 
     window.visualViewport.addEventListener('resize', handleViewport);
