@@ -25,6 +25,7 @@ import {
   activeBookId,
   currentMatrixMode,
   getGlyphsForCurrentSelection,
+  renderSnippetPreviewCanvas,
   type BookshelfBook,
   type PageCopyFormat,
   type SavedTemplate,
@@ -955,5 +956,11 @@ describe('Minecraft Page Limit & Page Gallery Presets', () => {
 
     const tableFlip = kaomojiPresets.find(k => k.title === 'Table Flip');
     expect(tableFlip?.lines[0]).toBe('(╯°□°)╯︵ ┻━┻');
+  });
+
+  test('renderSnippetPreviewCanvas runs safely without crashing in headless environment', () => {
+    // In headless test environment (no document), returns fallback object without exception
+    const canvas = renderSnippetPreviewCanvas(['§6Test Line', 'Second Line']);
+    expect(canvas).toBeDefined();
   });
 });

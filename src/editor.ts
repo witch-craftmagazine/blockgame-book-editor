@@ -30,6 +30,7 @@ import {
   solveBoldSpaces,
   centerLineText,
   formatSinglePage,
+  defaultGlyphAtlas,
   type SinglePageExportFormat,
   type BlockgameBook,
   type BookEngine,
@@ -393,6 +394,116 @@ export function migrateSnippetHistory(): void {
       localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(purified));
     }
   } catch {}
+}
+
+export function renderSnippetPreviewCanvas(
+  lines: string[],
+  options?: {
+    scale?: number;
+    textWidth?: number;
+    lineHeight?: number;
+    fallbackColor?: string;
+  }
+): HTMLCanvasElement {
+  if (typeof document === 'undefined') {
+    return {} as HTMLCanvasElement;
+  }
+  const canvas = document.createElement('canvas');
+  canvas.className = 'snippet-preview-canvas';
+  const scale = options?.scale ?? 2;
+  const textWidth = options?.textWidth ?? 114;
+  const lineHeight = options?.lineHeight ?? 9;
+  const fallbackColor = options?.fallbackColor ?? '#1a1a1a';
+
+  const numLines = Math.max(1, lines.length);
+  const totalWidth = textWidth * scale;
+  const totalHeight = numLines * lineHeight * scale;
+
+  canvas.width = totalWidth;
+  canvas.height = totalHeight;
+
+  const draw = () => {
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.imageSmoothingEnabled = false;
+    ctx.clearRect(0, 0, totalWidth, totalHeight);
+    ctx.save();
+    ctx.scale(scale, scale);
+
+    lines.forEach((lineText, lineIdx) => {
+      const y = lineIdx * lineHeight;
+      if (!lineText) return;
+      const spans = parseFormattedText(lineText);
+      let cursorX = 0;
+
+      for (const span of spans) {
+        const color = span.color || fallbackColor;
+        for (const char of span.text) {
+          const glyphInfo = defaultGlyphAtlas.getGlyphDrawInfo(char, color, span.bold);
+          if (glyphInfo && glyphInfo.image) {
+            const destW = glyphInfo.dWidth ?? glyphInfo.sWidth;
+            const destH = glyphInfo.dHeight ?? glyphInfo.sHeight;
+            const drawY = y + (glyphInfo.yOffset ?? 0);
+
+            if (span.italic) {
+              ctx.save();
+              ctx.transform(1, 0, -0.15, 1, (drawY + destH) * 0.15, 0);
+            }
+
+            ctx.drawImage(
+              glyphInfo.image,
+              glyphInfo.sx,
+              glyphInfo.sy,
+              glyphInfo.sWidth,
+              glyphInfo.sHeight,
+              cursorX,
+              drawY,
+              destW,
+              destH
+            );
+
+            if (span.bold) {
+              ctx.drawImage(
+                glyphInfo.image,
+                glyphInfo.sx,
+                glyphInfo.sy,
+                glyphInfo.sWidth,
+                glyphInfo.sHeight,
+                cursorX + 1,
+                drawY,
+                destW,
+                destH
+              );
+            }
+
+            if (span.italic) {
+              ctx.restore();
+            }
+
+            const adv = glyphInfo.advance;
+            if (span.strikethrough) {
+              ctx.fillStyle = color;
+              ctx.fillRect(cursorX, y + 4, adv, 1);
+            }
+            if (span.underlined) {
+              ctx.fillStyle = color;
+              ctx.fillRect(cursorX, y + 8, adv, 1);
+            }
+            cursorX += adv;
+          } else {
+            cursorX += defaultGlyphAtlas.getAdvance(char, span.bold);
+          }
+        }
+      }
+    });
+
+    ctx.restore();
+  };
+
+  draw();
+  ensureAtlasLoaded().then(() => draw());
+
+  return canvas;
 }
 
 export function renderFormattedMiniLine(rawText: string): HTMLElement {
@@ -987,9 +1098,9 @@ export function renderBookshelf(): void {
     preview.className = 'bookshelf-card-preview';
     preview.title = isActive ? 'Currently editing this book' : `Click to switch to "${b.title}"`;
     const pageLines = (b.pages[0] ?? '').split('\n').slice(0, 14);
-    pageLines.forEach((l) => {
-      preview.appendChild(renderFormattedMiniLine(l));
-    });
+    while (pageLines.length < 14) pageLines.push('');
+    const canvas = renderSnippetPreviewCanvas(pageLines, { scale: 2 });
+    preview.appendChild(canvas);
     if (!isActive) {
       preview.addEventListener('click', () => switchToBook(b.id));
     }
@@ -3134,9 +3245,8 @@ function wireEvents(): void {
       const preview = document.createElement('div');
       preview.className = 'deck-paste-preview';
       preview.title = `Click to stamp "${preset.title}" into book`;
-      preset.lines.slice(0, 8).forEach(l => {
-        preview.appendChild(renderFormattedMiniLine(l));
-      });
+      const canvas = renderSnippetPreviewCanvas(preset.lines.slice(0, 8), { scale: 2 });
+      preview.appendChild(canvas);
       preview.addEventListener('click', () => {
         applyTemplate(preset);
         soundManager.playButtonClick();

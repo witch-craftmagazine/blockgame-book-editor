@@ -3,12 +3,22 @@
   import { bookStore } from '../../state/bookStore.svelte';
   import { libraryStore, type SavedTemplate } from '../../state/libraryStore.svelte';
   import { uiStore } from '../../state/uiStore.svelte';
+  import { renderSnippetPreviewCanvas } from '../../editor';
 
   interface Props {
     template: SavedTemplate;
   }
 
   let { template }: Props = $props();
+  let canvasContainer: HTMLDivElement | null = $state(null);
+
+  $effect(() => {
+    if (canvasContainer) {
+      canvasContainer.innerHTML = '';
+      const canvas = renderSnippetPreviewCanvas(template.lines.slice(0, 6), { scale: 2 });
+      canvasContainer.appendChild(canvas);
+    }
+  });
 
   function applyTemplate() {
     if (template.scope === 'page') {
@@ -49,21 +59,7 @@
     <span class="card-scope-badge">{template.scope}</span>
   </div>
 
-  <div class="mini-parchment">
-    {#each template.lines.slice(0, 5) as line}
-      <div class="mini-line">
-        {#each parseFormattedText(line) as span}
-          <span
-            style="color: {span.color}; font-weight: {span.bold ? 'bold' : 'normal'}; font-style: {span.italic ? 'italic' : 'normal'};"
-          >
-            {span.text || ' '}
-          </span>
-        {/each}
-      </div>
-    {/each}
-    {#if template.lines.length > 5}
-      <div class="mini-ellipsis">... ({template.lines.length} lines total)</div>
-    {/if}
+  <div class="mini-parchment" bind:this={canvasContainer}>
   </div>
 
   <div class="card-footer">
@@ -137,18 +133,6 @@
     max-height: 70px;
     overflow: hidden;
     box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
-  }
-
-  .mini-line {
-    white-space: pre;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .mini-ellipsis {
-    font-size: 9px;
-    color: #777;
-    margin-top: 2px;
   }
 
   .card-footer {
