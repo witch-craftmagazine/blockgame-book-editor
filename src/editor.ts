@@ -2520,6 +2520,10 @@ function loadPageIntoEditor(index: number): void {
   if (previewIndicator) {
     previewIndicator.textContent = `${currentPageIndex + 1} / ${book.pages.length}`;
   }
+  const sidePageBadge = typeof document !== 'undefined' ? document.getElementById('side-page-badge') : null;
+  const flyoutPageBadge = typeof document !== 'undefined' ? document.getElementById('flyout-page-badge') : null;
+  if (sidePageBadge) sidePageBadge.textContent = `Page ${currentPageIndex + 1} / ${book.pages.length}`;
+  if (flyoutPageBadge) flyoutPageBadge.textContent = `Page ${currentPageIndex + 1} / ${book.pages.length}`;
 
   updateAll();
 }
@@ -2686,6 +2690,10 @@ function updateAll(immediate = false): void {
   if (previewIndicator) {
     previewIndicator.textContent = `${currentPageIndex + 1} / ${book.pages.length}`;
   }
+  const sidePageBadge2 = typeof document !== 'undefined' ? document.getElementById('side-page-badge') : null;
+  const flyoutPageBadge2 = typeof document !== 'undefined' ? document.getElementById('flyout-page-badge') : null;
+  if (sidePageBadge2) sidePageBadge2.textContent = `Page ${currentPageIndex + 1} / ${book.pages.length}`;
+  if (flyoutPageBadge2) flyoutPageBadge2.textContent = `Page ${currentPageIndex + 1} / ${book.pages.length}`;
   triggerAutosave();
 }
 
@@ -3564,6 +3572,25 @@ function wireEvents(): void {
 
   btnPrevPage.addEventListener('click', retreatPage);
   btnNextPage.addEventListener('click', advancePage);
+
+  // Flanking Side Page Buttons for Mobile Handheld View
+  const sidePrevBtn = document.getElementById('side-prev-page-btn');
+  const sideNextBtn = document.getElementById('side-next-page-btn');
+  sidePrevBtn?.addEventListener('click', retreatPage);
+  sideNextBtn?.addEventListener('click', advancePage);
+
+  // Studio Tools Flyout Copy Page Buttons
+  const btnFlyoutCopyPage = document.getElementById('btn-flyout-copy-page') as HTMLButtonElement | null;
+  btnFlyoutCopyPage?.addEventListener('click', () => {
+    triggerCopyPageFeedback('raw', btnFlyoutCopyPage);
+  });
+
+  document.querySelectorAll<HTMLButtonElement>('.flyout-fmt-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const fmt = (btn.dataset.format as PageCopyFormat) || 'raw';
+      triggerCopyPageFeedback(fmt, btn);
+    });
+  });
 
   // 8. Saved Presets & History Wire Events
   savedTemplates = loadSavedTemplates();

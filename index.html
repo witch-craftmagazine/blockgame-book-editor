@@ -96,6 +96,24 @@
             <input id="meta-author" class="meta-input" type="text" placeholder="Author name…" maxlength="16" />
           </div>
 
+          <!-- Page Actions: Copy Page & Formats -->
+          <div class="flyout-section">
+            <div class="flyout-header-row">
+              <span class="flyout-label">Copy Active Page</span>
+              <span class="meta-count" id="flyout-page-badge">Page 1 / 1</span>
+            </div>
+            <div class="flyout-copy-actions">
+              <button type="button" id="btn-flyout-copy-page" class="btn btn-xs btn-primary btn-full-width" title="Copy active page text to clipboard (Ctrl+Shift+C)">
+                <span class="copy-page-icon">📋</span> Copy Page (§ Codes)
+              </button>
+              <div class="flyout-format-pills">
+                <button type="button" class="btn btn-xs btn-outline flyout-fmt-btn" data-format="give" title="Single-Page /give Command">⚡ /give</button>
+                <button type="button" class="btn btn-xs btn-outline flyout-fmt-btn" data-format="ampersand" title="Color codes with &amp;">&amp; Codes</button>
+                <button type="button" class="btn btn-xs btn-outline flyout-fmt-btn" data-format="plain" title="Plain text without codes">Plain</button>
+              </div>
+            </div>
+          </div>
+
           <!-- Session Actions (Import, Export) -->
           <div class="flyout-section flyout-actions-row">
             <button id="btn-import" class="btn btn-xs btn-outline" title="Import from Stendhal, JSON, CMI, or /give">📥 Import</button>
@@ -354,7 +372,11 @@
         </div>
 
         <div class="preview-book-wrap" id="preview-book-wrap">
+          <!-- Game Boy Handheld Flanking Page Triggers (Mobile View) -->
+          <button type="button" id="side-prev-page-btn" class="side-page-nav-btn side-page-prev" title="Previous Page (◀)" aria-label="Previous Page">◀</button>
           <div id="viewer-container" class="viewer-container"></div>
+          <button type="button" id="side-next-page-btn" class="side-page-nav-btn side-page-next" title="Next Page (▶)" aria-label="Next Page">▶</button>
+          <div id="side-page-badge" class="side-page-badge">Page 1 / 1</div>
         </div>
       </section>
     </main>
