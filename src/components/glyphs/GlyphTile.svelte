@@ -65,11 +65,7 @@
   </button>
 
   <div class="glyph-center">
-    {#if item.category === 'kaomoji'}
-      <span class="kaomoji-text">{item.char}</span>
-    {:else}
-      <GlyphCanvas char={item.char} colorHex={previewColor} size={26} scale={2} />
-    {/if}
+    <GlyphCanvas char={item.char} colorHex={previewColor} size={26} scale={2} />
   </div>
 
   <span class="advance-badge" class:smp={item.isSmp}>
@@ -148,16 +144,6 @@
     justify-content: center;
     width: 100%;
     height: 100%;
-  }
-
-  .kaomoji-text {
-    font-family: 'Minecraft', monospace;
-    font-size: 9px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    padding: 0 4px;
-    color: var(--text-main, #f0e6d2);
   }
 
   .advance-badge {

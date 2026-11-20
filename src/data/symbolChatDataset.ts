@@ -35,8 +35,7 @@ export type GlyphCategory =
   | 'math'
   | 'runes'
   | 'braille'
-  | 'fonts'
-  | 'kaomoji';
+  | 'fonts';
 
 export interface GlyphCategoryMeta {
   id: GlyphCategory;
@@ -69,7 +68,6 @@ export const CATEGORY_DEFINITIONS: GlyphCategoryMeta[] = [
   { id: 'blocks', label: 'Blocks', icon: '█', description: 'Dithering & shading' },
   { id: 'math', label: 'Math', icon: '🔢', description: 'Superscripts, fractions & numerals' },
   { id: 'runes', label: 'Runes', icon: 'ᚠ', description: 'Elder Futhark & astrology' },
-  { id: 'kaomoji', label: 'Kaomoji', icon: '🔤', description: 'Faces & text expressions' },
 ];
 
 export const DEFAULT_FAVORITES: string[] = [
@@ -626,32 +624,6 @@ const FONT_GLYPHS: GlyphItem[] = [
   createGlyph('※', 'Reference Mark', 'fonts'),
   createGlyph('❦', 'Floral Heart', 'fonts'),
   createGlyph('❧', 'Rotated Floral Heart Bullet', 'fonts'),
-];
-
-const KAOMOJI_GLYPHS: GlyphItem[] = [
-  { char: '(╯°□°)╯︵ ┻━┻', name: 'Table Flip', category: 'kaomoji', codepoint: 'Multi', isSmp: false },
-  { char: '┬─┬ノ( º _ ºノ)', name: 'Put Table Back', category: 'kaomoji', codepoint: 'Multi', isSmp: false },
-  { char: '¯\\_(ツ)_/¯', name: 'Shrug', category: 'kaomoji', codepoint: 'Multi', isSmp: false },
-  { char: '(｡♥‿♥｡)', name: 'Heart Eyes', category: 'kaomoji', codepoint: 'Multi', isSmp: false },
-  { char: 'ʕ•ᴥ•ʔ', name: 'Bear', category: 'kaomoji', codepoint: 'Multi', isSmp: false },
-  { char: '(づ｡◕‿‿◕｡)づ', name: 'Hug', category: 'kaomoji', codepoint: 'Multi', isSmp: false },
-  { char: '(•‿•)', name: 'Happy Face', category: 'kaomoji', codepoint: 'Multi', isSmp: false },
-  { char: '(¬_¬)', name: 'Side Eye / Suspicious', category: 'kaomoji', codepoint: 'Multi', isSmp: false },
-  { char: '(ง •̀_•́)ง', name: 'Ready to Fight', category: 'kaomoji', codepoint: 'Multi', isSmp: false },
-  { char: '(•ω•)', name: 'Cat Face', category: 'kaomoji', codepoint: 'Multi', isSmp: false },
-  { char: '(ノಠ益ಠ)ノ', name: 'Rage', category: 'kaomoji', codepoint: 'Multi', isSmp: false },
-  { char: 'ಠ_ಠ', name: 'Look of Disapproval', category: 'kaomoji', codepoint: 'Multi', isSmp: false },
-  { char: '(ಥ﹏ಥ)', name: 'Crying', category: 'kaomoji', codepoint: 'Multi', isSmp: false },
-  { char: '(´・ω・`)', name: 'Innocent', category: 'kaomoji', codepoint: 'Multi', isSmp: false },
-  { char: '(✿◠‿◠)', name: 'Flower Smile', category: 'kaomoji', codepoint: 'Multi', isSmp: false },
-  { char: '(◕‿◕✿)', name: 'Cute Flower', category: 'kaomoji', codepoint: 'Multi', isSmp: false },
-  { char: '(づ￣ ³￣)づ', name: 'Blow Kiss', category: 'kaomoji', codepoint: 'Multi', isSmp: false },
-  { char: '(⊙_☉)', name: 'Shocked', category: 'kaomoji', codepoint: 'Multi', isSmp: false },
-  { char: '(☞ﾟヮﾟ)☞', name: 'Finger Guns Right', category: 'kaomoji', codepoint: 'Multi', isSmp: false },
-  { char: '☜(ﾟヮﾟ☜)', name: 'Finger Guns Left', category: 'kaomoji', codepoint: 'Multi', isSmp: false },
-  { char: '(*^▽^*)', name: 'Excited Laugh', category: 'kaomoji', codepoint: 'Multi', isSmp: false },
-  { char: '(´∀｀)', name: 'Peaceful Bliss', category: 'kaomoji', codepoint: 'Multi', isSmp: false },
-  { char: '(•_•)', name: 'Neutral Stare', category: 'kaomoji', codepoint: 'Multi', isSmp: false },
 ];
 
 // ── Official SymbolChat FACES ───────────────────────────────────────
@@ -2228,7 +2200,6 @@ export const ALL_GLYPHS: GlyphItem[] = [
   ...RUNE_GLYPHS,
   ...BRAILLE_GLYPHS,
   ...FONT_GLYPHS,
-  ...KAOMOJI_GLYPHS,
   ...SYMBOLCHAT_FACES_GLYPHS,
   ...SYMBOLCHAT_NATURE_GLYPHS,
   ...SYMBOLCHAT_THINGS_GLYPHS,
@@ -2246,7 +2217,6 @@ export const GLYPHS_BY_CATEGORY: Record<Exclude<GlyphCategory, 'fav' | 'recent' 
   runes: RUNE_GLYPHS,
   braille: BRAILLE_GLYPHS,
   fonts: FONT_GLYPHS,
-  kaomoji: KAOMOJI_GLYPHS,
   faces: SYMBOLCHAT_FACES_GLYPHS,
   nature: SYMBOLCHAT_NATURE_GLYPHS,
   things: SYMBOLCHAT_THINGS_GLYPHS,

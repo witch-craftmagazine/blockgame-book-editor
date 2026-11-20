@@ -305,16 +305,12 @@
       <div class="inspector-footer">
         <div class="inspector-left">
           <div class="inspector-preview-box">
-            {#if inspectorItem.category === 'kaomoji'}
-              <span class="inspector-kaomoji">{inspectorItem.char}</span>
-            {:else}
-              <GlyphCanvas
-                char={inspectorItem.char}
-                colorHex={glyphStore.previewColor}
-                size={40}
-                scale={3}
-              />
-            {/if}
+            <GlyphCanvas
+              char={inspectorItem.char}
+              colorHex={glyphStore.previewColor}
+              size={40}
+              scale={3}
+            />
           </div>
 
           <div class="inspector-meta">
@@ -841,12 +837,6 @@
     align-items: center;
     justify-content: center;
     overflow: hidden;
-  }
-
-  .inspector-kaomoji {
-    font-size: 11px;
-    font-family: 'Minecraft', monospace;
-    color: var(--text-main, #f0e6d2);
   }
 
   .inspector-meta {

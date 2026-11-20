@@ -318,126 +318,21 @@ export function reflowPageLines(
 
 // ─── Page & Line Gallery Models and Templates ────────────────────────────────
 
-export interface SavedTemplate {
-  id: string;
-  title: string;
-  scope: 'page' | 'lines';
-  category: string;
-  lines: string[];
-  createdAt: number;
-  isPreset?: boolean;
-}
+import {
+  DEFAULT_PRESETS,
+  type SavedTemplate,
+} from './data/defaultPresets';
+
+export type { SavedTemplate };
+export { DEFAULT_PRESETS };
 
 const GALLERY_STORAGE_KEY = 'blockgame_saved_art';
 const LEGACY_GALLERY_KEY = 'blockgame_book_gallery_templates';
 
-export const DEFAULT_PRESETS: SavedTemplate[] = [
-  {
-    id: 'preset-chapter-header',
-    title: 'Chapter Header Banner',
-    scope: 'lines',
-    category: 'Header',
-    lines: [
-      '§6§l━━━━━━━━━━━━━━━',
-      '§r§0§l   CHAPTER I',
-      '§3§o  The Awakening',
-      '§6§l━━━━━━━━━━━━━━━',
-    ],
-    createdAt: 1700000000000,
-    isPreset: true,
-  },
-  {
-    id: 'preset-toc-page',
-    title: 'Table of Contents Page',
-    scope: 'page',
-    category: 'Table of Contents',
-    lines: [
-      '§0§lTABLE OF CONTENTS',
-      '§8§m                 ',
-      '§01. Introduction....§801',
-      '§02. The Journey.....§804',
-      '§03. Enchantments....§812',
-      '§04. Nether Secrets..§818',
-      '§05. Epilogue........§824',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '§8§o-- Continued on p.2 --',
-    ],
-    createdAt: 1700000000001,
-    isPreset: true,
-  },
-  {
-    id: 'preset-boxed-border',
-    title: 'Parchment Box Border',
-    scope: 'lines',
-    category: 'Divider / Border',
-    lines: [
-      '§1╔═════════════╗',
-      '§1║ §0Official Notice§1║',
-      '§1╚═════════════╝',
-    ],
-    createdAt: 1700000000002,
-    isPreset: true,
-  },
-  {
-    id: 'preset-decorative-star',
-    title: 'Decorative Star Divider',
-    scope: 'lines',
-    category: 'Divider / Border',
-    lines: [
-      '§6§l---✦ ★ ✦---',
-    ],
-    createdAt: 1700000000003,
-    isPreset: true,
-  },
-  {
-    id: 'preset-signature-block',
-    title: 'Author Signature Block',
-    scope: 'lines',
-    category: 'Signature',
-    lines: [
-      '',
-      '§8§oRecorded by:',
-      '§0§lThe Grand Archivist',
-      '§8§oRealm of Craft',
-    ],
-    createdAt: 1700000000004,
-    isPreset: true,
-  },
-  {
-    id: 'preset-rules-page',
-    title: 'Server Rules & Codex',
-    scope: 'page',
-    category: 'Page Layout',
-    lines: [
-      '§4§l   SERVER CODEX',
-      '§8§m                 ',
-      '§0§l1. §r§0No griefing',
-      '§0§l2. §r§0Respect builds',
-      '§0§l3. §r§0Fair trading',
-      '§0§l4. §r§0Keep chat clean',
-      '§0§l5. §r§0PvP in arenas only',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '§8§oViolations lead to ban.',
-      '§8Signed by: §0Staff',
-    ],
-    createdAt: 1700000000005,
-    isPreset: true,
-  },
-];
-
 export let savedTemplates: SavedTemplate[] = [];
 export let activeGalleryTab: 'pages' | 'library' | 'save' = 'pages';
 export let activeLibraryFilter: 'all' | 'page' | 'lines' | 'preset' | 'custom' = 'all';
-export let activeDeckFilter: 'all' | 'page' | 'lines' | 'custom' = 'all';
+export let activeDeckFilter: 'all' | 'page' | 'lines' | 'custom' | 'kaomoji' = 'all';
 export let setDeckCollapsed: (collapsed: boolean) => void = () => {};
 let refreshDeckPastes: () => void = () => {};
 
@@ -3200,6 +3095,7 @@ function wireEvents(): void {
     const filtered = allDeckItems.filter(item => {
       if (activeDeckFilter === 'page') return item.scope === 'page';
       if (activeDeckFilter === 'lines') return item.scope === 'lines';
+      if (activeDeckFilter === 'kaomoji') return item.category === 'Kaomoji';
       if (activeDeckFilter === 'custom') return !item.isPreset;
       return true;
     });

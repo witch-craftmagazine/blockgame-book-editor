@@ -7,6 +7,7 @@
     { id: 'all', label: 'All' },
     { id: 'page', label: 'Pages' },
     { id: 'lines', label: 'Lines / Snippets' },
+    { id: 'kaomoji', label: 'Kaomoji' },
     { id: 'preset', label: 'Built-in Presets' },
     { id: 'custom', label: 'My Saves' },
   ];

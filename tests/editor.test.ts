@@ -930,4 +930,30 @@ describe('Minecraft Page Limit & Page Gallery Presets', () => {
     expect(remaining[0].title).toBe('Untitled Book');
     expect(remaining[0].pages).toEqual(['']);
   });
+
+  test('kaomoji are moved into snippets as built-in line presets', () => {
+    const kaomojiPresets = DEFAULT_PRESETS.filter(p => p.category === 'Kaomoji');
+    expect(kaomojiPresets.length).toBe(23);
+
+    // Verify all 23 are single-line snippets
+    for (const k of kaomojiPresets) {
+      expect(k.scope).toBe('lines');
+      expect(k.isPreset).toBe(true);
+      expect(k.lines.length).toBe(1);
+      expect(k.lines[0].length).toBeGreaterThan(0);
+    }
+
+    // Verify well-known kaomoji are present
+    const titles = kaomojiPresets.map(k => k.title);
+    expect(titles).toContain('Table Flip');
+    expect(titles).toContain('Shrug');
+    expect(titles).toContain('Heart Eyes');
+    expect(titles).toContain('Happy Face');
+
+    const shrug = kaomojiPresets.find(k => k.title === 'Shrug');
+    expect(shrug?.lines[0]).toBe('¯\\_(ツ)_/¯');
+
+    const tableFlip = kaomojiPresets.find(k => k.title === 'Table Flip');
+    expect(tableFlip?.lines[0]).toBe('(╯°□°)╯︵ ┻━┻');
+  });
 });

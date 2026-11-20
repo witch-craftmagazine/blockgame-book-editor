@@ -13,8 +13,8 @@ import {
 import { getCharPixelAdvance } from '../src/components/glyphs/glyphRenderer';
 
 describe('Symbol Chat Glyph Dataset & Taxonomy', () => {
-  test('defines all 16 expected categories with labels, icons and "all" unified grid', () => {
-    expect(CATEGORY_DEFINITIONS.length).toBe(16);
+  test('defines all 15 expected categories with labels, icons and "all" unified grid', () => {
+    expect(CATEGORY_DEFINITIONS.length).toBe(15);
     const ids = CATEGORY_DEFINITIONS.map((c) => c.id);
     expect(ids).toContain('all');
     expect(ids).toContain('fav');
@@ -31,7 +31,6 @@ describe('Symbol Chat Glyph Dataset & Taxonomy', () => {
     expect(ids).toContain('blocks');
     expect(ids).toContain('math');
     expect(ids).toContain('runes');
-    expect(ids).toContain('kaomoji');
   });
 
   test('all static categories contain populated glyph collections', () => {
@@ -50,7 +49,6 @@ describe('Symbol Chat Glyph Dataset & Taxonomy', () => {
       'runes',
       'braille',
       'fonts',
-      'kaomoji',
     ] as const;
     for (const cat of categories) {
       const items = GLYPHS_BY_CATEGORY[cat];
@@ -59,14 +57,12 @@ describe('Symbol Chat Glyph Dataset & Taxonomy', () => {
     }
   });
 
-  test('every glyph item has valid character, descriptive name, and codepoint', () => {
+  test('every glyph item has valid character, descriptive name, and single-char codepoint', () => {
     for (const item of ALL_GLYPHS) {
       expect(item.char.length).toBeGreaterThan(0);
       expect(item.name.length).toBeGreaterThan(0);
       expect(item.codepoint.length).toBeGreaterThan(0);
-      if (item.category !== 'kaomoji') {
-        expect(item.codepoint.startsWith('U+')).toBe(true);
-      }
+      expect(item.codepoint.startsWith('U+')).toBe(true);
     }
   });
 
@@ -85,7 +81,7 @@ describe('Symbol Chat Glyph Dataset & Taxonomy', () => {
     expect(getCharPixelAdvance('⚔')).toBeGreaterThanOrEqual(5);
     expect(getCharPixelAdvance('★')).toBeGreaterThanOrEqual(5);
     expect(getCharPixelAdvance('━')).toBeGreaterThanOrEqual(5);
-    expect(getCharPixelAdvance('(•‿•)')).toBeGreaterThanOrEqual(15);
+    expect(getCharPixelAdvance('░')).toBeGreaterThanOrEqual(5);
   });
 
   test('Symbol Chat Unicode fonts transform text correctly', () => {
