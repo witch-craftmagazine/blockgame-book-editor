@@ -1128,6 +1128,7 @@ let btnMobilePrevLine: HTMLButtonElement | null = null;
 let btnMobileNextLine: HTMLButtonElement | null = null;
 let mobileLinePill: HTMLElement | null = null;
 let mobileTrafficDot: HTMLElement | null = null;
+let btnMobileFont: HTMLButtonElement | null = null;
 
 let metaTitle: HTMLInputElement;
 let metaAuthor: HTMLInputElement;
@@ -1560,6 +1561,7 @@ function initDOM(): void {
   btnMobileNextLine   = document.getElementById('btn-mobile-next-line')   as HTMLButtonElement | null;
   mobileLinePill      = document.getElementById('mobile-line-pill');
   mobileTrafficDot    = document.getElementById('mobile-traffic-dot');
+  btnMobileFont       = document.getElementById('btn-mobile-font')        as HTMLButtonElement | null;
 
   metaTitle           = document.getElementById('meta-title')            as HTMLInputElement;
   metaAuthor          = document.getElementById('meta-author')           as HTMLInputElement;
@@ -2641,6 +2643,10 @@ function updateGutterAndStats(): void {
   if (mobileLinePill) {
     mobileLinePill.textContent = `Line ${activeLineIndex + 1} / ${MINECRAFT_LINES_PER_PAGE}`;
   }
+  const mobilePxVal = typeof document !== 'undefined' ? document.getElementById('mobile-px-val') : null;
+  const mobilePxMax = typeof document !== 'undefined' ? document.getElementById('mobile-px-max') : null;
+  if (mobilePxVal) mobilePxVal.textContent = String(activeW);
+  if (mobilePxMax) mobilePxMax.textContent = String(mw);
   if (mobileTrafficDot) {
     const isOver = activeW > mw;
     const isWarn = activeW >= Math.floor(mw * 0.9) && !isOver;
@@ -3087,9 +3093,66 @@ function renderExportFormats(): void {
   });
 }
 
+// ─── Mobile Viewport & Virtual Keyboard Tracking ────────────────────────────
+
+function initMobileKeyboardTracking(): void {
+  if (typeof window === 'undefined') return;
+
+  const updateVh = () => {
+    const vh = window.innerHeight * 0.01;
+    document.documentElement.style.setProperty('--vh', `${vh}px`);
+  };
+  updateVh();
+  window.addEventListener('resize', updateVh);
+
+  if (window.visualViewport) {
+    const handleViewport = () => {
+      if (!window.visualViewport) return;
+      const currentHeight = window.visualViewport.height;
+      const fullHeight = window.innerHeight;
+      const isKeyboardOpen = (fullHeight - currentHeight) > 140 || (document.activeElement === mobileLineInput);
+
+      document.body.classList.toggle('keyboard-active', isKeyboardOpen);
+      document.querySelector('.app-layout')?.classList.toggle('keyboard-active', isKeyboardOpen);
+      document.getElementById('mobile-line-deck')?.classList.toggle('keyboard-active', isKeyboardOpen);
+
+      if (isKeyboardOpen && mobileLineInput && document.activeElement === mobileLineInput) {
+        mobileLineInput.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+    };
+
+    window.visualViewport.addEventListener('resize', handleViewport);
+    window.visualViewport.addEventListener('scroll', handleViewport);
+  }
+
+  if (mobileLineInput) {
+    mobileLineInput.addEventListener('focus', () => {
+      document.body.classList.add('keyboard-active');
+      document.querySelector('.app-layout')?.classList.add('keyboard-active');
+      document.getElementById('mobile-line-deck')?.classList.add('keyboard-active');
+    });
+    mobileLineInput.addEventListener('blur', () => {
+      setTimeout(() => {
+        if (document.activeElement !== mobileLineInput) {
+          const currentHeight = window.visualViewport?.height ?? window.innerHeight;
+          const fullHeight = window.innerHeight;
+          const stillOpen = (fullHeight - currentHeight) > 140;
+          if (!stillOpen) {
+            document.body.classList.remove('keyboard-active');
+            document.querySelector('.app-layout')?.classList.remove('keyboard-active');
+            document.getElementById('mobile-line-deck')?.classList.remove('keyboard-active');
+          }
+        }
+      }, 180);
+    });
+  }
+}
+
 // ─── Event Wiring ─────────────────────────────────────────────────────────────
 
 function wireEvents(): void {
+  initMobileKeyboardTracking();
+
   // Mobile Active Line Stepper & Input Events
   if (mobileLineInput) {
     mobileLineInput.addEventListener('beforeinput', (e: InputEvent) => {
@@ -3141,6 +3204,15 @@ function wireEvents(): void {
             mobileLineInput.value = currentLines[activeLineIndex] ?? '';
             mobileLineInput.focus();
           }
+        } else if (currentPageIndex < book.pages.length - 1 || book.pages.length < MINECRAFT_MAX_PAGES) {
+          advancePage();
+          activeLineIndex = 0;
+          updateActiveRowClass();
+          updateGutterAndStats();
+          if (mobileLineInput) {
+            mobileLineInput.value = currentLines[activeLineIndex] ?? '';
+            mobileLineInput.focus();
+          }
         }
       }
     });
@@ -3149,6 +3221,15 @@ function wireEvents(): void {
   btnMobilePrevLine?.addEventListener('click', () => {
     if (activeLineIndex > 0) {
       activeLineIndex--;
+      updateActiveRowClass();
+      updateGutterAndStats();
+      if (mobileLineInput) {
+        mobileLineInput.value = currentLines[activeLineIndex] ?? '';
+        mobileLineInput.focus();
+      }
+    } else if (currentPageIndex > 0) {
+      retreatPage();
+      activeLineIndex = MINECRAFT_LINES_PER_PAGE - 1;
       updateActiveRowClass();
       updateGutterAndStats();
       if (mobileLineInput) {
@@ -3167,7 +3248,25 @@ function wireEvents(): void {
         mobileLineInput.value = currentLines[activeLineIndex] ?? '';
         mobileLineInput.focus();
       }
+    } else if (currentPageIndex < book.pages.length - 1 || book.pages.length < MINECRAFT_MAX_PAGES) {
+      advancePage();
+      activeLineIndex = 0;
+      updateActiveRowClass();
+      updateGutterAndStats();
+      if (mobileLineInput) {
+        mobileLineInput.value = currentLines[activeLineIndex] ?? '';
+        mobileLineInput.focus();
+      }
     }
+  });
+
+  btnMobileFont?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const fontPanel = document.getElementById('panel-font-switcher');
+    if (!fontPanel) return;
+    const isOpen = fontPanel.classList.toggle('mobile-drawer-open');
+    btnMobileFont!.classList.toggle('active', isOpen);
+    btnMobileFont!.textContent = isOpen ? '✕ Font' : '🔤 Font';
   });
 
   // 1. Mode Toggle (14 Lines vs Raw Textarea)

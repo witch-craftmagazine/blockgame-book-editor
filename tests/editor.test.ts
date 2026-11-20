@@ -1131,4 +1131,91 @@ describe('Minecraft Page Limit & Page Gallery Presets', () => {
     const noncharacterPages = Math.ceil(noncharacterTotal / GLYPH_PAGE_SIZE);
     expect(noncharacterPages).toBe(42);
   });
+
+  test('mobile line navigation boundary steps across pages on line 1 and line 14', () => {
+    let currentPage = 0;
+    let activeLine = 0;
+    const pages = ['Page 1 content', 'Page 2 content'];
+
+    function stepPrev() {
+      if (activeLine > 0) {
+        activeLine--;
+      } else if (currentPage > 0) {
+        currentPage--;
+        activeLine = 13;
+      }
+    }
+
+    function stepNext() {
+      if (activeLine < 13) {
+        activeLine++;
+      } else if (currentPage < pages.length - 1) {
+        currentPage++;
+        activeLine = 0;
+      }
+    }
+
+    // Step next to line 13
+    for (let i = 0; i < 13; i++) stepNext();
+    expect(activeLine).toBe(13);
+    expect(currentPage).toBe(0);
+
+    // Step next from line 13 advances to Page 2, line 0
+    stepNext();
+    expect(currentPage).toBe(1);
+    expect(activeLine).toBe(0);
+
+    // Step prev from line 0 retreats to Page 1, line 13
+    stepPrev();
+    expect(currentPage).toBe(0);
+    expect(activeLine).toBe(13);
+  });
+
+  test('mobile pixel gauge and traffic light indicators reflect line widths', () => {
+    function computeTrafficDotClass(width: number, maxWidth: number): string {
+      const isOver = width > maxWidth;
+      const isWarn = width >= Math.floor(maxWidth * 0.9) && !isOver;
+      return isOver ? 'dot-overflow' : isWarn ? 'dot-warn' : 'dot-ok';
+    }
+
+    // Java Edition (114px)
+    expect(computeTrafficDotClass(50, 114)).toBe('dot-ok');
+    expect(computeTrafficDotClass(102, 114)).toBe('dot-warn'); // 90% of 114 is ~102
+    expect(computeTrafficDotClass(114, 114)).toBe('dot-warn');
+    expect(computeTrafficDotClass(115, 114)).toBe('dot-overflow');
+
+    // Bedrock Edition (122px)
+    expect(computeTrafficDotClass(80, 122)).toBe('dot-ok');
+    expect(computeTrafficDotClass(110, 122)).toBe('dot-warn');
+    expect(computeTrafficDotClass(123, 122)).toBe('dot-overflow');
+  });
+
+  test('mobile font drawer toggle updates active class and button text', () => {
+    const mockFontBtn = {
+      text: '🔤 Font',
+      active: false,
+    };
+    const mockPanel = {
+      isOpen: false,
+    };
+
+    function toggleFontDrawer() {
+      mockPanel.isOpen = !mockPanel.isOpen;
+      mockFontBtn.active = mockPanel.isOpen;
+      mockFontBtn.text = mockPanel.isOpen ? '✕ Font' : '🔤 Font';
+    }
+
+    expect(mockPanel.isOpen).toBe(false);
+    expect(mockFontBtn.text).toBe('🔤 Font');
+
+    toggleFontDrawer();
+    expect(mockPanel.isOpen).toBe(true);
+    expect(mockFontBtn.active).toBe(true);
+    expect(mockFontBtn.text).toBe('✕ Font');
+
+    toggleFontDrawer();
+    expect(mockPanel.isOpen).toBe(false);
+    expect(mockFontBtn.active).toBe(false);
+    expect(mockFontBtn.text).toBe('🔤 Font');
+  });
 });

@@ -202,18 +202,25 @@
 
           <!-- Integrated Editor with 14 Minecraft Book Lines -->
           <div class="editor-workspace" id="editor-workspace">
-            <!-- Mobile Focused Line Deck with Traffic Light Dot Indicator -->
-            <div class="mobile-line-deck" id="mobile-line-deck">
+            <!-- Mobile Focused Line Deck with Game Boy D-Pad, Pixel Gauge & Traffic Light Indicator -->
+            <div class="mobile-line-deck gameboy-control-panel" id="mobile-line-deck">
               <div class="mobile-line-header">
                 <div class="mobile-line-nav">
-                  <button type="button" id="btn-mobile-prev-line" class="btn btn-xs btn-outline" title="Previous line">▲</button>
+                  <button type="button" id="btn-mobile-prev-line" class="btn btn-xs btn-outline btn-dpad" title="Previous line (▲)">▲</button>
                   <span class="mobile-line-pill" id="mobile-line-pill">Line 1 / 14</span>
-                  <button type="button" id="btn-mobile-next-line" class="btn btn-xs btn-outline" title="Next line">▼</button>
+                  <button type="button" id="btn-mobile-next-line" class="btn btn-xs btn-outline btn-dpad" title="Next line (▼)">▼</button>
                 </div>
-                <div class="mobile-line-actions">
+                <div class="mobile-line-meta">
+                  <div class="mobile-px-badge" id="mobile-px-badge" title="Line width pixel usage">
+                    <span id="mobile-px-val">0</span> / <span id="mobile-px-max">114</span> px
+                  </div>
                   <div class="mobile-line-indicator" title="Line width traffic light (green: fits, amber: near 114px, red: over 114px)">
                     <span class="mobile-traffic-dot dot-ok" id="mobile-traffic-dot"></span>
                   </div>
+                </div>
+                <div class="mobile-line-actions">
+                  <button type="button" id="btn-mobile-presets" class="mobile-presets-btn" title="Toggle snippets &amp; art presets">🎨 Presets</button>
+                  <button type="button" id="btn-mobile-font" class="mobile-font-btn" title="Toggle Symbol Chat fonts">🔤 Font</button>
                 </div>
               </div>
               <div class="mobile-line-input-wrap">
@@ -224,6 +231,7 @@
                   placeholder="Type line 1 text…"
                   autocomplete="off"
                   spellcheck="false"
+                  enterkeyhint="next"
                 />
               </div>
             </div>
@@ -281,8 +289,8 @@
         </section>
       </div>
 
-      <!-- Right: Interactive Live Book Preview -->
-      <section class="panel panel-preview" aria-label="Book Preview">
+      <!-- Right: Interactive Live Book Preview (Game Boy Display Unit on Mobile) -->
+      <section class="panel panel-preview gameboy-screen-unit" aria-label="Book Preview">
         <div class="panel-header">
           <div class="preview-mode-controls">
             <select id="engine-select" class="select-xs" title="Rendering Engine">
