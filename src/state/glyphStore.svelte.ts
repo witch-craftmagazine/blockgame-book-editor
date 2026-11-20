@@ -45,7 +45,7 @@ export function createGlyphStore() {
   let isOpen = $state(false);
   let favorites = $state<string[]>(initialFavs);
   let recents = $state<string[]>(initialRecents);
-  let activeCategory = $state<GlyphCategory>('all');
+  let activeCategory = $state<GlyphCategory>('symbols');
   let searchQuery = $state('');
   let previewColor = $state('#1D1D21');
   let inspectorGlyph = $state<GlyphItem | null>(null);

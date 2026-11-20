@@ -1,0 +1,81 @@
+title: Geometric Shapes
+author: UnicodeAudit
+pages:
+#- §1§lGeometric Shapes§r
+§8Unicode U+25A0..U+25FF§r
+
+§0Highlighted Test:§r
+25CB: ○  (White)
+25EF: ◯  (Large)
+25CF: ●  (Black)
+25CE: ◎  (Bullseye)
+25C9: ◉  (Fisheye)
+25A0: ■  25A1: □
+25B2: ▲  25BC: ▼
+25C6: ◆  25C7: ◇
+
+§8Next: Full Catalog §r
+#- §1§lShapes 1§r §8(25A0..25AB)§r
+
+§025A0§r ■   §025A1§r □
+§025A2§r ▢   §025A3§r ▣
+§025A4§r ▤   §025A5§r ▥
+§025A6§r ▦   §025A7§r ▧
+§025A8§r ▨   §025A9§r ▩
+§025AA§r ▪   §025AB§r ▫
+#- §1§lShapes 2§r §8(25AC..25B7)§r
+
+§025AC§r ▬   §025AD§r ▭
+§025AE§r ▮   §025AF§r ▯
+§025B0§r ▰   §025B1§r ▱
+§025B2§r ▲   §025B3§r △
+§025B4§r ▴   §025B5§r ▵
+§025B6§r ▶   §025B7§r ▷
+#- §1§lShapes 3§r §8(25B8..25C3)§r
+
+§025B8§r ▸   §025B9§r ▹
+§025BA§r ►   §025BB§r ▻
+§025BC§r ▼   §025BD§r ▽
+§025BE§r ▾   §025BF§r ▿
+§025C0§r ◀   §025C1§r ◁
+§025C2§r ◂   §025C3§r ◃
+#- §1§lShapes 4§r §8(25C4..25CF)§r
+
+§025C4§r ◄   §025C5§r ◅
+§025C6§r ◆   §025C7§r ◇
+§025C8§r ◈   §025C9§r ◉
+§025CA§r ◊   §025CB§r ○
+§025CC§r ◌   §025CD§r ◍
+§025CE§r ◎   §025CF§r ●
+#- §1§lShapes 5§r §8(25D0..25DB)§r
+
+§025D0§r ◐   §025D1§r ◑
+§025D2§r ◒   §025D3§r ◓
+§025D4§r ◔   §025D5§r ◕
+§025D6§r ◖   §025D7§r ◗
+§025D8§r ◘   §025D9§r ◙
+§025DA§r ◚   §025DB§r ◛
+#- §1§lShapes 6§r §8(25DC..25E7)§r
+
+§025DC§r ◜   §025DD§r ◝
+§025DE§r ◞   §025DF§r ◟
+§025E0§r ◠   §025E1§r ◡
+§025E2§r ◢   §025E3§r ◣
+§025E4§r ◤   §025E5§r ◥
+§025E6§r ◦   §025E7§r ◧
+#- §1§lShapes 7§r §8(25E8..25F3)§r
+
+§025E8§r ◨   §025E9§r ◩
+§025EA§r ◪   §025EB§r ◫
+§025EC§r ◬   §025ED§r ◭
+§025EE§r ◮   §025EF§r ◯
+§025F0§r ◰   §025F1§r ◱
+§025F2§r ◲   §025F3§r ◳
+#- §1§lShapes 8§r §8(25F4..25FF)§r
+
+§025F4§r ◴   §025F5§r ◵
+§025F6§r ◶   §025F7§r ◷
+§025F8§r ◸   §025F9§r ◹
+§025FA§r ◺   §025FB§r ◻
+§025FC§r ◼   §025FD§r ◽
+§025FE§r ◾   §025FF§r ◿

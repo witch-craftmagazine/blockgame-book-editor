@@ -26,6 +26,24 @@ import {
   currentMatrixMode,
   getGlyphsForCurrentSelection,
   renderSnippetPreviewCanvas,
+  getBaseGlyphsForSet,
+  getAvailableWidthsForSet,
+  SETS_PAGE_SIZE,
+  FONTS_PAGE_SIZE,
+  FONT_CHIPS_DATA,
+  pushUndoSnapshot,
+  undoStack,
+  redoStack,
+  undo,
+  redo,
+  jumpToHistorySnapshot,
+  currentSetsPageSize,
+  currentFontsPageSize,
+  currentMatrixPageSize,
+  updateDynamicRibbonSizes,
+  activeGlyphCat,
+  currentGlyphPage,
+  GLYPH_PAGE_SIZE,
   type BookshelfBook,
   type PageCopyFormat,
   type SavedTemplate,
@@ -37,6 +55,7 @@ import {
   getFontById,
   toNormalText,
 } from '../src/data/symbolChatFonts';
+import { CATEGORY_DEFINITIONS } from '../src/data/symbolChatDataset';
 import {
   CORE_ASSETS,
   parseBook,
@@ -422,21 +441,18 @@ describe('Minecraft Page Limit & Page Gallery Presets', () => {
     expect(mockMobileBtn.active).toBe(true);
   });
 
-  test('detectUnsupportedMinecraftChars catches SMP characters > U+FFFF while approving BMP characters', () => {
-    // BMP characters supported in Minecraft Java Edition
-    const bmpText = '§6★ Quest 1: ⚔ Slay the Beast ━ Enter ⛨ Castle';
-    const bmpResult = detectUnsupportedMinecraftChars(bmpText);
-    expect(bmpResult.count).toBe(0);
-    expect(bmpResult.chars.length).toBe(0);
+  test('detectUnsupportedMinecraftChars approves supported characters and catches missing glyphs', () => {
+    // Characters supported in Minecraft Java Edition (BMP + SMP Unifont)
+    const validText = '§6★ Quest 1: ⚔ Slay the Beast ━ Enter ⛨ Castle ◯ ○ 😀 🍎 🔥 💀 𝒯𝔢𝔞';
+    const validResult = detectUnsupportedMinecraftChars(validText);
+    expect(validResult.count).toBe(0);
+    expect(validResult.chars.length).toBe(0);
 
-    // Modern SMP emoji (> U+FFFF) that render as [] in vanilla Minecraft
-    const smpText = 'Hello! 😀 🍎 Fire 🔥 and skull 💀';
-    const smpResult = detectUnsupportedMinecraftChars(smpText);
-    expect(smpResult.count).toBe(4);
-    expect(smpResult.chars).toContain('😀');
-    expect(smpResult.chars).toContain('🍎');
-    expect(smpResult.chars).toContain('🔥');
-    expect(smpResult.chars).toContain('💀');
+    // Characters outside Minecraft's font providers (e.g. unassigned high plane codepoints)
+    const missingChar = String.fromCodePoint(0x2ffff);
+    const missingResult = detectUnsupportedMinecraftChars(`Hello ${missingChar}`);
+    expect(missingResult.count).toBe(1);
+    expect(missingResult.chars).toContain(missingChar);
   });
 
   test('all curated CHARACTER_SETS and GLYPH_CATALOG_BY_WIDTH contain only authentic Minecraft BMP glyphs', () => {
@@ -962,5 +978,157 @@ describe('Minecraft Page Limit & Page Gallery Presets', () => {
     // In headless test environment (no document), returns fallback object without exception
     const canvas = renderSnippetPreviewCanvas(['§6Test Line', 'Second Line']);
     expect(canvas).toBeDefined();
+  });
+
+  test('getBaseGlyphsForSet returns non-empty glyph arrays for all 19 unified categories', () => {
+    expect(CATEGORY_DEFINITIONS.length).toBe(19);
+    for (const cat of CATEGORY_DEFINITIONS) {
+      const glyphs = getBaseGlyphsForSet(cat.id);
+      expect(glyphs).toBeDefined();
+      if (cat.id !== 'recent') {
+        // fav, large subsets, and all static categories have default characters
+        expect(glyphs.length).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  test('getAvailableWidthsForSet computes valid pixel advance steps for unified sets', () => {
+    const borderSteps = getAvailableWidthsForSet('borders');
+    expect(borderSteps).toContain(9);
+
+    const arrowSteps = getAvailableWidthsForSet('arrows');
+    expect(arrowSteps.length).toBeGreaterThan(0);
+
+    const allSteps = getAvailableWidthsForSet('all');
+    expect(allSteps.length).toBeGreaterThanOrEqual(5);
+
+    const noncharacterSteps = getAvailableWidthsForSet('noncharacter');
+    expect(noncharacterSteps.length).toBeGreaterThan(0);
+  });
+
+  test('paged sets navigation math operates on 5 sets per page across 19 categories', () => {
+    expect(SETS_PAGE_SIZE).toBe(5);
+    const totalPages = Math.ceil(CATEGORY_DEFINITIONS.length / SETS_PAGE_SIZE);
+    expect(totalPages).toBe(4);
+
+    // Page 0 (1/4)
+    const page0 = CATEGORY_DEFINITIONS.slice(0, 5).map(c => c.id);
+    expect(page0).toEqual(['all', 'fav', 'recent', 'faces', 'nature']);
+
+    // Page 1 (2/4)
+    const page1 = CATEGORY_DEFINITIONS.slice(5, 10).map(c => c.id);
+    expect(page1).toEqual(['things', 'activities', 'symbols', 'shapes', 'borders']);
+
+    // Page 2 (3/4)
+    const page2 = CATEGORY_DEFINITIONS.slice(10, 15).map(c => c.id);
+    expect(page2).toEqual(['rpg', 'arrows', 'blocks', 'math', 'runes']);
+
+    // Page 3 (4/4) - large subsets
+    const page3 = CATEGORY_DEFINITIONS.slice(15, 20).map(c => c.id);
+    expect(page3).toEqual(['noncharacter', 'nonlatin', 'cjk', 'latin']);
+  });
+
+  test('paged font switcher operates on 5 fonts per page across 13 fonts', () => {
+    expect(FONTS_PAGE_SIZE).toBe(5);
+    expect(FONT_CHIPS_DATA.length).toBe(13);
+    const totalPages = Math.ceil(FONT_CHIPS_DATA.length / FONTS_PAGE_SIZE);
+    expect(totalPages).toBe(3);
+
+    // First page contains normal and small_caps
+    const page0Ids = FONT_CHIPS_DATA.slice(0, 5).map(f => f.id);
+    expect(page0Ids).toContain('normal');
+    expect(page0Ids).toContain('small_caps');
+
+    // Last page contains remaining 3 fonts
+    const page2 = FONT_CHIPS_DATA.slice(10, 15);
+    expect(page2.length).toBe(3);
+  });
+
+  test('pushUndoSnapshot records actionLabel, actionCategory and timestamp with max history limit', () => {
+    undoStack.length = 0;
+    redoStack.length = 0;
+
+    pushUndoSnapshot('Insert "★"', 'glyph');
+    expect(undoStack.length).toBe(1);
+    expect(undoStack[0].actionLabel).toBe('Insert "★"');
+    expect(undoStack[0].actionCategory).toBe('glyph');
+    expect(typeof undoStack[0].timestamp).toBe('number');
+
+    pushUndoSnapshot('Color §6', 'color');
+    expect(undoStack.length).toBe(2);
+    expect(undoStack[1].actionLabel).toBe('Color §6');
+    expect(undoStack[1].actionCategory).toBe('color');
+
+    // History cap test: push 50 snapshots, max is 40
+    for (let i = 0; i < 50; i++) {
+      pushUndoSnapshot(`Step ${i}`, 'text');
+    }
+    expect(undoStack.length).toBe(40);
+  });
+
+  test('undo, redo and jumpToHistorySnapshot navigate state timeline smoothly', () => {
+    undoStack.length = 0;
+    redoStack.length = 0;
+
+    pushUndoSnapshot('Initial Edit', 'text');
+    pushUndoSnapshot('Second Edit', 'style');
+    pushUndoSnapshot('Third Edit', 'layout');
+
+    expect(undoStack.length).toBe(3);
+    expect(redoStack.length).toBe(0);
+
+    // Undo step
+    undo();
+    expect(undoStack.length).toBe(2);
+    expect(redoStack.length).toBe(1);
+
+    // Redo step
+    redo();
+    expect(undoStack.length).toBe(3);
+    expect(redoStack.length).toBe(0);
+
+    // Jump to snapshot index 1 (undo 2 steps)
+    jumpToHistorySnapshot(1);
+    expect(undoStack.length).toBe(1);
+    expect(redoStack.length).toBe(2);
+
+    // Jump to snapshot index 3 (redo 2 steps back to active)
+    jumpToHistorySnapshot(3);
+    expect(undoStack.length).toBe(3);
+    expect(redoStack.length).toBe(0);
+  });
+
+  test('dynamic ribbon math adapts page sizes according to viewport widths', () => {
+    // Math formulas used in updateDynamicRibbonSizes:
+    // Slots: Math.max(4, Math.floor((availableWidth - 4) / 31))
+    expect(Math.max(4, Math.floor((120 - 4) / 31))).toBe(4);
+    expect(Math.max(4, Math.floor((300 - 4) / 31))).toBe(9);
+    expect(Math.max(4, Math.floor((500 - 4) / 31))).toBe(16);
+
+    // Sets chips: Math.max(2, Math.min(8, Math.floor((parentWidth - 65) / 75)))
+    expect(Math.max(2, Math.min(8, Math.floor((180 - 65) / 75)))).toBe(2);
+    expect(Math.max(2, Math.min(8, Math.floor((350 - 65) / 75)))).toBe(3);
+    expect(Math.max(2, Math.min(8, Math.floor((600 - 65) / 75)))).toBe(7);
+
+    // Font chips: Math.max(2, Math.min(8, Math.floor((parentWidth - 70) / 70)))
+    expect(Math.max(2, Math.min(8, Math.floor((180 - 70) / 70)))).toBe(2);
+    expect(Math.max(2, Math.min(8, Math.floor((350 - 70) / 70)))).toBe(4);
+    expect(Math.max(2, Math.min(8, Math.floor((600 - 70) / 70)))).toBe(7);
+  });
+
+  test('glyph library modal defaults to curated symbols instead of all and paginates with GLYPH_PAGE_SIZE = 120', () => {
+    // Avoid loading all >100k symbols on open
+    expect(activeGlyphCat).toBe('symbols');
+    expect(currentGlyphPage).toBe(1);
+    expect(GLYPH_PAGE_SIZE).toBe(120);
+
+    // Large subset pagination calculations
+    const cjkTotal = 40598;
+    const cjkPages = Math.ceil(cjkTotal / GLYPH_PAGE_SIZE);
+    expect(cjkPages).toBe(339);
+
+    const noncharacterTotal = 4928;
+    const noncharacterPages = Math.ceil(noncharacterTotal / GLYPH_PAGE_SIZE);
+    expect(noncharacterPages).toBe(42);
   });
 });

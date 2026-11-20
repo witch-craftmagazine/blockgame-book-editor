@@ -1,0 +1,108 @@
+title: World Scripts Test
+author: UnicodeAudit
+pages:
+#- §1§lWorld Scripts§r
+§8Minecraft Unifont Test§r
+
+This book samples
+global languages and
+writing systems
+bundled in vanilla
+Minecraft Java Edition.
+
+§8Total Unifont glyphs:§r
+§2114,432 characters§r
+#- §1§lCJK & Kana§r
+Hiragana:
+あいうえお かきくけこ
+さしすせそ たちつてと
+Katakana:
+アイウエオ カキクケコ
+サシスセソ タチツテト
+Kanji / Hanzi:
+日本語 漢字 読書 魔法
+天地玄黃 宇宙洪荒
+日月盈昃 辰宿列張
+#- §1§lKorean Hangul§r
+Syllables:
+가나다라마바사아자차
+카타파하 거너더러머
+다람쥐 헌 쳇바퀴에
+타고파 (Pangram)
+
+Jamo:
+ㄱ ㄴ ㄷ ㄹ ㅁ ㅂ ㅅ
+ㅇ ㅈ ㅊ ㅋ ㅌ ㅍ ㅎ
+ㅏ ㅑ ㅓ ㅕ ㅗ ㅛ ㅜ ㅠ
+#- §1§lCJK Decorative§r
+Brackets:
+【Notice】 『Book』
+「Quotation」 《Title》
+Circled Ideographs:
+㊤ ㊥ ㊦ ㊧ ㊨
+㊗ ㊙ ㊎ ㊍ ㊌ ㊋ ㊏
+Numerals:
+一 二 三 四 五 六 七
+八 九 十 百 千 万 億
+Marks: ※ 〒 々 〆 〇 〓
+#- §1§lIndigenous & Lore§r
+Canadian Syllabics:
+ᐁ ᐂ ᐃ ᐄ ᐅ ᐆ ᐇ ᐈ ᐉ
+ᐊ ᐋ ᐌ ᐍ ᐎ ᐏ ᐐ ᐑ ᐒ
+ᐸ ᐹ ᐺ ᐻ ᐼ ᐽ ᐾ ᐿ ᑀ
+
+Ogham Alphabet:
+᚛ᚐ ᚑ ᚒ ᚓ ᚔ ᚕ ᚖ ᚗ ᚘ ᚙ ᚚ᚜
+᚛ᚁ ᚂ ᚃ ᚄ ᚅ ᚆ ᚇ ᚈ ᚉ ᚊ᚜
+#- §1§lSacred Scripts§r
+Tibetan:
+ༀ མ ཎི པ དྨེ ཧཱུྃ
+ཀ ཁ ག ང ཅ ཆ ཇ ཉ
+ཏ ཐ ད ན པ ཕ བ མ
+Cherokee:
+Ꭰ Ꭱ Ꭲ Ꭳ Ꭴ Ꭵ Ꭶ Ꭷ Ꭸ Ꭹ
+Georgian:
+Ⴀ Ⴁ Ⴂ Ⴃ Ⴄ Ⴅ Ⴆ Ⴇ Ⴈ Ⴉ
+Armenian:
+Ա Բ Գ Դ Ե Զ Է Ը Թ Ժ
+#- §1§lMiddle Eastern§r
+Arabic (Raw Unifont):
+ا ب ت ث ج ح خ د
+ذ ر ز س ش ص ض ط
+ظ ع غ ف ق ك ل م
+ن هـ و ي
+
+Hebrew:
+א ב ג ד ה ו ז ח
+ט י כ ל מ נ ס ע
+פ צ ק ר ש ת
+#- §1§lSouth Asian§r
+Devanagari (Hindi):
+क ख ग घ ङ च छ ज
+झ ञ ट ठ ड ढ ण त
+थ द ध न प फ ब भ म
+Tamil:
+க ங ச ஞ ட ண த ந
+Thai:
+ก ข ฃ ค ฅ ฆ ง จ
+ฉ ช ซ ฌ ญ ฎ ฏ ฐ
+#- §1§lEuropean Scripts§r
+Cyrillic:
+А Б В Г Д Е Ж З И
+К Л М Н О П Р С Т
+Greek:
+Α Β Γ Δ Ε Ζ Η Θ Ι
+Κ Λ Μ Ν Ξ Ο Π Ρ Σ
+Old English / Archaic:
+Æ æ Œ œ Þ þ Ð ð Ȝ ȝ
+Punctuation: « » „ “ — –
+#- §1§lRunes & Braille§r
+Elder & Younger Runes:
+ᚠ ᚢ ᚦ ᚨ ᚱ ᚲ ᚷ ᚹ ᚺ ᚾ
+ᛁ ᛃ ᛇ ᛈ ᛉ ᛋ ᛏ ᛒ ᛖ ᛗ
+ᛚ ᛜ ᛞ ᛟ
+
+Braille Matrix:
+⠁ ⠃ ⠉ ⠙ ⠑ ⠋ ⠛ ⠓ ⠊ ⠚
+⠅ ⠇ ⠍ ⠝ ⠕ ⠏ ⠟ ⠗ ⠎ ⠞
+⠥ ⠧ ⠺ ⠭ ⠽ ⠵

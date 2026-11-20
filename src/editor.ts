@@ -38,6 +38,7 @@ import {
 } from 'blockgame-book-viewer';
 import {
   ALL_GLYPHS,
+  CATEGORY_DEFINITIONS,
   GLYPHS_BY_CATEGORY,
   findGlyphItem,
   type GlyphCategory,
@@ -72,18 +73,21 @@ const MAX_UNDO_HISTORY = 40;
 
 // ─── App State ────────────────────────────────────────────────────────────────
 
-interface UndoSnapshot {
+export interface UndoSnapshot {
   book: BlockgameBook;
   pageIndex: number;
+  actionLabel?: string;
+  actionCategory?: 'text' | 'color' | 'style' | 'glyph' | 'layout' | 'page' | 'preset' | 'clear' | 'meta' | 'font';
+  timestamp?: number;
 }
 
-let book: BlockgameBook = normalizeBook({
+export let book: BlockgameBook = normalizeBook({
   title: 'My Book',
   author: 'Author',
   pages: ['§6§lWelcome to the Book!§r\n\nEdit this page using the toolbar or type formatting codes directly.'],
 });
 
-let currentPageIndex = 0;
+export let currentPageIndex = 0;
 let currentLines: string[] = Array(MINECRAFT_LINES_PER_PAGE).fill('');
 let activeLineIndex = 0;
 let isRawMode = false;
@@ -98,8 +102,8 @@ let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 let autosaveTimer: ReturnType<typeof setTimeout> | null = null;
 
 // Undo / Redo Stacks
-const undoStack: UndoSnapshot[] = [];
-const redoStack: UndoSnapshot[] = [];
+export const undoStack: UndoSnapshot[] = [];
+export const redoStack: UndoSnapshot[] = [];
 let isApplyingHistory = false;
 
 // ─── Line Calculation & Serialization Helpers ─────────────────────────────────
@@ -585,7 +589,7 @@ export const CHARACTER_SETS: Record<string, GlyphSet> = {
   blocks: {
     id: 'blocks',
     name: '█ Blocks',
-    glyphs: ['█', '▓', '▒', '░', '▀', '▄', '▌', '▐', '■', '□', '▪', '▫', '▬', '▭', '▮', '▯', '▰', '▱', '◆', '◇', '◈', '◉', '◊', '○', '●', '◐', '◑'],
+    glyphs: ['█', '▓', '▒', '░', '▀', '▄', '▌', '▐', '■', '□', '▪', '▫', '▬', '▭', '▮', '▯', '▰', '▱', '◆', '◇', '◈', '◉', '◊', '○', '◯', '●', '◐', '◑'],
   },
   decor: {
     id: 'decor',
@@ -631,7 +635,7 @@ export const GLYPH_CATALOG_BY_WIDTH: Record<number, string[]> = {
     '?', '$', '#', '&', '@', '%', '/', '\\', '_',
     '©', '®', '¶', '¿', 'ᛃ', 'ᛈ'
   ],
-  7: ['—', '–', '≈', '≠', '≤', '≥', '¿', '‰', 'ᛞ', 'ᛟ'],
+  7: ['—', '–', '≈', '≠', '≤', '≥', '¿', '‰', 'ᛞ', 'ᛟ', '◯'],
   8: [
     '★', '☆', '✦', '✧', '✪', '✫', '✯', '⚡', '☄', '☽', '☾', '☉', '♨', '☕',
     '☠', '⚰', '⚱', '☘', '❄', '⚔', '⛏', '⚒', '⚖', '⚗', '⚙', '⚚', '⚛', '⚜', '⚓',
@@ -657,11 +661,47 @@ export let currentMatrixPx = 6;
 export let currentMatrixMode: MatrixMode = { type: 'set', setId: 'all', px: 6 };
 export let currentMatrixPage = 0;
 export const MATRIX_PAGE_SIZE = 14;
+export let currentMatrixPageSize = 14;
+
+export let currentSetsPage = 0;
+export const SETS_PAGE_SIZE = 5;
+export let currentSetsPageSize = 5;
+
+export interface FontChipItem {
+  id: string;
+  name: string;
+  label: string;
+  title: string;
+}
+
+export const FONT_CHIPS_DATA: FontChipItem[] = [
+  { id: 'normal', name: 'Normal', label: 'Normal', title: 'Normal text' },
+  { id: 'small_caps', name: 'Small Caps', label: 'ꜱᴍᴀʟʟ', title: 'Small Caps' },
+  { id: 'circled', name: 'Circled', label: 'Ⓒⓘⓡ', title: 'Circled' },
+  { id: 'fullwidth', name: 'Fullwidth', label: 'Ｆｕｌｌ', title: 'Fullwidth' },
+  { id: 'superscript', name: 'Superscript', label: 'ˢᵘᵖ', title: 'Superscript' },
+  { id: 'subscript', name: 'Subscript', label: 'ₜₑₓₜ', title: 'Subscript' },
+  { id: 'inverted', name: 'Upside Down', label: 'ʇxǝʇ', title: 'Inverted / Upside Down' },
+  { id: 'fraktur', name: 'Fraktur / Gothic', label: '𝔉𝔯𝔞', title: 'Fraktur / Gothic' },
+  { id: 'double_struck', name: 'Double Struck', label: '𝔻𝕠𝕦', title: 'Double Struck' },
+  { id: 'script', name: 'Script / Cursive', label: '𝒮𝒸𝓇', title: 'Script / Cursive' },
+  { id: 'bold_serif', name: 'Bold Serif', label: '𝐁𝐨𝐥', title: 'Bold Serif' },
+  { id: 'circled_black', name: 'Circled Black', label: '🅐🅑🅒', title: 'Circled Black' },
+  { id: 'squared', name: 'Squared', label: '🄰🄱🄲', title: 'Squared' },
+];
+
+export let currentFontPage = 0;
+export const FONTS_PAGE_SIZE = 5;
+export let currentFontsPageSize = 5;
+export let activeFontId: string = 'normal';
 
 export function getBaseGlyphsForSet(setId: string): string[] {
   if (setId === 'all') return ALL_GLYPHS.map(g => g.char);
   if (setId === 'recent') return recentGlyphs;
   if (setId === 'fav') return userFavoriteGlyphs;
+  if (setId in GLYPHS_BY_CATEGORY) {
+    return (GLYPHS_BY_CATEGORY[setId as keyof typeof GLYPHS_BY_CATEGORY] || []).map(g => g.char);
+  }
   return CHARACTER_SETS[setId]?.glyphs || [];
 }
 
@@ -690,7 +730,7 @@ export function renderMatrixSlots(): void {
   matrixSlotsRibbon.innerHTML = '';
 
   const list = getGlyphsForCurrentSelection();
-  const totalPages = Math.max(1, Math.ceil(list.length / MATRIX_PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(list.length / currentMatrixPageSize));
   if (currentMatrixPage >= totalPages) currentMatrixPage = 0;
 
   // Pixel selector badge ALWAYS displays the pixel width (never a set name!)
@@ -708,8 +748,8 @@ export function renderMatrixSlots(): void {
     matrixPageLabel.textContent = `${currentMatrixPage + 1}/${totalPages}`;
   }
 
-  const startIdx = currentMatrixPage * MATRIX_PAGE_SIZE;
-  const pageItems = list.slice(startIdx, startIdx + MATRIX_PAGE_SIZE);
+  const startIdx = currentMatrixPage * currentMatrixPageSize;
+  const pageItems = list.slice(startIdx, startIdx + currentMatrixPageSize);
 
   if (pageItems.length === 0) {
     const empty = document.createElement('div');
@@ -762,6 +802,313 @@ export function toggleFavoriteGlyph(glyph: string): void {
   }
   saveUserFavoriteGlyphs(userFavoriteGlyphs);
   renderMatrixSlots();
+}
+
+export function renderMatrixSetChips(): void {
+  if (!matrixQuickWidths) return;
+  const container = matrixQuickWidths;
+  container.innerHTML = '';
+
+  const totalSetsPages = Math.max(1, Math.ceil(CATEGORY_DEFINITIONS.length / currentSetsPageSize));
+  if (currentSetsPage >= totalSetsPages) currentSetsPage = 0;
+  if (currentSetsPage < 0) currentSetsPage = totalSetsPages - 1;
+
+  if (matrixSetsPageLabel) {
+    matrixSetsPageLabel.textContent = `${currentSetsPage + 1}/${totalSetsPages}`;
+  }
+
+  const startIdx = currentSetsPage * currentSetsPageSize;
+  const pageSets = CATEGORY_DEFINITIONS.slice(startIdx, startIdx + currentSetsPageSize);
+  const activeSet = currentMatrixMode.type === 'set' ? currentMatrixMode.setId : currentMatrixSetId;
+
+  pageSets.forEach((cat) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = `matrix-chip ${cat.id === activeSet ? 'active' : ''}`;
+    btn.dataset.set = cat.id;
+    btn.title = cat.description;
+    btn.textContent = `${cat.icon} ${cat.label}`;
+
+    btn.addEventListener('click', () => {
+      currentMatrixSetId = cat.id;
+      const available = getAvailableWidthsForSet(cat.id);
+      if (available.length > 0 && !available.includes(currentMatrixPx)) {
+        currentMatrixPx = available[0];
+      }
+      currentMatrixMode = { type: 'set', setId: cat.id, px: currentMatrixPx };
+      currentMatrixPage = 0;
+      updateActiveMatrixChip();
+      renderMatrixSlots();
+    });
+
+    container.appendChild(btn);
+  });
+}
+
+export function updateActiveMatrixChip(): void {
+  if (!matrixQuickWidths) return;
+  const activeSet = currentMatrixMode.type === 'set' ? currentMatrixMode.setId : currentMatrixSetId;
+  matrixQuickWidths.querySelectorAll<HTMLButtonElement>('.matrix-chip').forEach(chip => {
+    chip.classList.toggle('active', chip.dataset.set === activeSet);
+  });
+}
+
+export function renderFontChips(): void {
+  if (!fontQuickChips) return;
+  const container = fontQuickChips;
+  container.innerHTML = '';
+
+  const totalFontPages = Math.max(1, Math.ceil(FONT_CHIPS_DATA.length / currentFontsPageSize));
+  if (currentFontPage >= totalFontPages) currentFontPage = 0;
+  if (currentFontPage < 0) currentFontPage = totalFontPages - 1;
+
+  if (fontPageLabel) {
+    fontPageLabel.textContent = `${currentFontPage + 1}/${totalFontPages}`;
+  }
+
+  const startIdx = currentFontPage * currentFontsPageSize;
+  const pageFonts = FONT_CHIPS_DATA.slice(startIdx, startIdx + currentFontsPageSize);
+
+  pageFonts.forEach((f) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = `font-chip ${f.id === activeFontId ? 'active' : ''}`;
+    btn.dataset.font = f.id;
+    btn.title = f.title;
+    btn.textContent = f.label;
+
+    btn.addEventListener('click', () => {
+      setActiveFont(f.id);
+    });
+
+    container.appendChild(btn);
+  });
+}
+
+export function setActiveFont(fontId: string): void {
+  activeFontId = fontId;
+
+  // Auto-sync font page if necessary so the active chip is visible
+  const fontIdx = FONT_CHIPS_DATA.findIndex(f => f.id === fontId);
+  if (fontIdx !== -1) {
+    const targetPage = Math.floor(fontIdx / currentFontsPageSize);
+    if (targetPage !== currentFontPage) {
+      currentFontPage = targetPage;
+    }
+  }
+  renderFontChips();
+
+  const activeFontBadge = document.getElementById('active-font-badge');
+  if (activeFontBadge) {
+    const activeFontObj = FONT_CHIPS_DATA.find(f => f.id === fontId);
+    const label = activeFontObj?.name || (fontId === 'normal' ? 'Normal' : fontId);
+    activeFontBadge.textContent = `Active: ${label}`;
+  }
+  showToast(`Font: ${fontId === 'normal' ? 'Normal' : fontId}`, 'info');
+}
+
+export function updateDynamicRibbonSizes(): void {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return;
+
+  // 1. Dynamic Glyph Slots Page Size
+  if (matrixSlotsRibbon) {
+    const availableWidth = matrixSlotsRibbon.clientWidth;
+    // Each slot is 28px + 3px gap = 31px
+    if (availableWidth > 60) {
+      const slotsFit = Math.max(4, Math.floor((availableWidth - 4) / 31));
+      if (slotsFit !== currentMatrixPageSize) {
+        currentMatrixPageSize = slotsFit;
+        renderMatrixSlots();
+      }
+    }
+  }
+
+  // 2. Dynamic Sets Ribbon Page Size
+  if (matrixQuickWidths && matrixQuickWidths.parentElement) {
+    const parentWidth = matrixQuickWidths.parentElement.clientWidth;
+    // Prev / Next arrow buttons and label occupy ~60px
+    const availableWidth = Math.max(80, parentWidth - 65);
+    // Each chip is ~75px average
+    const setsFit = Math.max(2, Math.min(8, Math.floor(availableWidth / 75)));
+    if (setsFit !== currentSetsPageSize) {
+      currentSetsPageSize = setsFit;
+      renderMatrixSetChips();
+    }
+  }
+
+  // 3. Dynamic Font Switcher Page Size
+  if (fontQuickChips && fontQuickChips.parentElement) {
+    const parentWidth = fontQuickChips.parentElement.clientWidth;
+    // Prev / Next arrow buttons and label occupy ~65px
+    const availableWidth = Math.max(80, parentWidth - 70);
+    // Each chip is ~70px average
+    const fontsFit = Math.max(2, Math.min(8, Math.floor(availableWidth / 70)));
+    if (fontsFit !== currentFontsPageSize) {
+      currentFontsPageSize = fontsFit;
+      renderFontChips();
+    }
+  }
+}
+
+export function jumpToHistorySnapshot(targetIndex: number): void {
+  const currentIdx = undoStack.length;
+  if (targetIndex === currentIdx) return;
+
+  if (targetIndex < currentIdx) {
+    const steps = currentIdx - targetIndex;
+    for (let i = 0; i < steps; i++) {
+      if (undoStack.length === 0) break;
+      undo();
+    }
+  } else {
+    const steps = targetIndex - currentIdx;
+    for (let i = 0; i < steps; i++) {
+      if (redoStack.length === 0) break;
+      redo();
+    }
+  }
+  renderHistoryTable();
+}
+
+export function renderHistoryTable(): void {
+  if (!historyTableBody) return;
+  const container = historyTableBody;
+  container.innerHTML = '';
+
+  interface TimelineItem {
+    index: number;
+    type: 'past' | 'current' | 'future';
+    snapshot: UndoSnapshot;
+    label: string;
+    category: string;
+    page: number;
+    timeStr: string;
+  }
+
+  const items: TimelineItem[] = [];
+
+  // 1. Past states (from undoStack)
+  undoStack.forEach((snap, idx) => {
+    items.push({
+      index: idx,
+      type: 'past',
+      snapshot: snap,
+      label: snap.actionLabel || 'Edit',
+      category: snap.actionCategory || 'text',
+      page: snap.pageIndex + 1,
+      timeStr: snap.timestamp ? new Date(snap.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Earlier',
+    });
+  });
+
+  // 2. Current active state
+  items.push({
+    index: undoStack.length,
+    type: 'current',
+    snapshot: {
+      book: { title: book.title, author: book.author, pages: [...book.pages] },
+      pageIndex: currentPageIndex,
+      actionLabel: 'Current State',
+      actionCategory: 'meta',
+      timestamp: Date.now(),
+    },
+    label: 'Current State (Active)',
+    category: 'meta',
+    page: currentPageIndex + 1,
+    timeStr: 'Now',
+  });
+
+  // 3. Future states (from redoStack, popped in reverse order)
+  const reversedRedo = [...redoStack].reverse();
+  reversedRedo.forEach((snap, rIdx) => {
+    const timelineIdx = undoStack.length + 1 + rIdx;
+    items.push({
+      index: timelineIdx,
+      type: 'future',
+      snapshot: snap,
+      label: snap.actionLabel || 'Undone Action',
+      category: snap.actionCategory || 'text',
+      page: snap.pageIndex + 1,
+      timeStr: snap.timestamp ? new Date(snap.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Future',
+    });
+  });
+
+  const categoryIcons: Record<string, string> = {
+    text: '✏️',
+    color: '🎨',
+    style: '✨',
+    glyph: '🔣',
+    layout: '📐',
+    page: '📄',
+    preset: '📥',
+    clear: '🗑️',
+    meta: '⚙️',
+    font: '🔤',
+  };
+
+  items.forEach((item) => {
+    const tr = document.createElement('tr');
+    tr.className = `history-row ${item.type}`;
+
+    // State column
+    const tdState = document.createElement('td');
+    const stateBadge = document.createElement('span');
+    stateBadge.className = `history-status-badge ${item.type}`;
+    stateBadge.textContent = item.type === 'current' ? '● Current' : item.type === 'past' ? 'Past' : 'Future';
+    tdState.appendChild(stateBadge);
+    tr.appendChild(tdState);
+
+    // Target column
+    const tdTarget = document.createElement('td');
+    const targetBadge = document.createElement('span');
+    targetBadge.className = 'history-target-badge';
+    targetBadge.textContent = `P. ${item.page}`;
+    tdTarget.appendChild(targetBadge);
+    tr.appendChild(tdTarget);
+
+    // Action column
+    const tdAction = document.createElement('td');
+    const actionWrap = document.createElement('span');
+    actionWrap.className = 'history-action-tag';
+    const icon = categoryIcons[item.category] || '✏️';
+    actionWrap.textContent = `${icon} ${item.label}`;
+    tdAction.appendChild(actionWrap);
+    tr.appendChild(tdAction);
+
+    // Time column
+    const tdTime = document.createElement('td');
+    tdTime.className = 'history-time-col';
+    tdTime.textContent = item.timeStr;
+    tr.appendChild(tdTime);
+
+    // Action / Jump column
+    const tdJump = document.createElement('td');
+    tdJump.style.textAlign = 'right';
+    if (item.type === 'current') {
+      const activeSpan = document.createElement('span');
+      activeSpan.style.color = 'var(--mc-diamond)';
+      activeSpan.style.fontSize = '10px';
+      activeSpan.textContent = 'Active';
+      tdJump.appendChild(activeSpan);
+    } else {
+      const jumpBtn = document.createElement('button');
+      jumpBtn.type = 'button';
+      jumpBtn.className = 'btn btn-xs btn-outline';
+      jumpBtn.textContent = item.type === 'past' ? '↩ Revert' : '↪ Advance';
+      jumpBtn.title = `Jump to this snapshot`;
+      jumpBtn.addEventListener('click', () => {
+        jumpToHistorySnapshot(item.index);
+      });
+      tdJump.appendChild(jumpBtn);
+    }
+    tr.appendChild(tdJump);
+
+    container.appendChild(tr);
+  });
+
+  const stats = document.getElementById('history-footer-stats');
+  if (stats) {
+    stats.textContent = `${undoStack.length} undo step${undoStack.length === 1 ? '' : 's'} • ${redoStack.length} redo step${redoStack.length === 1 ? '' : 's'}`;
+  }
 }
 
 // ─── DOM References ──────────────────────────────────────────────────────────
@@ -1161,6 +1508,14 @@ export const openHistory = openBookshelf;
 
 // Desktop Font Switcher Ribbon
 let fontQuickChips: HTMLElement | null = null;
+let fontPagePrev: HTMLButtonElement | null = null;
+let fontPageNext: HTMLButtonElement | null = null;
+let fontPageLabel: HTMLElement | null = null;
+
+// Edit History Dialog
+let historyDialog: HTMLDialogElement | null = null;
+let historyTableBody: HTMLElement | null = null;
+let btnHistory: HTMLButtonElement | null = null;
 
 // Multi-line selection
 let selectedLineIndices = new Set<number>([0]);
@@ -1178,6 +1533,9 @@ let matrixPageNext: HTMLButtonElement;
 let matrixPageLabel: HTMLElement;
 let matrixSlotsRibbon: HTMLElement;
 let matrixQuickWidths: HTMLElement;
+let matrixSetsPrev: HTMLButtonElement | null = null;
+let matrixSetsNext: HTMLButtonElement | null = null;
+let matrixSetsPageLabel: HTMLElement | null = null;
 
 // Collapsible Saved Art Deck
 let savedArtDeck: HTMLElement;
@@ -1223,6 +1581,9 @@ function initDOM(): void {
 
   btnUndo             = document.getElementById('btn-undo')              as HTMLButtonElement;
   btnRedo             = document.getElementById('btn-redo')              as HTMLButtonElement;
+  btnHistory          = document.getElementById('btn-history')           as HTMLButtonElement | null;
+  historyDialog       = document.getElementById('history-dialog')        as HTMLDialogElement | null;
+  historyTableBody    = document.getElementById('history-table-body');
   btnOpenBookshelf    = document.getElementById('btn-open-bookshelf')    as HTMLButtonElement | null;
   btnCenterLine       = document.getElementById('btn-center-line')       as HTMLButtonElement;
   btnFillMargin       = document.getElementById('btn-fill-margin')       as HTMLButtonElement;
@@ -1254,6 +1615,9 @@ function initDOM(): void {
 
   // Desktop Font Switcher Ribbon
   fontQuickChips      = document.getElementById('font-quick-chips');
+  fontPagePrev        = document.getElementById('font-page-prev') as HTMLButtonElement | null;
+  fontPageNext        = document.getElementById('font-page-next') as HTMLButtonElement | null;
+  fontPageLabel       = document.getElementById('font-page-label');
 
   // Top Matrix Selector & Hub
   btnStudioTools      = document.getElementById('btn-studio-tools')       as HTMLButtonElement;
@@ -1267,6 +1631,13 @@ function initDOM(): void {
   matrixPageLabel     = document.getElementById('matrix-page-label')      as HTMLElement;
   matrixSlotsRibbon   = document.getElementById('matrix-slots-ribbon')    as HTMLElement;
   matrixQuickWidths   = document.getElementById('matrix-quick-widths')    as HTMLElement;
+  matrixSetsPrev      = document.getElementById('matrix-sets-prev')       as HTMLButtonElement | null;
+  matrixSetsNext      = document.getElementById('matrix-sets-next')       as HTMLButtonElement | null;
+  matrixSetsPageLabel = document.getElementById('matrix-sets-page-label');
+
+  // Initial render of dynamic paged strips
+  renderMatrixSetChips();
+  renderFontChips();
 
   // Collapsible Saved Art Deck
   savedArtDeck        = document.getElementById('saved-art-deck')         as HTMLElement;
@@ -1281,6 +1652,26 @@ function initDOM(): void {
 
   // Build the 14 Line Rows in the 14-Line Book View
   build14LineRows();
+
+  // Dynamic Ribbon Page Sizing via ResizeObserver
+  updateDynamicRibbonSizes();
+  if (typeof ResizeObserver !== 'undefined') {
+    let animId: number | null = null;
+    const ro = new ResizeObserver(() => {
+      if (animId) cancelAnimationFrame(animId);
+      animId = requestAnimationFrame(() => {
+        updateDynamicRibbonSizes();
+      });
+    });
+    if (matrixSlotsRibbon) ro.observe(matrixSlotsRibbon);
+    const setsWrap = document.getElementById('matrix-sets-pagination-wrap');
+    if (setsWrap) ro.observe(setsWrap);
+    const fontRibbon = document.getElementById('font-switcher-ribbon');
+    if (fontRibbon) ro.observe(fontRibbon);
+  }
+  window.addEventListener('resize', () => {
+    updateDynamicRibbonSizes();
+  });
 }
 
 function build14LineRows(): void {
@@ -1561,7 +1952,7 @@ function onLineInput(lineIdx: number): void {
 
   // Handle auto word-wrapping onto subsequent lines when exceeding 114px
   handleLineAutoWrap(lineIdx);
-  pushUndoSnapshot();
+  pushUndoSnapshot(`Edit Line ${lineIdx + 1}`, 'text');
   updateAll();
 }
 
@@ -1644,7 +2035,7 @@ function onLineKeyDown(e: KeyboardEvent, lineIdx: number): void {
     lineInputEls[lineIdx + 1]?.focus();
     lineInputEls[lineIdx + 1]?.setSelectionRange(0, 0);
 
-    pushUndoSnapshot();
+    pushUndoSnapshot(`Split Line ${lineIdx + 1}`, 'text');
     updateAll();
     return;
   }
@@ -1716,7 +2107,7 @@ function onLineKeyDown(e: KeyboardEvent, lineIdx: number): void {
         }
       }
 
-      pushUndoSnapshot();
+      pushUndoSnapshot(`Merge Line ${lineIdx + 1}`, 'text');
       updateAll();
       return;
     }
@@ -1782,7 +2173,7 @@ function onLinePaste(e: ClipboardEvent, lineIdx: number): void {
     showToast('Pasted text reflowed across 14 lines (excess truncated to fit book)', 'info');
   }
 
-  pushUndoSnapshot();
+  pushUndoSnapshot('Paste Text', 'text');
   updateAll();
 }
 
@@ -1836,7 +2227,8 @@ function insertAtCursor(text: string): void {
   input.focus();
 
   handleLineAutoWrap(activeLineIndex);
-  pushUndoSnapshot();
+  const snippet = text.length > 8 ? text.slice(0, 7) + '…' : text;
+  pushUndoSnapshot(`Insert "${snippet}"`, 'glyph');
   updateAll();
 }
 
@@ -1886,13 +2278,17 @@ function applyFormatting(code: string): void {
   input.focus();
 
   handleLineAutoWrap(activeLineIndex);
-  pushUndoSnapshot();
+  const isColor = /^[0-9a-f]$/i.test(code.replace('§', ''));
+  pushUndoSnapshot(isColor ? `Color ${code}` : `Format ${code}`, isColor ? 'color' : 'style');
   updateAll();
 }
 
 // ─── Undo / Redo System ───────────────────────────────────────────────────────
 
-function pushUndoSnapshot(): void {
+export function pushUndoSnapshot(
+  actionLabel = 'Edit',
+  actionCategory: UndoSnapshot['actionCategory'] = 'text'
+): void {
   if (isApplyingHistory) return;
   const snapshot: UndoSnapshot = {
     book: {
@@ -1901,6 +2297,9 @@ function pushUndoSnapshot(): void {
       pages: [...book.pages],
     },
     pageIndex: currentPageIndex,
+    actionLabel,
+    actionCategory,
+    timestamp: Date.now(),
   };
 
   undoStack.push(snapshot);
@@ -1909,25 +2308,31 @@ function pushUndoSnapshot(): void {
   }
   redoStack.length = 0;
   updateUndoRedoButtons();
+  if (historyDialog && historyDialog.open) {
+    renderHistoryTable();
+  }
 }
 
-function undo(): void {
+export function undo(): void {
   if (undoStack.length === 0) return;
   isApplyingHistory = true;
 
+  const prev = undoStack.pop()!;
   redoStack.push({
     book: { title: book.title, author: book.author, pages: [...book.pages] },
     pageIndex: currentPageIndex,
+    actionLabel: prev.actionLabel || 'Action',
+    actionCategory: prev.actionCategory || 'text',
+    timestamp: Date.now(),
   });
 
-  const prev = undoStack.pop()!;
   book = {
     title: prev.book.title,
     author: prev.book.author,
     pages: [...prev.book.pages],
   };
-  metaTitle.value = book.title;
-  metaAuthor.value = book.author;
+  if (metaTitle) metaTitle.value = book.title;
+  if (metaAuthor) metaAuthor.value = book.author;
   currentPageIndex = Math.min(prev.pageIndex, book.pages.length - 1);
 
   loadPageIntoEditor(currentPageIndex);
@@ -1939,23 +2344,26 @@ function undo(): void {
   showToast('Undo', 'info');
 }
 
-function redo(): void {
+export function redo(): void {
   if (redoStack.length === 0) return;
   isApplyingHistory = true;
 
+  const next = redoStack.pop()!;
   undoStack.push({
     book: { title: book.title, author: book.author, pages: [...book.pages] },
     pageIndex: currentPageIndex,
+    actionLabel: next.actionLabel || 'Action',
+    actionCategory: next.actionCategory || 'text',
+    timestamp: Date.now(),
   });
 
-  const next = redoStack.pop()!;
   book = {
     title: next.book.title,
     author: next.book.author,
     pages: [...next.book.pages],
   };
-  metaTitle.value = book.title;
-  metaAuthor.value = book.author;
+  if (metaTitle) metaTitle.value = book.title;
+  if (metaAuthor) metaAuthor.value = book.author;
   currentPageIndex = Math.min(next.pageIndex, book.pages.length - 1);
 
   loadPageIntoEditor(currentPageIndex);
@@ -1971,14 +2379,16 @@ function updateUndoRedoButtons(): void {
   if (!btnUndo || !btnRedo) return;
   btnUndo.disabled = undoStack.length === 0;
   btnRedo.disabled = redoStack.length === 0;
+  if (historyDialog && historyDialog.open) {
+    renderHistoryTable();
+  }
 }
 
 // ─── LocalStorage Autosave & Restore ──────────────────────────────────────────
 
 function triggerAutosave(): void {
-  if (!autosaveDot || !autosaveText) return;
-  autosaveDot.classList.add('saving');
-  autosaveText.textContent = 'Saving…';
+  if (autosaveDot) autosaveDot.classList.add('saving');
+  if (autosaveText) autosaveText.textContent = 'Saving…';
 
   if (autosaveTimer) clearTimeout(autosaveTimer);
   autosaveTimer = setTimeout(() => {
@@ -1988,14 +2398,16 @@ function triggerAutosave(): void {
         timestamp: Date.now(),
         currentPageIndex,
       };
-      localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(data));
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(data));
+      }
       syncCurrentBookToBookshelf();
       const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      autosaveText.textContent = `Saved ${timeStr}`;
+      if (autosaveText) autosaveText.textContent = `Saved ${timeStr}`;
     } catch {
-      autosaveText.textContent = 'Autosave error';
+      if (autosaveText) autosaveText.textContent = 'Autosave error';
     } finally {
-      autosaveDot.classList.remove('saving');
+      if (autosaveDot) autosaveDot.classList.remove('saving');
     }
   }, 400);
 }
@@ -2094,7 +2506,7 @@ function loadPageIntoEditor(index: number): void {
   currentPageIndex = Math.max(0, Math.min(index, book.pages.length - 1));
   const pageText = book.pages[currentPageIndex] ?? '';
   currentLines = getLinesFromPageText(pageText);
-  textarea.value = pageText;
+  if (textarea) textarea.value = pageText;
 
   for (let i = 0; i < MINECRAFT_LINES_PER_PAGE; i++) {
     if (lineInputEls[i]) {
@@ -2102,7 +2514,7 @@ function loadPageIntoEditor(index: number): void {
     }
   }
 
-  pageBadge.textContent = `Page ${currentPageIndex + 1} / ${book.pages.length}`;
+  if (pageBadge) pageBadge.textContent = `Page ${currentPageIndex + 1} / ${book.pages.length}`;
   if (previewIndicator) {
     previewIndicator.textContent = `${currentPageIndex + 1} / ${book.pages.length}`;
   }
@@ -2203,16 +2615,20 @@ function updateGutterAndStats(): void {
     }
   }
 
-  metaTitleCount.textContent = `${metaTitle.value.length}/32`;
-  metaAuthorCount.textContent = `${metaAuthor.value.length}/16`;
+  if (metaTitleCount && metaTitle) {
+    metaTitleCount.textContent = `${metaTitle.value.length}/32`;
+  }
+  if (metaAuthorCount && metaAuthor) {
+    metaAuthorCount.textContent = `${metaAuthor.value.length}/16`;
+  }
 
   // Mobile Active Line Deck & Traffic Light Dot Sync
-  if (mobileLineInput && document.activeElement !== mobileLineInput) {
+  if (mobileLineInput && typeof document !== 'undefined' && document.activeElement !== mobileLineInput) {
     mobileLineInput.value = currentLines[activeLineIndex] ?? '';
     mobileLineInput.placeholder = `Type line ${activeLineIndex + 1} text…`;
   }
 
-  const mobileDot = document.getElementById('mobile-traffic-dot');
+  const mobileDot = typeof document !== 'undefined' ? document.getElementById('mobile-traffic-dot') : null;
   if (mobileDot) {
     if (activeW > mw) {
       mobileDot.className = 'mobile-traffic-dot dot-over';
@@ -2240,14 +2656,14 @@ function updateAll(immediate = false): void {
 
   // Sync state
   if (isRawMode) {
-    book.pages[currentPageIndex] = textarea.value;
+    if (textarea) book.pages[currentPageIndex] = textarea.value;
   } else {
     const pageText = getPageTextFromLines(currentLines);
     book.pages[currentPageIndex] = pageText;
-    textarea.value = pageText;
+    if (textarea) textarea.value = pageText;
   }
-  book.title  = metaTitle.value.trim()  || 'Untitled';
-  book.author = metaAuthor.value.trim() || 'Author';
+  if (metaTitle) book.title  = metaTitle.value.trim()  || 'Untitled';
+  if (metaAuthor) book.author = metaAuthor.value.trim() || 'Author';
 
   if (immediate) {
     syncViewerToBook();
@@ -2258,7 +2674,9 @@ function updateAll(immediate = false): void {
     }, 60);
   }
 
-  pageBadge.textContent = `Page ${currentPageIndex + 1} / ${book.pages.length}`;
+  if (pageBadge) {
+    pageBadge.textContent = `Page ${currentPageIndex + 1} / ${book.pages.length}`;
+  }
   if (previewIndicator) {
     previewIndicator.textContent = `${currentPageIndex + 1} / ${book.pages.length}`;
   }
@@ -2299,9 +2717,10 @@ async function initViewer(): Promise<void> {
 // ─── Symbol Chat-Inspired Unicode Glyph Browser & Font Engine ─────────────────
 
 const RECENTS_KEY = 'blockgame_user_recent_glyphs';
-let activeGlyphCat: GlyphCategory = 'all';
+export let activeGlyphCat: GlyphCategory = 'symbols';
+export let currentGlyphPage = 1;
+export const GLYPH_PAGE_SIZE = 120;
 let activeGlyphTint: string = '#FFFFFF';
-let activeFontId: string = 'normal';
 let recentGlyphs: string[] = [];
 
 try {
@@ -2382,13 +2801,33 @@ function renderGlyphs(): void {
         hex.includes(query.replace(/^u\+?/i, ''))
       );
     });
-  } else if (activeGlyphCat === 'all') {
-    // One large unified continuous grid of all symbols (Symbol Chat style)
-    itemsToRender = ALL_GLYPHS;
+
+    // If active category is a large subset (e.g. nonlatin, noncharacter, cjk, latin), also search within that subset
+    if (activeGlyphCat in GLYPHS_BY_CATEGORY && !['all', 'fav', 'recent'].includes(activeGlyphCat)) {
+      const subsetItems = (GLYPHS_BY_CATEGORY as any)[activeGlyphCat] || [];
+      const subsetMatches = subsetItems.filter((item: GlyphItem) => {
+        const hex = (item.char.codePointAt(0) || 0).toString(16).toLowerCase();
+        return (
+          item.char.includes(query) ||
+          item.name.toLowerCase().includes(query) ||
+          hex.includes(query.replace(/^u\+?/i, ''))
+        );
+      });
+      const seen = new Set(itemsToRender.map(i => i.char));
+      for (const m of subsetMatches) {
+        if (!seen.has(m.char)) {
+          seen.add(m.char);
+          itemsToRender.push(m);
+        }
+      }
+    }
   } else if (activeGlyphCat === 'fav') {
     itemsToRender = userFavoriteGlyphs.map((c) => findGlyphItem(c));
   } else if (activeGlyphCat === 'recent') {
     itemsToRender = recentGlyphs.map((c) => findGlyphItem(c));
+  } else if (activeGlyphCat === 'all') {
+    // Curated Symbol Chat set, never dump >100k
+    itemsToRender = ALL_GLYPHS;
   } else {
     itemsToRender = (GLYPHS_BY_CATEGORY as any)[activeGlyphCat] || [];
   }
@@ -2399,11 +2838,29 @@ function renderGlyphs(): void {
     itemsToRender = itemsToRender.filter((item) => getCharPixelAdvance(item.char) === targetPx);
   }
 
-  if (itemsToRender.length > 0) {
-    updateGlyphInspector(itemsToRender[0]);
+  const totalPages = Math.max(1, Math.ceil(itemsToRender.length / GLYPH_PAGE_SIZE));
+  if (currentGlyphPage > totalPages) currentGlyphPage = totalPages;
+  if (currentGlyphPage < 1) currentGlyphPage = 1;
+
+  // Update pagination bar
+  const pageInfo = document.getElementById('glyph-page-info');
+  const prevBtn = document.getElementById('glyph-page-prev') as HTMLButtonElement | null;
+  const nextBtn = document.getElementById('glyph-page-next') as HTMLButtonElement | null;
+  if (pageInfo) {
+    pageInfo.textContent = `Page ${currentGlyphPage} / ${totalPages} (${itemsToRender.length.toLocaleString()} symbols)`;
+  }
+  if (prevBtn) prevBtn.disabled = currentGlyphPage <= 1;
+  if (nextBtn) nextBtn.disabled = currentGlyphPage >= totalPages;
+
+  // Windowed rendering: only render current page to keep DOM fast
+  const startIdx = (currentGlyphPage - 1) * GLYPH_PAGE_SIZE;
+  const pageItems = itemsToRender.slice(startIdx, startIdx + GLYPH_PAGE_SIZE);
+
+  if (pageItems.length > 0) {
+    updateGlyphInspector(pageItems[0]);
   }
 
-  itemsToRender.forEach((item) => {
+  pageItems.forEach((item) => {
     const card = document.createElement('div');
     card.className = 'glyph-card';
     card.title = `${item.name} (${item.char}) • ${item.codepoint} • Click to insert, Right-click to star`;
@@ -2669,7 +3126,7 @@ function wireEvents(): void {
       }
 
       handleLineAutoWrap(activeLineIndex);
-      pushUndoSnapshot();
+      pushUndoSnapshot(`Edit Line ${activeLineIndex + 1}`, 'text');
       updateAll();
     });
 
@@ -2742,23 +3199,27 @@ function wireEvents(): void {
     if (isRawMode) {
       currentLines = getLinesFromPageText(textarea.value);
     }
-    pushUndoSnapshot();
+    pushUndoSnapshot('Edit Raw Text', 'text');
     updateAll();
   });
 
   metaTitle.addEventListener('input', () => {
-    pushUndoSnapshot();
+    pushUndoSnapshot('Edit Title', 'meta');
     updateAll();
   });
 
   metaAuthor.addEventListener('input', () => {
-    pushUndoSnapshot();
+    pushUndoSnapshot('Edit Author', 'meta');
     updateAll();
   });
 
-  // 3. Undo / Redo
+  // 3. Undo / Redo / Edit History
   btnUndo.addEventListener('click', () => undo());
   btnRedo.addEventListener('click', () => redo());
+  btnHistory?.addEventListener('click', () => {
+    renderHistoryTable();
+    historyDialog?.showModal();
+  });
 
   // 4. 16 Color Swatches
   document.querySelectorAll<HTMLButtonElement>('.color-swatches .color-btn').forEach((btn) => {
@@ -2813,7 +3274,7 @@ function wireEvents(): void {
         showToast('Line is empty', 'info');
         return;
       }
-      pushUndoSnapshot();
+      pushUndoSnapshot(`Center Line ${targetLineIdx + 1}`, 'layout');
       lines[targetLineIdx] = centerLineText(rawTarget, maxWidth());
       textarea.value = lines.join('\n');
       currentLines = getLinesFromPageText(textarea.value);
@@ -2825,7 +3286,7 @@ function wireEvents(): void {
         showToast(`Line ${activeLineIndex + 1} is empty`, 'info');
         return;
       }
-      pushUndoSnapshot();
+      pushUndoSnapshot(`Center Line ${activeLineIndex + 1}`, 'layout');
       const style = getCarriedStyleForLine(currentLines, activeLineIndex);
       const centered = centerLineText(rawTarget, maxWidth(), style);
       currentLines[activeLineIndex] = centered;
@@ -2864,7 +3325,7 @@ function wireEvents(): void {
       const currentVal = textarea.value;
       const { cleaned, removedCount } = deduplicateCodes(currentVal);
       if (removedCount > 0) {
-        pushUndoSnapshot();
+        pushUndoSnapshot('Clean Duplicate Codes', 'style');
         textarea.value = cleaned;
         currentLines = getLinesFromPageText(cleaned);
         updateAll(true);
@@ -2883,7 +3344,7 @@ function wireEvents(): void {
         }
       }
       if (totalRemoved > 0) {
-        pushUndoSnapshot();
+        pushUndoSnapshot('Clean Duplicate Codes', 'style');
         updateAll(true);
         showToast(`Cleaned ${totalRemoved} duplicate formatting code(s)`, 'success');
       } else {
@@ -2960,7 +3421,7 @@ function wireEvents(): void {
       return;
     }
 
-    pushUndoSnapshot();
+    pushUndoSnapshot(`Clear Page ${currentPageIndex + 1}`, 'clear');
     currentLines = Array(MINECRAFT_LINES_PER_PAGE).fill('');
     for (let i = 0; i < MINECRAFT_LINES_PER_PAGE; i++) {
       if (lineInputEls[i]) lineInputEls[i].value = '';
@@ -2990,7 +3451,7 @@ function wireEvents(): void {
       updateGalleryCounts();
     } else if (book.pages.length < MINECRAFT_MAX_PAGES) {
       // Minecraft BookEditScreen behavior: advance on last page appends blank page
-      pushUndoSnapshot();
+      pushUndoSnapshot(`Add Page ${book.pages.length + 1}`, 'page');
       book.pages.push('');
       loadPageIntoEditor(book.pages.length - 1);
       syncViewerToBook();
@@ -3010,7 +3471,7 @@ function wireEvents(): void {
   migrateSnippetHistory();
 
   function applyTemplate(tpl: SavedTemplate): void {
-    pushUndoSnapshot();
+    pushUndoSnapshot(`Apply Preset "${tpl.title}"`, 'preset');
     if (tpl.scope === 'page') {
       currentLines = [...tpl.lines];
       while (currentLines.length < MINECRAFT_LINES_PER_PAGE) currentLines.push('');
@@ -3036,25 +3497,24 @@ function wireEvents(): void {
   }
 
   // ─── Font Switcher Wiring ───────────────────────────────────────────────
-  function setActiveFont(fontId: string): void {
-    activeFontId = fontId;
-    fontQuickChips?.querySelectorAll('.font-chip').forEach(chip => {
-      chip.classList.toggle('active', chip.getAttribute('data-font') === fontId);
-    });
-    const activeFontBadge = document.getElementById('active-font-badge');
-    if (activeFontBadge) {
-      const activeChip = fontQuickChips?.querySelector(`.font-chip[data-font="${fontId}"]`) as HTMLElement | null;
-      const label = activeChip?.textContent?.trim() || (fontId === 'normal' ? 'Normal' : fontId);
-      activeFontBadge.textContent = `Active: ${label}`;
+  fontPagePrev?.addEventListener('click', () => {
+    const totalFontPages = Math.max(1, Math.ceil(FONT_CHIPS_DATA.length / currentFontsPageSize));
+    if (currentFontPage > 0) {
+      currentFontPage--;
+    } else {
+      currentFontPage = totalFontPages - 1;
     }
-    showToast(`Font: ${fontId === 'normal' ? 'Normal' : fontId}`, 'info');
-  }
+    renderFontChips();
+  });
 
-  fontQuickChips?.querySelectorAll<HTMLButtonElement>('.font-chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-      const fId = chip.dataset.font || 'normal';
-      setActiveFont(fId);
-    });
+  fontPageNext?.addEventListener('click', () => {
+    const totalFontPages = Math.max(1, Math.ceil(FONT_CHIPS_DATA.length / currentFontsPageSize));
+    if (currentFontPage < totalFontPages - 1) {
+      currentFontPage++;
+    } else {
+      currentFontPage = 0;
+    }
+    renderFontChips();
   });
 
   // Dedicated "Transform Line" button on Font Switcher panel
@@ -3067,7 +3527,7 @@ function wireEvents(): void {
     }
     const font = getFontById(activeFontId);
     const converted = font.transform(current);
-    pushUndoSnapshot();
+    pushUndoSnapshot(`Apply ${font.name} to Line ${activeLineIndex + 1}`, 'font');
     currentLines[activeLineIndex] = converted;
     if (lineInputEls[activeLineIndex]) {
       lineInputEls[activeLineIndex].value = converted;
@@ -3108,7 +3568,7 @@ function wireEvents(): void {
 
   matrixPagePrev?.addEventListener('click', () => {
     const list = getGlyphsForCurrentSelection();
-    const totalPages = Math.max(1, Math.ceil(list.length / MATRIX_PAGE_SIZE));
+    const totalPages = Math.max(1, Math.ceil(list.length / currentMatrixPageSize));
     if (currentMatrixPage > 0) {
       currentMatrixPage--;
     } else {
@@ -3119,7 +3579,7 @@ function wireEvents(): void {
 
   matrixPageNext?.addEventListener('click', () => {
     const list = getGlyphsForCurrentSelection();
-    const totalPages = Math.max(1, Math.ceil(list.length / MATRIX_PAGE_SIZE));
+    const totalPages = Math.max(1, Math.ceil(list.length / currentMatrixPageSize));
     if (currentMatrixPage < totalPages - 1) {
       currentMatrixPage++;
     } else {
@@ -3128,34 +3588,24 @@ function wireEvents(): void {
     renderMatrixSlots();
   });
 
-  function updateActiveMatrixChip(): void {
-    if (!matrixQuickWidths) return;
-    const activeSet = currentMatrixMode.type === 'set' ? currentMatrixMode.setId : currentMatrixSetId;
-    matrixQuickWidths.querySelectorAll<HTMLButtonElement>('.matrix-chip').forEach(chip => {
-      const setId = chip.dataset.set;
-      chip.classList.toggle('active', setId === activeSet);
-    });
-  }
+  matrixSetsPrev?.addEventListener('click', () => {
+    const totalSetsPages = Math.max(1, Math.ceil(CATEGORY_DEFINITIONS.length / currentSetsPageSize));
+    if (currentSetsPage > 0) {
+      currentSetsPage--;
+    } else {
+      currentSetsPage = totalSetsPages - 1;
+    }
+    renderMatrixSetChips();
+  });
 
-  matrixQuickWidths?.querySelectorAll<HTMLButtonElement>('.matrix-chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-      const setId = chip.dataset.set;
-      if (setId) {
-        currentMatrixSetId = setId;
-        const available = getAvailableWidthsForSet(setId);
-        if (!available.includes(currentMatrixPx)) {
-          const closest = available.reduce((prev, curr) =>
-            Math.abs(curr - currentMatrixPx) < Math.abs(prev - currentMatrixPx) ? curr : prev,
-            available[0]
-          );
-          currentMatrixPx = closest;
-        }
-        currentMatrixMode = { type: 'set', setId, px: currentMatrixPx };
-        currentMatrixPage = 0;
-        updateActiveMatrixChip();
-        renderMatrixSlots();
-      }
-    });
+  matrixSetsNext?.addEventListener('click', () => {
+    const totalSetsPages = Math.max(1, Math.ceil(CATEGORY_DEFINITIONS.length / currentSetsPageSize));
+    if (currentSetsPage < totalSetsPages - 1) {
+      currentSetsPage++;
+    } else {
+      currentSetsPage = 0;
+    }
+    renderMatrixSetChips();
   });
 
   // Studio Tools Hub Dropdown Toggle
@@ -3455,7 +3905,7 @@ function wireEvents(): void {
     if (parsed) {
       const targetWidth = engine === 'bedrock' ? BEDROCK_BOOK_TEXT_WIDTH : BOOK_TEXT_WIDTH;
       const normalized = normalizeBook(parsed, { maxWidth: targetWidth });
-      pushUndoSnapshot();
+      pushUndoSnapshot('Import Book', 'preset');
       book = normalized;
       metaTitle.value = book.title;
       metaAuthor.value = book.author;
@@ -3475,24 +3925,55 @@ function wireEvents(): void {
   });
 
   document.getElementById('btn-glyph-modal')!.addEventListener('click', () => {
+    // When opening glyph library window, avoid loading all symbols (>100k)
+    if (activeGlyphCat === 'all') {
+      activeGlyphCat = 'symbols';
+      glyphTabs.querySelectorAll<HTMLButtonElement>('.glyph-tab').forEach((t) => {
+        t.classList.toggle('active', t.dataset.cat === 'symbols');
+      });
+    }
+    currentGlyphPage = 1;
     renderGlyphs();
     glyphDialog.showModal();
   });
 
-  glyphSearch.addEventListener('input', () => renderGlyphs());
+  const glyphPagePrev = document.getElementById('glyph-page-prev') as HTMLButtonElement | null;
+  const glyphPageNext = document.getElementById('glyph-page-next') as HTMLButtonElement | null;
+
+  glyphPagePrev?.addEventListener('click', () => {
+    if (currentGlyphPage > 1) {
+      currentGlyphPage--;
+      renderGlyphs();
+      glyphGrid.scrollTop = 0;
+    }
+  });
+
+  glyphPageNext?.addEventListener('click', () => {
+    currentGlyphPage++;
+    renderGlyphs();
+    glyphGrid.scrollTop = 0;
+  });
+
+  glyphSearch.addEventListener('input', () => {
+    currentGlyphPage = 1;
+    renderGlyphs();
+  });
 
   glyphTabs.querySelectorAll<HTMLButtonElement>('.glyph-tab').forEach((tab) => {
     tab.addEventListener('click', () => {
       glyphTabs.querySelectorAll('.glyph-tab').forEach(t => t.classList.remove('active'));
       tab.classList.add('active');
       activeGlyphCat = tab.dataset.cat as GlyphCategory;
+      currentGlyphPage = 1;
       renderGlyphs();
+      glyphGrid.scrollTop = 0;
     });
   });
 
   // Pixel Width Filter
   glyphWidthFilter?.addEventListener('change', () => {
     selectedGlyphWidth = glyphWidthFilter?.value || 'all';
+    currentGlyphPage = 1;
     renderGlyphs();
   });
 

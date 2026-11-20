@@ -35,7 +35,11 @@ export type GlyphCategory =
   | 'math'
   | 'runes'
   | 'braille'
-  | 'fonts';
+  | 'fonts'
+  | 'noncharacter'
+  | 'nonlatin'
+  | 'cjk'
+  | 'latin';
 
 export interface GlyphCategoryMeta {
   id: GlyphCategory;
@@ -68,6 +72,10 @@ export const CATEGORY_DEFINITIONS: GlyphCategoryMeta[] = [
   { id: 'blocks', label: 'Blocks', icon: '█', description: 'Dithering & shading' },
   { id: 'math', label: 'Math', icon: '🔢', description: 'Superscripts, fractions & numerals' },
   { id: 'runes', label: 'Runes', icon: 'ᚠ', description: 'Elder Futhark & astrology' },
+  { id: 'noncharacter', label: 'Non-Char', icon: '💠', description: 'Unicode Symbols, Math, Punctuation & Technical' },
+  { id: 'nonlatin', label: 'Non-Latin', icon: '🔤', description: 'Cyrillic, Greek, Hebrew, Arabic & Indic' },
+  { id: 'cjk', label: 'CJK', icon: '文', description: 'Chinese, Japanese, Korean ideographs & syllabaries' },
+  { id: 'latin', label: 'Latin', icon: 'Aa', description: 'Latin alphabet, European accents & IPA' },
 ];
 
 export const DEFAULT_FAVORITES: string[] = [
@@ -2080,6 +2088,106 @@ const SYMBOLCHAT_SYMBOLS_GLYPHS: GlyphItem[] = [
   createGlyph("🗠", "Symbols 🗠 (U+1F5E0)", 'symbols'),
 ];
 
+// ── Full Unicode Geometric Shapes (U+25A0..U+25FF, all bundled in Minecraft Unifont) ──
+const GEOMETRIC_SHAPES_GLYPHS: GlyphItem[] = [
+  createGlyph('■', 'Black Square', 'shapes'),
+  createGlyph('□', 'White Square', 'shapes'),
+  createGlyph('▢', 'White Square With Rounded Corners', 'shapes'),
+  createGlyph('▣', 'White Square Containing Black Small Square', 'shapes'),
+  createGlyph('▤', 'Square With Horizontal Fill', 'shapes'),
+  createGlyph('▥', 'Square With Vertical Fill', 'shapes'),
+  createGlyph('▦', 'Square With Orthogonal Crosshatch Fill', 'shapes'),
+  createGlyph('▧', 'Square With Upper Left To Lower Right Fill', 'shapes'),
+  createGlyph('▨', 'Square With Upper Right To Lower Left Fill', 'shapes'),
+  createGlyph('▩', 'Square With Diagonal Crosshatch Fill', 'shapes'),
+  createGlyph('▪', 'Black Small Square', 'shapes'),
+  createGlyph('▫', 'White Small Square', 'shapes'),
+  createGlyph('▬', 'Black Rectangle', 'shapes'),
+  createGlyph('▭', 'White Rectangle', 'shapes'),
+  createGlyph('▮', 'Black Vertical Rectangle', 'shapes'),
+  createGlyph('▯', 'White Vertical Rectangle', 'shapes'),
+  createGlyph('▰', 'Black Parallelogram', 'shapes'),
+  createGlyph('▱', 'White Parallelogram', 'shapes'),
+  createGlyph('▲', 'Black Up-Pointing Triangle', 'shapes'),
+  createGlyph('△', 'White Up-Pointing Triangle', 'shapes'),
+  createGlyph('▴', 'Black Up-Pointing Small Triangle', 'shapes'),
+  createGlyph('▵', 'White Up-Pointing Small Triangle', 'shapes'),
+  createGlyph('▶', 'Black Right-Pointing Triangle', 'shapes'),
+  createGlyph('▷', 'White Right-Pointing Triangle', 'shapes'),
+  createGlyph('▸', 'Black Right-Pointing Small Triangle', 'shapes'),
+  createGlyph('▹', 'White Right-Pointing Small Triangle', 'shapes'),
+  createGlyph('►', 'Black Right-Pointing Pointer', 'shapes'),
+  createGlyph('▻', 'White Right-Pointing Pointer', 'shapes'),
+  createGlyph('▼', 'Black Down-Pointing Triangle', 'shapes'),
+  createGlyph('▽', 'White Down-Pointing Triangle', 'shapes'),
+  createGlyph('▾', 'Black Down-Pointing Small Triangle', 'shapes'),
+  createGlyph('▿', 'White Down-Pointing Small Triangle', 'shapes'),
+  createGlyph('◀', 'Black Left-Pointing Triangle', 'shapes'),
+  createGlyph('◁', 'White Left-Pointing Triangle', 'shapes'),
+  createGlyph('◂', 'Black Left-Pointing Small Triangle', 'shapes'),
+  createGlyph('◃', 'White Left-Pointing Small Triangle', 'shapes'),
+  createGlyph('◄', 'Black Left-Pointing Pointer', 'shapes'),
+  createGlyph('◅', 'White Left-Pointing Pointer', 'shapes'),
+  createGlyph('◆', 'Black Diamond', 'shapes'),
+  createGlyph('◇', 'White Diamond', 'shapes'),
+  createGlyph('◈', 'White Diamond Containing Black Small Diamond', 'shapes'),
+  createGlyph('◉', 'Fisheye', 'shapes'),
+  createGlyph('◊', 'Lozenge', 'shapes'),
+  createGlyph('○', 'White Circle', 'shapes'),
+  createGlyph('◌', 'Dotted Circle', 'shapes'),
+  createGlyph('◍', 'Circle With Vertical Fill', 'shapes'),
+  createGlyph('◎', 'Bullseye', 'shapes'),
+  createGlyph('●', 'Black Circle', 'shapes'),
+  createGlyph('◐', 'Circle With Left Half Black', 'shapes'),
+  createGlyph('◑', 'Circle With Right Half Black', 'shapes'),
+  createGlyph('◒', 'Circle With Lower Half Black', 'shapes'),
+  createGlyph('◓', 'Circle With Upper Half Black', 'shapes'),
+  createGlyph('◔', 'Circle With Upper Right Quadrant Black', 'shapes'),
+  createGlyph('◕', 'Circle With All But Upper Left Quadrant Black', 'shapes'),
+  createGlyph('◖', 'Left Half Black Circle', 'shapes'),
+  createGlyph('◗', 'Right Half Black Circle', 'shapes'),
+  createGlyph('◘', 'Inverse Bullet', 'shapes'),
+  createGlyph('◙', 'Inverse White Circle', 'shapes'),
+  createGlyph('◚', 'Upper Half Inverse White Circle', 'shapes'),
+  createGlyph('◛', 'Lower Half Inverse White Circle', 'shapes'),
+  createGlyph('◜', 'Upper Left Quadrant Circular Arc', 'shapes'),
+  createGlyph('◝', 'Upper Right Quadrant Circular Arc', 'shapes'),
+  createGlyph('◞', 'Lower Right Quadrant Circular Arc', 'shapes'),
+  createGlyph('◟', 'Lower Left Quadrant Circular Arc', 'shapes'),
+  createGlyph('◠', 'Upper Half Circle', 'shapes'),
+  createGlyph('◡', 'Lower Half Circle', 'shapes'),
+  createGlyph('◢', 'Black Lower Right Triangle', 'shapes'),
+  createGlyph('◣', 'Black Lower Left Triangle', 'shapes'),
+  createGlyph('◤', 'Black Upper Left Triangle', 'shapes'),
+  createGlyph('◥', 'Black Upper Right Triangle', 'shapes'),
+  createGlyph('◦', 'White Bullet', 'shapes'),
+  createGlyph('◧', 'Square With Left Half Black', 'shapes'),
+  createGlyph('◨', 'Square With Right Half Black', 'shapes'),
+  createGlyph('◩', 'Square With Upper Left Diagonal Half Black', 'shapes'),
+  createGlyph('◪', 'Square With Lower Right Diagonal Half Black', 'shapes'),
+  createGlyph('◫', 'White Square With Vertical Bisecting Line', 'shapes'),
+  createGlyph('◬', 'White Up-Pointing Triangle With Dot', 'shapes'),
+  createGlyph('◭', 'Up-Pointing Triangle With Left Half Black', 'shapes'),
+  createGlyph('◮', 'Up-Pointing Triangle With Right Half Black', 'shapes'),
+  createGlyph('◯', 'Large Circle', 'shapes'),
+  createGlyph('◰', 'White Square With Upper Left Quadrant', 'shapes'),
+  createGlyph('◱', 'White Square With Lower Left Quadrant', 'shapes'),
+  createGlyph('◲', 'White Square With Lower Right Quadrant', 'shapes'),
+  createGlyph('◳', 'White Square With Upper Right Quadrant', 'shapes'),
+  createGlyph('◴', 'White Circle With Upper Left Quadrant', 'shapes'),
+  createGlyph('◵', 'White Circle With Lower Left Quadrant', 'shapes'),
+  createGlyph('◶', 'White Circle With Lower Right Quadrant', 'shapes'),
+  createGlyph('◷', 'White Circle With Upper Right Quadrant', 'shapes'),
+  createGlyph('◸', 'Upper Left Triangle', 'shapes'),
+  createGlyph('◹', 'Upper Right Triangle', 'shapes'),
+  createGlyph('◺', 'Lower Left Triangle', 'shapes'),
+  createGlyph('◻', 'White Medium Square', 'shapes'),
+  createGlyph('◼', 'Black Medium Square', 'shapes'),
+  createGlyph('◽', 'White Medium Small Square', 'shapes'),
+  createGlyph('◾', 'Black Medium Small Square', 'shapes'),
+  createGlyph('◿', 'Lower Right Triangle', 'shapes'),
+];
+
 // ── Official SymbolChat SHAPES ───────────────────────────────────────
 const SYMBOLCHAT_SHAPES_GLYPHS: GlyphItem[] = [
   createGlyph("🔲", "Shapes 🔲 (U+1F532)", 'shapes'),
@@ -2205,8 +2313,150 @@ export const ALL_GLYPHS: GlyphItem[] = [
   ...SYMBOLCHAT_THINGS_GLYPHS,
   ...SYMBOLCHAT_ACTIVITIES_GLYPHS,
   ...SYMBOLCHAT_SYMBOLS_GLYPHS,
+  ...GEOMETRIC_SHAPES_GLYPHS,
   ...SYMBOLCHAT_SHAPES_GLYPHS,
 ];
+
+export const UNICODE_SUBSET_RANGES: Record<'noncharacter' | 'nonlatin' | 'cjk' | 'latin', [number, number][]> = {
+  noncharacter: [
+    [0x2000, 0x206F], // General Punctuation
+    [0x2070, 0x209F], // Superscripts and Subscripts
+    [0x20A0, 0x20CF], // Currency Symbols
+    [0x2100, 0x214F], // Letterlike Symbols
+    [0x2150, 0x218F], // Number Forms
+    [0x2190, 0x21FF], // Arrows
+    [0x2200, 0x22FF], // Mathematical Operators
+    [0x2300, 0x23FF], // Miscellaneous Technical
+    [0x2400, 0x243F], // Control Pictures
+    [0x2440, 0x245F], // Optical Character Recognition
+    [0x2460, 0x24FF], // Enclosed Alphanumerics
+    [0x2500, 0x257F], // Box Drawing
+    [0x2580, 0x259F], // Block Elements
+    [0x25A0, 0x25FF], // Geometric Shapes
+    [0x2600, 0x26FF], // Miscellaneous Symbols
+    [0x2700, 0x27BF], // Dingbats
+    [0x27C0, 0x27EF], // Miscellaneous Mathematical Symbols-A
+    [0x27F0, 0x27FF], // Supplemental Arrows-A
+    [0x2800, 0x28FF], // Braille Patterns
+    [0x2900, 0x297F], // Supplemental Arrows-B
+    [0x2980, 0x29FF], // Miscellaneous Mathematical Symbols-B
+    [0x2A00, 0x2AFF], // Supplemental Mathematical Operators
+    [0x2B00, 0x2BFF], // Miscellaneous Symbols and Arrows
+    [0x2E00, 0x2E7F], // Supplemental Punctuation
+    [0x1F000, 0x1F02F], // Mahjong Tiles
+    [0x1F030, 0x1F09F], // Domino Tiles
+    [0x1F100, 0x1F1FF], // Enclosed Alphanumeric Supplement
+    [0x1F300, 0x1F5FF], // Miscellaneous Symbols and Pictographs
+    [0x1F600, 0x1F64F], // Emoticons
+    [0x1F680, 0x1F6FF], // Transport and Map Symbols
+    [0x1F780, 0x1F7FF], // Geometric Shapes Extended
+    [0x1F900, 0x1F9FF], // Supplemental Symbols and Pictographs
+  ],
+  nonlatin: [
+    [0x0370, 0x03FF], // Greek and Coptic
+    [0x0400, 0x04FF], // Cyrillic
+    [0x0500, 0x052F], // Cyrillic Supplement
+    [0x0530, 0x058F], // Armenian
+    [0x0590, 0x05FF], // Hebrew
+    [0x0600, 0x06FF], // Arabic
+    [0x0700, 0x074F], // Syriac
+    [0x0750, 0x077F], // Arabic Supplement
+    [0x0780, 0x07BF], // Thaana
+    [0x07C0, 0x07FF], // NKo
+    [0x0800, 0x083F], // Samaritan
+    [0x08A0, 0x08FF], // Arabic Extended-A
+    [0x0900, 0x097F], // Devanagari
+    [0x0980, 0x09FF], // Bengali
+    [0x0A00, 0x0A7F], // Gurmukhi
+    [0x0A80, 0x0AFF], // Gujarati
+    [0x0B00, 0x0B7F], // Oriya
+    [0x0B80, 0x0BFF], // Tamil
+    [0x0C00, 0x0C7F], // Telugu
+    [0x0C80, 0x0CFF], // Kannada
+    [0x0D00, 0x0D7F], // Malayalam
+    [0x0D80, 0x0DFF], // Sinhala
+    [0x0E00, 0x0E7F], // Thai
+    [0x0E80, 0x0EFF], // Lao
+    [0x0F00, 0x0FFF], // Tibetan
+    [0x1000, 0x109F], // Myanmar
+    [0x10A0, 0x10FF], // Georgian
+    [0x1200, 0x137F], // Ethiopic
+    [0x13A0, 0x13FF], // Cherokee
+    [0x1400, 0x167F], // Canadian Syllabics
+    [0x1680, 0x169F], // Ogham
+    [0x16A0, 0x16FF], // Runic
+    [0x1780, 0x17FF], // Khmer
+    [0x1800, 0x18AF], // Mongolian
+    [0x2D00, 0x2D2F], // Georgian Supplement
+  ],
+  cjk: [
+    [0x2E80, 0x2FD5], // CJK Radicals Supplement & Kangxi Radicals
+    [0x3000, 0x303F], // CJK Symbols and Punctuation
+    [0x3040, 0x309F], // Hiragana
+    [0x30A0, 0x30FF], // Katakana
+    [0x3100, 0x312F], // Bopomofo
+    [0x3130, 0x318F], // Hangul Compatibility Jamo
+    [0x3190, 0x31BF], // Kanbun & Bopomofo Extended
+    [0x31F0, 0x31FF], // Katakana Phonetic Extensions
+    [0x3200, 0x32FF], // Enclosed CJK Letters and Months
+    [0x3300, 0x33FF], // CJK Compatibility
+    [0x3400, 0x4DBF], // CJK Unified Ideographs Extension A
+    [0x4E00, 0x9FFF], // CJK Unified Ideographs
+    [0xAC00, 0xD7AF], // Hangul Syllables
+    [0xF900, 0xFAFF], // CJK Compatibility Ideographs
+  ],
+  latin: [
+    [0x0020, 0x007E], // Basic Latin
+    [0x00A0, 0x00FF], // Latin-1 Supplement
+    [0x0100, 0x017F], // Latin Extended-A
+    [0x0180, 0x024F], // Latin Extended-B
+    [0x0250, 0x02AF], // IPA Extensions
+    [0x02B0, 0x02FF], // Spacing Modifier Letters
+    [0x1E00, 0x1EFF], // Latin Extended Additional
+    [0xA720, 0xA7FF], // Latin Extended-D
+    [0xAB30, 0xAB6F], // Latin Extended-E
+  ],
+};
+
+const SUBSET_GLYPHS_CACHE = new Map<'noncharacter' | 'nonlatin' | 'cjk' | 'latin', GlyphItem[]>();
+
+export function getUnicodeSubsetGlyphs(cat: 'noncharacter' | 'nonlatin' | 'cjk' | 'latin'): GlyphItem[] {
+  const cached = SUBSET_GLYPHS_CACHE.get(cat);
+  if (cached) return cached;
+
+  const ranges = UNICODE_SUBSET_RANGES[cat] || [];
+  const items: GlyphItem[] = [];
+  const prefixMap: Record<typeof cat, string> = {
+    noncharacter: 'Symbol',
+    nonlatin: 'Non-Latin',
+    cjk: 'CJK',
+    latin: 'Latin',
+  };
+  const prefix = prefixMap[cat] || 'Glyph';
+
+  for (const [start, end] of ranges) {
+    for (let cp = start; cp <= end; cp++) {
+      const char = String.fromCodePoint(cp);
+      const hex = cp.toString(16).toUpperCase().padStart(4, '0');
+      // If already registered in curated symbols, prefer that item
+      const registered = GLYPH_MAP.get(char);
+      if (registered) {
+        items.push(registered);
+      } else {
+        items.push({
+          char,
+          name: `${prefix} ${char} (U+${hex})`,
+          category: cat,
+          codepoint: `U+${hex}`,
+          isSmp: cp > 0xFFFF,
+        });
+      }
+    }
+  }
+
+  SUBSET_GLYPHS_CACHE.set(cat, items);
+  return items;
+}
 
 export const GLYPHS_BY_CATEGORY: Record<Exclude<GlyphCategory, 'fav' | 'recent' | 'all'>, GlyphItem[]> = {
   borders: BORDER_GLYPHS,
@@ -2222,7 +2472,11 @@ export const GLYPHS_BY_CATEGORY: Record<Exclude<GlyphCategory, 'fav' | 'recent' 
   things: SYMBOLCHAT_THINGS_GLYPHS,
   activities: SYMBOLCHAT_ACTIVITIES_GLYPHS,
   symbols: SYMBOLCHAT_SYMBOLS_GLYPHS,
-  shapes: SYMBOLCHAT_SHAPES_GLYPHS,
+  shapes: [...GEOMETRIC_SHAPES_GLYPHS, ...SYMBOLCHAT_SHAPES_GLYPHS],
+  get noncharacter() { return getUnicodeSubsetGlyphs('noncharacter'); },
+  get nonlatin() { return getUnicodeSubsetGlyphs('nonlatin'); },
+  get cjk() { return getUnicodeSubsetGlyphs('cjk'); },
+  get latin() { return getUnicodeSubsetGlyphs('latin'); },
 };
 
 const GLYPH_MAP = new Map<string, GlyphItem>();
@@ -2236,11 +2490,30 @@ export function findGlyphItem(char: string): GlyphItem {
   const existing = GLYPH_MAP.get(char);
   if (existing) return existing;
   const code = char.codePointAt(0) ?? 0;
+  const hex = code.toString(16).toUpperCase().padStart(4, '0');
+
+  // Detect category from codepoint
+  let cat: GlyphCategory = 'symbols';
+  let namePrefix = 'Symbol';
+  if ((code >= 0x4E00 && code <= 0x9FFF) || (code >= 0x3040 && code <= 0x30FF) || (code >= 0xAC00 && code <= 0xD7AF)) {
+    cat = 'cjk';
+    namePrefix = 'CJK';
+  } else if ((code >= 0x0370 && code <= 0x052F) || (code >= 0x0590 && code <= 0x06FF) || (code >= 0x0900 && code <= 0x0DFF)) {
+    cat = 'nonlatin';
+    namePrefix = 'Non-Latin';
+  } else if ((code >= 0x0020 && code <= 0x02AF) || (code >= 0x1E00 && code <= 0x1EFF)) {
+    cat = 'latin';
+    namePrefix = 'Latin';
+  } else if (code >= 0x2000 && code <= 0x2BFF) {
+    cat = 'noncharacter';
+    namePrefix = 'Symbol';
+  }
+
   return {
     char,
-    name: `Symbol ${char}`,
-    category: 'symbols',
-    codepoint: `U+${code.toString(16).toUpperCase().padStart(4, '0')}`,
+    name: `${namePrefix} ${char} (U+${hex})`,
+    category: cat,
+    codepoint: `U+${hex}`,
     isSmp: code > 0xFFFF,
   };
 }

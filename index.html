@@ -44,21 +44,23 @@
           <!-- Dynamically populated with pixel-art slots for the selected width -->
         </div>
 
-        <!-- Saved Favorite Character Sets & Categories Chips (Replaced 2p...9p) -->
-        <div class="matrix-quick-widths matrix-quick-sets" id="matrix-quick-widths">
-          <button type="button" class="matrix-chip active" data-set="all" title="Browse all Minecraft bitmap glyphs">🌐 All</button>
-          <button type="button" class="matrix-chip" data-set="fav" title="Custom Starred Favorites">★ Favs</button>
-          <button type="button" class="matrix-chip" data-set="recent" title="Recently Used Symbols">🕒 Recent</button>
-          <button type="button" class="matrix-chip" data-set="borders" title="Borders & Box Frames">━ Borders</button>
-          <button type="button" class="matrix-chip" data-set="rpg" title="RPG, Weapons & Magic">⚔ RPG</button>
-          <button type="button" class="matrix-chip" data-set="arrows" title="Directional Arrows & Pointers">➔ Arrows</button>
-          <button type="button" class="matrix-chip" data-set="blocks" title="Shades & Geometric Blocks">█ Blocks</button>
-          <button type="button" class="matrix-chip" data-set="decor" title="Stars & Flourishes">✨ Decor</button>
+        <!-- Saved Favorite Character Sets & Categories Chips (Paged Navigation) -->
+        <div class="matrix-sets-pagination-wrap" id="matrix-sets-pagination-wrap">
+          <button type="button" id="matrix-sets-prev" class="matrix-nav-arrow" title="Previous sets (←)">◀</button>
+          <span id="matrix-sets-page-label" class="matrix-page-label">1/3</span>
+          <button type="button" id="matrix-sets-next" class="matrix-nav-arrow" title="Next sets (→)">▶</button>
+          <div class="matrix-quick-widths matrix-quick-sets" id="matrix-quick-widths">
+            <!-- Dynamically populated with paged category chips -->
+          </div>
         </div>
       </div>
 
-      <!-- Right: Bookshelf & Theme Toggle -->
+      <!-- Right: Autosave Indicator, Bookshelf & Theme Toggle -->
       <div class="header-right-nav">
+        <div class="autosave-indicator" id="autosave-indicator" title="Local auto-save status">
+          <span class="status-dot"></span>
+          <span id="autosave-text" class="autosave-text">Saved</span>
+        </div>
         <button id="btn-open-bookshelf" class="btn btn-xs btn-primary" title="Bookshelf: Switch books, manage library, or start a new book">
           <span class="btn-icon">📚</span> Bookshelf
         </button>
@@ -117,6 +119,7 @@
             <div class="editor-header-actions">
               <button id="btn-undo" class="btn btn-xs btn-ghost" title="Undo (Ctrl+Z)" disabled>↶ Undo</button>
               <button id="btn-redo" class="btn btn-xs btn-ghost" title="Redo (Ctrl+Y)" disabled>↷ Redo</button>
+              <button id="btn-history" class="btn btn-xs btn-ghost" title="View visual edit history timeline">🕒 History</button>
             </div>
           </div>
 
@@ -266,20 +269,13 @@
             </div>
           </div>
           <div class="font-switcher-body font-switcher-ribbon" id="font-switcher-ribbon" role="toolbar" aria-label="Symbol Chat Font Switcher">
+            <div class="font-page-controls">
+              <button type="button" id="font-page-prev" class="matrix-nav-arrow" title="Previous fonts (←)">◀</button>
+              <span id="font-page-label" class="matrix-page-label">1/3</span>
+              <button type="button" id="font-page-next" class="matrix-nav-arrow" title="Next fonts (→)">▶</button>
+            </div>
             <div class="font-quick-chips" id="font-quick-chips">
-              <button type="button" class="font-chip active" data-font="normal" title="Normal text">Normal</button>
-              <button type="button" class="font-chip" data-font="small_caps" title="Small Caps">ꜱᴍᴀʟʟ</button>
-              <button type="button" class="font-chip" data-font="circled" title="Circled">Ⓒⓘⓡ</button>
-              <button type="button" class="font-chip" data-font="fullwidth" title="Fullwidth">Ｆｕｌｌ</button>
-              <button type="button" class="font-chip" data-font="superscript" title="Superscript">ˢᵘᵖ</button>
-              <button type="button" class="font-chip" data-font="subscript" title="Subscript">ₜₑₓₜ</button>
-              <button type="button" class="font-chip" data-font="inverted" title="Inverted / Upside Down">ʇxǝʇ</button>
-              <button type="button" class="font-chip" data-font="fraktur" title="Fraktur / Gothic">𝔉𝔯𝔞</button>
-              <button type="button" class="font-chip" data-font="double_struck" title="Double Struck">𝔻𝕠𝕦</button>
-              <button type="button" class="font-chip" data-font="script" title="Script / Cursive">𝒮𝒸𝓇</button>
-              <button type="button" class="font-chip" data-font="bold_serif" title="Bold Serif">𝐁𝐨𝐥</button>
-              <button type="button" class="font-chip" data-font="circled_black" title="Circled Black">🅐🅑🅒</button>
-              <button type="button" class="font-chip" data-font="squared" title="Squared">🄰🄱🄲</button>
+              <!-- Dynamically populated with paged font chips -->
             </div>
           </div>
         </section>
@@ -303,7 +299,7 @@
               <button id="next-page-btn" class="btn btn-xs btn-outline" title="Next page (→) • Advances or appends new page like Minecraft">▶</button>
               <span class="separator-xs"></span>
               <div class="copy-page-wrapper" id="preview-copy-page-wrapper">
-                <button id="btn-preview-copy-page" class="btn btn-xs btn-outline" title="Copy active page to clipboard (Ctrl+Shift+C)">📋 Copy Page</button>
+                <button id="btn-preview-copy-page" class="btn btn-xs btn-outline" title="Copy active page to clipboard (Ctrl+Shift+C)"><span class="copy-page-icon">📋</span> <span class="copy-page-text">Copy Page</span></button>
                 <button id="btn-preview-copy-opts" class="btn btn-xs btn-outline copy-opts-btn" title="Choose page copy format">▾</button>
                 <div id="preview-copy-menu" class="copy-options-menu" style="display: none;">
                   <button type="button" class="copy-option-item" data-format="raw">
@@ -398,6 +394,48 @@
       </div>
     </dialog>
 
+    <!-- Dedicated Edit History Dialog (Visual Timeline & Undo/Redo Scrubber) -->
+    <dialog id="history-dialog" class="editor-dialog">
+      <div class="dialog-card dialog-card-wide history-modal-card">
+        <header class="dialog-header history-modal-header">
+          <div class="history-title-wrap">
+            <span class="dialog-icon">🕒</span>
+            <div class="history-header-texts">
+              <h2 class="dialog-title">Edit History</h2>
+              <span class="dialog-subtitle">Visual timeline of recent edits • Click any snapshot to jump directly to it</span>
+            </div>
+          </div>
+          <button type="button" class="dialog-close-btn" data-close="history-dialog">✕</button>
+        </header>
+
+        <div class="dialog-body history-modal-body">
+          <div class="history-table-container">
+            <table class="history-table" id="history-table">
+              <thead>
+                <tr>
+                  <th style="width: 85px;">State</th>
+                  <th style="width: 75px;">Target</th>
+                  <th>Action / Change</th>
+                  <th style="width: 95px;">Time</th>
+                  <th style="width: 85px; text-align: right;">Action</th>
+                </tr>
+              </thead>
+              <tbody id="history-table-body">
+                <!-- Dynamically populated edit history rows -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <footer class="dialog-actions history-modal-footer">
+          <div class="history-footer-stats" id="history-footer-stats">
+            <!-- Summary of undo / redo counts -->
+          </div>
+          <button type="button" class="btn btn-primary" data-close="history-dialog">Close</button>
+        </footer>
+      </div>
+    </dialog>
+
     <!-- Dedicated Bookshelf Dialog (Multi-Book Management) -->
     <dialog id="bookshelf-dialog" class="editor-dialog">
       <div class="dialog-card dialog-card-wide bookshelf-modal-card">
@@ -465,14 +503,13 @@
 
           <!-- Symbol Chat Category Tabs -->
           <div class="glyph-category-tabs" id="glyph-tabs">
-            <button class="glyph-tab active" data-cat="all">🌐 All</button>
+            <button class="glyph-tab active" data-cat="symbols">✨ Symbols</button>
             <button class="glyph-tab" data-cat="fav">⭐ Favs</button>
             <button class="glyph-tab" data-cat="recent">🕒 Recent</button>
             <button class="glyph-tab" data-cat="faces">😀 Faces</button>
             <button class="glyph-tab" data-cat="nature">🌲 Nature</button>
             <button class="glyph-tab" data-cat="things">⛏ Things</button>
             <button class="glyph-tab" data-cat="activities">⚽ Activities</button>
-            <button class="glyph-tab" data-cat="symbols">✨ Symbols</button>
             <button class="glyph-tab" data-cat="shapes">▲ Shapes</button>
             <button class="glyph-tab" data-cat="borders">━ Borders</button>
             <button class="glyph-tab" data-cat="rpg">⚔ RPG</button>
@@ -480,6 +517,18 @@
             <button class="glyph-tab" data-cat="blocks">█ Blocks</button>
             <button class="glyph-tab" data-cat="math">🔢 Math</button>
             <button class="glyph-tab" data-cat="runes">ᚠ Runes</button>
+            <button class="glyph-tab" data-cat="noncharacter">💠 Non-Char</button>
+            <button class="glyph-tab" data-cat="nonlatin">🔤 Non-Latin</button>
+            <button class="glyph-tab" data-cat="cjk">文 CJK</button>
+            <button class="glyph-tab" data-cat="latin">Aa Latin</button>
+            <button class="glyph-tab" data-cat="all">🌐 All</button>
+          </div>
+
+          <!-- Glyph Dialog Pagination Controls -->
+          <div class="glyph-pagination-bar" id="glyph-pagination-bar">
+            <button type="button" class="btn btn-xs glyph-page-btn" id="glyph-page-prev" title="Previous page">◀ Prev</button>
+            <span class="glyph-page-info" id="glyph-page-info">Page 1 / 1 (0 symbols)</span>
+            <button type="button" class="btn btn-xs glyph-page-btn" id="glyph-page-next" title="Next page">Next ▶</button>
           </div>
 
           <!-- High-Density Glyphs Grid -->
