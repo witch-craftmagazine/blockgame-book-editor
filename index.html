@@ -222,11 +222,23 @@
           <div class="editor-workspace" id="editor-workspace">
             <!-- Mobile Focused Line Deck with Game Boy D-Pad, Pixel Gauge & Traffic Light Indicator -->
             <div class="mobile-line-deck gameboy-control-panel" id="mobile-line-deck">
+              <div class="mobile-line-input-wrap">
+                <input
+                  type="text"
+                  id="mobile-line-input"
+                  class="mobile-line-input"
+                  placeholder="Type line 1 text…"
+                  autocomplete="off"
+                  spellcheck="false"
+                  enterkeyhint="next"
+                />
+              </div>
               <div class="mobile-line-header">
                 <div class="mobile-line-nav">
                   <button type="button" id="btn-mobile-prev-line" class="btn btn-xs btn-outline btn-dpad" title="Previous line (▲)">▲</button>
                   <span class="mobile-line-pill" id="mobile-line-pill">Line 1 / 14</span>
                   <button type="button" id="btn-mobile-next-line" class="btn btn-xs btn-outline btn-dpad" title="Next line (▼)">▼</button>
+                  <span class="mobile-page-pill" id="side-page-badge">Page 1 / 1</span>
                 </div>
                 <div class="mobile-line-meta">
                   <div class="mobile-px-badge" id="mobile-px-badge" title="Line width pixel usage">
@@ -240,17 +252,6 @@
                   <button type="button" id="btn-mobile-presets" class="mobile-presets-btn" title="Toggle snippets &amp; art presets">🎨 Presets</button>
                   <button type="button" id="btn-mobile-font" class="mobile-font-btn" title="Toggle Symbol Chat fonts">🔤 Font</button>
                 </div>
-              </div>
-              <div class="mobile-line-input-wrap">
-                <input
-                  type="text"
-                  id="mobile-line-input"
-                  class="mobile-line-input"
-                  placeholder="Type line 1 text…"
-                  autocomplete="off"
-                  spellcheck="false"
-                  enterkeyhint="next"
-                />
               </div>
             </div>
 
@@ -376,7 +377,6 @@
           <button type="button" id="side-prev-page-btn" class="side-page-nav-btn side-page-prev" title="Previous Page (◀)" aria-label="Previous Page">◀</button>
           <div id="viewer-container" class="viewer-container"></div>
           <button type="button" id="side-next-page-btn" class="side-page-nav-btn side-page-next" title="Next Page (▶)" aria-label="Next Page">▶</button>
-          <div id="side-page-badge" class="side-page-badge">Page 1 / 1</div>
         </div>
       </section>
     </main>

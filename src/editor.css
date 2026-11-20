@@ -3221,7 +3221,7 @@ body {
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch !important;
     padding: 0 0 24px 0 !important;
-    gap: 4px !important;
+    gap: 0 !important;
     background: var(--bg-root, #121216) !important;
     position: relative !important;
   }
@@ -3230,17 +3230,17 @@ body {
   .panel-preview {
     order: 1 !important;
     flex: 0 0 auto !important;
-    height: 48vh !important;
-    min-height: 280px !important;
-    max-height: 440px !important;
+    height: 44vh !important;
+    min-height: 260px !important;
+    max-height: 420px !important;
     overflow: hidden !important;
     border: none !important;
-    padding: 2px !important;
-    margin: 2px 4px 0 !important;
-    background: #18171d !important;
-    border-radius: 8px !important;
-    border: 2px solid #2d2b38 !important;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.07) !important;
+    border-bottom: 2px solid #2d2b38 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #100f14 !important;
     display: flex !important;
     flex-direction: column !important;
     position: relative !important;
@@ -3254,15 +3254,15 @@ body {
   .preview-book-wrap {
     flex: 1 1 auto !important;
     margin: 0 !important;
-    padding: 2px 4px !important;
+    padding: 4px 6px !important;
     display: flex !important;
     flex-direction: row !important;
     align-items: center !important;
     justify-content: space-between !important;
     overflow: hidden !important;
-    background: #0f0f13 !important;
-    border-radius: 6px !important;
-    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.85) !important;
+    background: #0d0c11 !important;
+    border-radius: 0 !important;
+    box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.9) !important;
     position: relative !important;
     width: 100% !important;
     height: 100% !important;
@@ -3272,12 +3272,12 @@ body {
   /* Side page navigation buttons flanking the book preview */
   .side-page-nav-btn {
     display: flex !important;
-    flex: 0 0 36px !important;
-    width: 36px !important;
-    height: 110px !important;
+    flex: 0 0 34px !important;
+    width: 34px !important;
+    height: 100px !important;
     align-items: center !important;
     justify-content: center !important;
-    background: rgba(32, 30, 42, 0.9) !important;
+    background: rgba(30, 28, 38, 0.95) !important;
     border: 2px solid #434057 !important;
     border-radius: 6px !important;
     color: var(--text-main, #ffffff) !important;
@@ -3294,27 +3294,9 @@ body {
     background: #171620 !important;
   }
 
-  .side-page-badge {
-    display: block !important;
-    position: absolute !important;
-    bottom: 6px !important;
-    left: 50% !important;
-    transform: translateX(-50%) !important;
-    font-family: var(--font-mono, monospace) !important;
-    font-size: 11px !important;
-    font-weight: 700 !important;
-    color: var(--accent, #55ff55) !important;
-    background: rgba(14, 13, 18, 0.88) !important;
-    border: 1px solid #333142 !important;
-    padding: 2px 8px !important;
-    border-radius: 4px !important;
-    pointer-events: none !important;
-    z-index: 10 !important;
-  }
-
   #viewer-container {
     flex: 1 1 auto !important;
-    width: calc(100% - 76px) !important;
+    width: calc(100% - 74px) !important;
     height: 100% !important;
     max-height: 100% !important;
     display: flex !important;
@@ -3360,26 +3342,7 @@ body {
     filter: drop-shadow(0 4px 14px rgba(0, 0, 0, 0.7)) !important;
   }
 
-  /* Keyboard Active mode for Book Preview: compact preview so text box sits right below */
-  body.keyboard-active .panel-preview,
-  .app-layout.keyboard-active .panel-preview {
-    height: 140px !important;
-    min-height: 140px !important;
-    max-height: 140px !important;
-    flex: 0 0 140px !important;
-  }
-
-  body.keyboard-active .side-page-nav-btn,
-  .app-layout.keyboard-active .side-page-nav-btn {
-    height: 70px !important;
-  }
-
-  body.keyboard-active #viewer-container canvas,
-  .app-layout.keyboard-active #viewer-container canvas {
-    max-height: 120px !important;
-  }
-
-  /* 3. Markup Editor Column: Textbox IMMEDIATELY below page preview */
+  /* 3. Markup Editor Column: Textbox ANCHORED DIRECTLY below page preview */
   .editor-column {
     order: 2 !important;
     display: flex !important;
@@ -3389,7 +3352,9 @@ body {
     flex: 1 0 auto !important;
     overflow: visible !important;
     width: 100% !important;
-    gap: 4px !important;
+    gap: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
     background: transparent !important;
     z-index: 5 !important;
   }
@@ -3403,49 +3368,92 @@ body {
     overflow: visible !important;
     padding: 0 !important;
     background: var(--mc-gui-bg, #22212b) !important;
-    border: 2px solid var(--mc-gui-outline, #383546) !important;
-    border-radius: 8px !important;
-    margin: 0 4px !important;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4) !important;
+    border: none !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
   }
 
-  /* Editor Workspace has ORDER: 1 so the textbox sits IMMEDIATELY below the preview */
+  /* Editor Workspace has ORDER: 1 so the textbox sits IMMEDIATELY flush below the preview */
   .editor-workspace {
     order: 1 !important;
     display: flex !important;
     flex-direction: column !important;
-    padding: 4px 6px !important;
-    gap: 4px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    gap: 0 !important;
     overflow: visible !important;
     height: auto !important;
     min-height: 0 !important;
   }
 
-  /* Focused Mobile Line Deck: Immediately below preview */
+  /* Focused Mobile Line Deck: Anchored directly under preview with NO page#/# or line controls in between */
   .mobile-line-deck {
     order: 1 !important;
     display: flex !important;
     flex-direction: column !important;
-    gap: 4px !important;
-    padding: 6px 8px !important;
-    background: #1b1a23 !important;
-    border: 1px solid #353344 !important;
-    border-radius: 6px !important;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25) !important;
+    gap: 6px !important;
+    padding: 8px 8px 6px !important;
+    background: #181720 !important;
+    border: none !important;
+    border-bottom: 2px solid #282633 !important;
+    border-radius: 0 !important;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3) !important;
     margin: 0 !important;
   }
 
+  /* Textbox at the VERY TOP of the deck, flush under the book preview */
+  .mobile-line-input-wrap {
+    order: 1 !important;
+    width: 100% !important;
+  }
+
+  .mobile-line-input {
+    width: 100% !important;
+    box-sizing: border-box !important;
+    height: 42px !important;
+    padding: 8px 12px !important;
+    font-family: 'Minecraft', monospace !important;
+    font-size: 16px !important;
+    background: #0e0d13 !important;
+    color: var(--text-main, #ffffff) !important;
+    border: 2px solid #3c394d !important;
+    border-radius: 6px !important;
+    outline: none !important;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5) !important;
+  }
+
+  .mobile-line-input:focus {
+    border-color: var(--accent, #55ff55) !important;
+    box-shadow: 0 0 0 2px rgba(85, 255, 85, 0.3), inset 0 2px 4px rgba(0, 0, 0, 0.5) !important;
+  }
+
+  /* Line Navigation and metadata controls placed BELOW the textbox */
   .mobile-line-header {
+    order: 2 !important;
     display: flex !important;
     align-items: center !important;
     justify-content: space-between !important;
     gap: 6px !important;
+    margin-top: 2px !important;
   }
 
   .mobile-line-nav {
     display: flex !important;
     align-items: center !important;
     gap: 4px !important;
+  }
+
+  .mobile-page-pill {
+    font-family: var(--font-mono, monospace) !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    color: #55ffff !important;
+    background: #121216 !important;
+    padding: 2px 6px !important;
+    border-radius: 4px !important;
+    border: 1px solid #2f3e48 !important;
+    white-space: nowrap !important;
   }
 
   .btn-dpad {

@@ -3120,35 +3120,11 @@ function initMobileKeyboardTracking(): void {
       const fullHeight = window.innerHeight;
       const isKeyboardOpen = (fullHeight - currentHeight) > 140 || (document.activeElement === mobileLineInput);
 
-      document.body.classList.toggle('keyboard-active', isKeyboardOpen);
-      document.querySelector('.app-layout')?.classList.toggle('keyboard-active', isKeyboardOpen);
-      document.getElementById('mobile-line-deck')?.classList.toggle('keyboard-active', isKeyboardOpen);
+      document.body.classList.toggle('keyboard-open', isKeyboardOpen);
+      document.querySelector('.app-layout')?.classList.toggle('keyboard-open', isKeyboardOpen);
     };
 
     window.visualViewport.addEventListener('resize', handleViewport);
-    window.visualViewport.addEventListener('scroll', handleViewport);
-  }
-
-  if (mobileLineInput) {
-    mobileLineInput.addEventListener('focus', () => {
-      document.body.classList.add('keyboard-active');
-      document.querySelector('.app-layout')?.classList.add('keyboard-active');
-      document.getElementById('mobile-line-deck')?.classList.add('keyboard-active');
-    });
-    mobileLineInput.addEventListener('blur', () => {
-      setTimeout(() => {
-        if (document.activeElement !== mobileLineInput) {
-          const currentHeight = window.visualViewport?.height ?? window.innerHeight;
-          const fullHeight = window.innerHeight;
-          const stillOpen = (fullHeight - currentHeight) > 140;
-          if (!stillOpen) {
-            document.body.classList.remove('keyboard-active');
-            document.querySelector('.app-layout')?.classList.remove('keyboard-active');
-            document.getElementById('mobile-line-deck')?.classList.remove('keyboard-active');
-          }
-        }
-      }, 180);
-    });
   }
 }
 
