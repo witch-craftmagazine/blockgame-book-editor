@@ -901,7 +901,8 @@ export function updateActiveMatrixSetDisplay(): void {
 
 export function renderMatrixSetDropdown(): void {
   if (!matrixSetMenu) return;
-  matrixSetMenu.innerHTML = '';
+  const menu = matrixSetMenu;
+  menu.innerHTML = '';
 
   const activeSet = currentMatrixMode.type === 'set' ? currentMatrixMode.setId : currentMatrixSetId;
 
@@ -938,7 +939,7 @@ export function renderMatrixSetDropdown(): void {
       closeMatrixSetMenu();
     });
 
-    matrixSetMenu.appendChild(item);
+    menu.appendChild(item);
   });
 
   // Footer with SMP toggle
@@ -955,7 +956,7 @@ export function renderMatrixSetDropdown(): void {
     e.stopPropagation();
     setHideSmp(matInput.checked);
   });
-  matrixSetMenu.appendChild(footer);
+  menu.appendChild(footer);
 }
 
 export function toggleMatrixSetMenu(): void {
@@ -1659,7 +1660,6 @@ let matrixSetsPrev: HTMLButtonElement | null = null;
 let matrixSetsNext: HTMLButtonElement | null = null;
 let matrixSetsPageLabel: HTMLElement | null = null;
 
-let matrixSetPickerWrap: HTMLElement | null = null;
 let btnMatrixSetPicker: HTMLButtonElement | null = null;
 let matrixActiveSetIcon: HTMLElement | null = null;
 let matrixActiveSetName: HTMLElement | null = null;
@@ -1777,7 +1777,6 @@ function initDOM(): void {
   matrixSetsPrev      = document.getElementById('matrix-sets-prev')       as HTMLButtonElement | null;
   matrixSetsNext      = document.getElementById('matrix-sets-next')       as HTMLButtonElement | null;
   matrixSetsPageLabel = document.getElementById('matrix-sets-page-label');
-  matrixSetPickerWrap = document.getElementById('matrix-set-picker-wrap');
   btnMatrixSetPicker  = document.getElementById('btn-matrix-set-picker')  as HTMLButtonElement | null;
   matrixActiveSetIcon = document.getElementById('matrix-active-set-icon');
   matrixActiveSetName = document.getElementById('matrix-active-set-name');
