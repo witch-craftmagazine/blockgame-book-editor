@@ -845,12 +845,92 @@ export function renderMatrixSetChips(): void {
   });
 }
 
-export function updateActiveMatrixChip(): void {
-  if (!matrixQuickWidths) return;
+export function updateActiveMatrixSetDisplay(): void {
   const activeSet = currentMatrixMode.type === 'set' ? currentMatrixMode.setId : currentMatrixSetId;
-  matrixQuickWidths.querySelectorAll<HTMLButtonElement>('.matrix-chip').forEach(chip => {
-    chip.classList.toggle('active', chip.dataset.set === activeSet);
+  const currentCat = CATEGORY_DEFINITIONS.find(c => c.id === activeSet) || CATEGORY_DEFINITIONS[0];
+
+  if (matrixActiveSetIcon) {
+    matrixActiveSetIcon.textContent = currentCat.icon;
+  }
+  if (matrixActiveSetName) {
+    matrixActiveSetName.textContent = currentCat.label;
+  }
+  if (btnMatrixSetPicker) {
+    btnMatrixSetPicker.title = `Symbol Set: ${currentCat.label} (${currentCat.description}) • Click to choose`;
+  }
+
+  // Update active state in dropdown
+  if (matrixSetMenu) {
+    matrixSetMenu.querySelectorAll<HTMLButtonElement>('.matrix-set-menu-item').forEach(item => {
+      item.classList.toggle('active', item.dataset.set === activeSet);
+    });
+  }
+
+  // Also sync legacy chips if present
+  if (matrixQuickWidths) {
+    matrixQuickWidths.querySelectorAll<HTMLButtonElement>('.matrix-chip').forEach(chip => {
+      chip.classList.toggle('active', chip.dataset.set === activeSet);
+    });
+  }
+}
+
+export function renderMatrixSetDropdown(): void {
+  if (!matrixSetMenu) return;
+  matrixSetMenu.innerHTML = '';
+
+  const activeSet = currentMatrixMode.type === 'set' ? currentMatrixMode.setId : currentMatrixSetId;
+
+  CATEGORY_DEFINITIONS.forEach((cat) => {
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = `matrix-set-menu-item ${cat.id === activeSet ? 'active' : ''}`;
+    item.dataset.set = cat.id;
+    item.title = cat.description;
+
+    const iconSpan = document.createElement('span');
+    iconSpan.className = 'set-item-icon';
+    iconSpan.textContent = cat.icon;
+
+    const labelSpan = document.createElement('span');
+    labelSpan.className = 'set-item-label';
+    labelSpan.textContent = cat.label;
+
+    item.appendChild(iconSpan);
+    item.appendChild(labelSpan);
+
+    item.addEventListener('click', (e) => {
+      e.stopPropagation();
+      currentMatrixSetId = cat.id;
+      const available = getAvailableWidthsForSet(cat.id);
+      if (available.length > 0 && !available.includes(currentMatrixPx)) {
+        currentMatrixPx = available[0];
+      }
+      currentMatrixMode = { type: 'set', setId: cat.id, px: currentMatrixPx };
+      currentMatrixPage = 0;
+      updateActiveMatrixSetDisplay();
+      renderMatrixSlots();
+      soundManager.playButtonClick();
+      closeMatrixSetMenu();
+    });
+
+    matrixSetMenu.appendChild(item);
   });
+}
+
+export function toggleMatrixSetMenu(): void {
+  if (!matrixSetMenu) return;
+  const isHidden = matrixSetMenu.style.display === 'none';
+  matrixSetMenu.style.display = isHidden ? 'grid' : 'none';
+}
+
+export function closeMatrixSetMenu(): void {
+  if (matrixSetMenu) {
+    matrixSetMenu.style.display = 'none';
+  }
+}
+
+export function updateActiveMatrixChip(): void {
+  updateActiveMatrixSetDisplay();
 }
 
 export function renderFontChips(): void {
@@ -1538,6 +1618,13 @@ let matrixSetsPrev: HTMLButtonElement | null = null;
 let matrixSetsNext: HTMLButtonElement | null = null;
 let matrixSetsPageLabel: HTMLElement | null = null;
 
+let matrixSetPickerWrap: HTMLElement | null = null;
+let btnMatrixSetPicker: HTMLButtonElement | null = null;
+let matrixActiveSetIcon: HTMLElement | null = null;
+let matrixActiveSetName: HTMLElement | null = null;
+let matrixSetMenu: HTMLElement | null = null;
+let autosaveIndicator: HTMLElement | null = null;
+
 // Collapsible Saved Art Deck
 let savedArtDeck: HTMLElement;
 let btnDeckToggle: HTMLButtonElement;
@@ -1579,6 +1666,12 @@ function initDOM(): void {
   viewerContainer     = document.getElementById('viewer-container')      as HTMLElement;
   autosaveText        = document.getElementById('autosave-text')!;
   autosaveDot         = document.querySelector('.status-dot')            as HTMLElement;
+  autosaveIndicator   = document.getElementById('autosave-indicator');
+  if (autosaveIndicator) {
+    const readyTip = 'Auto-save: Ready (saves locally on change)';
+    autosaveIndicator.title = readyTip;
+    autosaveIndicator.setAttribute('data-tooltip', readyTip);
+  }
   toastContainer      = document.getElementById('toast-container')!;
 
   btnUndo             = document.getElementById('btn-undo')              as HTMLButtonElement;
@@ -1636,8 +1729,15 @@ function initDOM(): void {
   matrixSetsPrev      = document.getElementById('matrix-sets-prev')       as HTMLButtonElement | null;
   matrixSetsNext      = document.getElementById('matrix-sets-next')       as HTMLButtonElement | null;
   matrixSetsPageLabel = document.getElementById('matrix-sets-page-label');
+  matrixSetPickerWrap = document.getElementById('matrix-set-picker-wrap');
+  btnMatrixSetPicker  = document.getElementById('btn-matrix-set-picker')  as HTMLButtonElement | null;
+  matrixActiveSetIcon = document.getElementById('matrix-active-set-icon');
+  matrixActiveSetName = document.getElementById('matrix-active-set-name');
+  matrixSetMenu       = document.getElementById('matrix-set-menu');
 
-  // Initial render of dynamic paged strips
+  // Initial render of dynamic paged strips and category set dropdown
+  renderMatrixSetDropdown();
+  updateActiveMatrixSetDisplay();
   renderMatrixSetChips();
   renderFontChips();
 
@@ -2389,7 +2489,15 @@ function updateUndoRedoButtons(): void {
 // ─── LocalStorage Autosave & Restore ──────────────────────────────────────────
 
 function triggerAutosave(): void {
-  if (autosaveDot) autosaveDot.classList.add('saving');
+  if (autosaveDot) {
+    autosaveDot.classList.add('saving');
+    autosaveDot.classList.remove('error');
+  }
+  const savingTooltip = 'Auto-save: Saving changes…';
+  if (autosaveIndicator) {
+    autosaveIndicator.title = savingTooltip;
+    autosaveIndicator.setAttribute('data-tooltip', savingTooltip);
+  }
   if (autosaveText) autosaveText.textContent = 'Saving…';
 
   if (autosaveTimer) clearTimeout(autosaveTimer);
@@ -2405,9 +2513,20 @@ function triggerAutosave(): void {
       }
       syncCurrentBookToBookshelf();
       const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const savedTooltip = `Auto-save: Saved locally at ${timeStr}`;
       if (autosaveText) autosaveText.textContent = `Saved ${timeStr}`;
+      if (autosaveIndicator) {
+        autosaveIndicator.title = savedTooltip;
+        autosaveIndicator.setAttribute('data-tooltip', savedTooltip);
+      }
     } catch {
+      const errTooltip = 'Auto-save: Error saving to local storage';
       if (autosaveText) autosaveText.textContent = 'Autosave error';
+      if (autosaveDot) autosaveDot.classList.add('error');
+      if (autosaveIndicator) {
+        autosaveIndicator.title = errTooltip;
+        autosaveIndicator.setAttribute('data-tooltip', errTooltip);
+      }
     } finally {
       if (autosaveDot) autosaveDot.classList.remove('saving');
     }
@@ -3706,6 +3825,12 @@ function wireEvents(): void {
     renderMatrixSetChips();
   });
 
+  // Matrix Set Dropdown Toggle
+  btnMatrixSetPicker?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleMatrixSetMenu();
+  });
+
   // Studio Tools Hub Dropdown Toggle
   btnStudioTools?.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -3720,11 +3845,23 @@ function wireEvents(): void {
   });
 
   window.addEventListener('click', (e) => {
+    const target = e.target as HTMLElement;
+    if (matrixSetMenu && matrixSetMenu.style.display !== 'none') {
+      if (!matrixSetMenu.contains(target) && target !== btnMatrixSetPicker && !btnMatrixSetPicker?.contains(target)) {
+        closeMatrixSetMenu();
+      }
+    }
     if (studioToolsFlyout && studioToolsFlyout.style.display !== 'none') {
-      const target = e.target as HTMLElement;
       if (!studioToolsFlyout.contains(target) && target !== btnStudioTools && !btnStudioTools.contains(target)) {
         studioToolsFlyout.style.display = 'none';
       }
+    }
+  });
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeMatrixSetMenu();
+      if (studioToolsFlyout) studioToolsFlyout.style.display = 'none';
     }
   });
 

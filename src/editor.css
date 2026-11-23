@@ -209,7 +209,118 @@ body {
   padding: 3px 8px;
   height: 38px;
   min-width: 0;
+  overflow: visible;
+  position: relative;
+  z-index: 10;
+}
+
+/* Category / Set Dropdown Pill */
+.matrix-set-picker-wrap {
+  position: relative;
+  flex-shrink: 0;
+  z-index: 20;
+}
+
+.matrix-set-btn {
+  height: 26px;
+  background: var(--mc-gui-bg);
+  border: 1px solid var(--mc-gui-outline);
+  box-shadow: var(--bevel-raised);
+  color: var(--mc-text-dark);
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 7px;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.matrix-set-btn:hover {
+  background: #d8d8d8;
+  outline: 1px solid var(--mc-gold);
+}
+
+.matrix-set-btn:active {
+  box-shadow: var(--bevel-pressed);
+}
+
+.matrix-set-icon {
+  font-size: 12px;
+  line-height: 1;
+}
+
+.matrix-set-name {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.2px;
+}
+
+.matrix-set-caret {
+  font-size: 9px;
+  color: #555555;
+  margin-left: 1px;
+}
+
+.matrix-set-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  z-index: 1100;
+  background: #18171f;
+  border: 2px solid var(--mc-gui-outline);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.85), var(--bevel-raised);
+  padding: 6px;
+  display: grid;
+  grid-template-columns: repeat(2, 136px);
+  gap: 4px;
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+.matrix-set-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  background: #23222a;
+  border: 1px solid #33323e;
+  color: #f0e6d2;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  box-sizing: border-box;
+  transition: all 0.1s ease;
+}
+
+.matrix-set-menu-item:hover {
+  background: #333140;
+  border-color: var(--mc-gold);
+  color: #ffffff;
+}
+
+.matrix-set-menu-item.active {
+  background: #00363d;
+  border-color: var(--mc-diamond);
+  color: #55ffff;
+}
+
+.matrix-set-menu-item .set-item-icon {
+  font-size: 13px;
+  width: 16px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.matrix-set-menu-item .set-item-label {
+  flex: 1;
+  white-space: nowrap;
   overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Width Stepper (▲ / ▼) */
@@ -398,35 +509,75 @@ body {
   box-shadow: var(--bevel-pressed);
 }
 
-/* Header Autosave Indicator */
+/* Header Autosave Indicator - Compact Status Dot with Hover Feedback */
 .autosave-indicator {
-  display: flex;
+  position: relative;
+  display: inline-flex;
   align-items: center;
-  gap: 5px;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--text-muted, #888888);
-  padding: 0 4px;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  cursor: pointer;
   user-select: none;
+  transition: background-color 0.15s ease;
+}
+
+.autosave-indicator:hover,
+.autosave-indicator:focus-visible {
+  background: rgba(255, 255, 255, 0.1);
+  outline: none;
 }
 
 .status-dot {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: var(--mc-green, #55ff55);
-  box-shadow: 0 0 4px rgba(85, 255, 85, 0.4);
-  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 0 6px rgba(85, 255, 85, 0.7);
+  transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
 .status-dot.saving {
   background: var(--mc-gold, #ffaa00);
-  box-shadow: 0 0 6px rgba(255, 170, 0, 0.8);
+  box-shadow: 0 0 8px rgba(255, 170, 0, 0.9);
   animation: pulse-dot 0.8s infinite alternate;
 }
 
+.status-dot.error {
+  background: var(--mc-red, #ff5555);
+  box-shadow: 0 0 8px rgba(255, 85, 85, 0.9);
+}
+
 .autosave-text {
+  display: none !important;
+}
+
+/* Micro tooltip on hover */
+.autosave-indicator[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
   white-space: nowrap;
+  background: #18171f;
+  color: #e0e0e0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 4px 8px;
+  border: 1px solid var(--mc-gui-outline);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.8);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-2px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  z-index: 1200;
+}
+
+.autosave-indicator:hover::after,
+.autosave-indicator:focus-visible::after {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .header-right-nav {
@@ -3879,6 +4030,7 @@ body {
   }
 
   .matrix-slots-ribbon,
+  .matrix-set-picker-wrap,
   .matrix-sets-pagination-wrap,
   .matrix-quick-widths,
   .matrix-px-controls,
