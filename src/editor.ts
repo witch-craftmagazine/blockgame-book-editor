@@ -654,12 +654,14 @@ export const GLYPH_CATALOG_BY_WIDTH: Record<number, string[]> = {
 };
 
 export const FAVORITES_LIST = ['★', '✦', '✧', '═', '║', '╔', '╗', '╚', '╝', '⚔', '⛏', '⚒', '⚜', '─', '│', '☘', '•', '✓', '✕'];
-export const WIDTH_STEPS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12];
+export type MatrixPxValue = number | 'all';
+export const DEFAULT_NUMERIC_WIDTHS: number[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12];
+export const WIDTH_STEPS: MatrixPxValue[] = ['all', ...DEFAULT_NUMERIC_WIDTHS];
 
-export type MatrixMode = { type: 'set'; setId: string; px?: number } | { type: 'width'; px: number };
+export type MatrixMode = { type: 'set'; setId: string; px?: MatrixPxValue } | { type: 'width'; px: MatrixPxValue };
 export let currentMatrixSetId = 'all';
-export let currentMatrixPx = 6;
-export let currentMatrixMode: MatrixMode = { type: 'set', setId: 'all', px: 6 };
+export let currentMatrixPx: MatrixPxValue = 'all';
+export let currentMatrixMode: MatrixMode = { type: 'set', setId: 'all', px: 'all' };
 export let currentMatrixPage = 0;
 export const MATRIX_PAGE_SIZE = 14;
 export let currentMatrixPageSize = 14;
@@ -714,7 +716,7 @@ export function getAvailableWidthsForSet(setId: string): number[] {
     if (adv > 0 && adv <= 12) widths.add(adv);
   }
   const sorted = Array.from(widths).sort((a, b) => a - b);
-  return sorted.length > 0 ? sorted : WIDTH_STEPS;
+  return sorted.length > 0 ? sorted : DEFAULT_NUMERIC_WIDTHS;
 }
 
 export let hideSmpGlyphs: boolean = typeof localStorage !== 'undefined' ? localStorage.getItem('blockgame_hide_smp') === 'true' : false;
@@ -746,6 +748,11 @@ export function getGlyphsForCurrentSelection(): string[] {
     baseGlyphs = baseGlyphs.filter((ch) => (ch.codePointAt(0) || 0) <= 0xFFFF);
   }
 
+  // When 'all', return all glyphs in set without width filtering
+  if (targetPx === 'all') {
+    return baseGlyphs;
+  }
+
   // Filter the glyphs in this set by the selected pixel size
   return baseGlyphs.filter(ch => getCharPixelAdvance(ch) === targetPx);
 }
@@ -758,15 +765,21 @@ export function renderMatrixSlots(): void {
   const totalPages = Math.max(1, Math.ceil(list.length / currentMatrixPageSize));
   if (currentMatrixPage >= totalPages) currentMatrixPage = 0;
 
-  // Pixel selector badge ALWAYS displays the pixel width (never a set name!)
+  // Pixel selector badge displays pixel width or ALL
   const targetPx = currentMatrixMode.px ?? currentMatrixPx;
   if (matrixPxValue) {
-    matrixPxValue.textContent = targetPx.toString();
+    matrixPxValue.textContent = targetPx === 'all' ? 'ALL' : targetPx.toString();
   }
 
   const matrixUnit = document.querySelector('.matrix-unit') as HTMLElement;
   if (matrixUnit) {
-    matrixUnit.textContent = 'px';
+    matrixUnit.textContent = targetPx === 'all' ? 'sym' : 'px';
+  }
+
+  if (matrixPxBadge) {
+    matrixPxBadge.title = targetPx === 'all'
+      ? 'All symbols in set (unfiltered) • Click to choose width'
+      : `Current glyph advance: ${targetPx}px • Click to choose width`;
   }
 
   if (matrixPageLabel) {
@@ -784,7 +797,7 @@ export function renderMatrixSlots(): void {
     empty.style.padding = '0 8px';
     empty.style.display = 'flex';
     empty.style.alignItems = 'center';
-    empty.textContent = `No ${targetPx}px glyphs in this set`;
+    empty.textContent = targetPx === 'all' ? 'No glyphs in this set' : `No ${targetPx}px glyphs in this set`;
     matrixSlotsRibbon.appendChild(empty);
     return;
   }
@@ -856,9 +869,11 @@ export function renderMatrixSetChips(): void {
 
     btn.addEventListener('click', () => {
       currentMatrixSetId = cat.id;
-      const available = getAvailableWidthsForSet(cat.id);
-      if (available.length > 0 && !available.includes(currentMatrixPx)) {
-        currentMatrixPx = available[0];
+      if (currentMatrixPx !== 'all') {
+        const available = getAvailableWidthsForSet(cat.id);
+        if (available.length > 0 && !available.includes(currentMatrixPx)) {
+          currentMatrixPx = 'all';
+        }
       }
       currentMatrixMode = { type: 'set', setId: cat.id, px: currentMatrixPx };
       currentMatrixPage = 0;
@@ -927,9 +942,11 @@ export function renderMatrixSetDropdown(): void {
     item.addEventListener('click', (e) => {
       e.stopPropagation();
       currentMatrixSetId = cat.id;
-      const available = getAvailableWidthsForSet(cat.id);
-      if (available.length > 0 && !available.includes(currentMatrixPx)) {
-        currentMatrixPx = available[0];
+      if (currentMatrixPx !== 'all') {
+        const available = getAvailableWidthsForSet(cat.id);
+        if (available.length > 0 && !available.includes(currentMatrixPx)) {
+          currentMatrixPx = 'all';
+        }
       }
       currentMatrixMode = { type: 'set', setId: cat.id, px: currentMatrixPx };
       currentMatrixPage = 0;
@@ -962,12 +979,89 @@ export function renderMatrixSetDropdown(): void {
 export function toggleMatrixSetMenu(): void {
   if (!matrixSetMenu) return;
   const isHidden = matrixSetMenu.style.display === 'none';
-  matrixSetMenu.style.display = isHidden ? 'grid' : 'none';
+  if (isHidden) {
+    closeMatrixWidthMenu();
+    matrixSetMenu.style.display = 'grid';
+  } else {
+    matrixSetMenu.style.display = 'none';
+  }
 }
 
 export function closeMatrixSetMenu(): void {
   if (matrixSetMenu) {
     matrixSetMenu.style.display = 'none';
+  }
+}
+
+export function setMatrixWidth(px: MatrixPxValue): void {
+  currentMatrixPx = px;
+  currentMatrixMode.px = px;
+  currentMatrixPage = 0;
+  renderMatrixSlots();
+  soundManager.playButtonClick();
+  showToast(px === 'all' ? 'Showing all symbols in set' : `Filtering to ${px}px symbols`, 'info');
+}
+
+export function renderMatrixWidthDropdown(): void {
+  if (!matrixWidthMenu) return;
+  const menu = matrixWidthMenu;
+  menu.innerHTML = '';
+
+  const setId = currentMatrixMode.type === 'set' ? currentMatrixMode.setId : currentMatrixSetId;
+  const availableWidths = getAvailableWidthsForSet(setId);
+  const targetPx = currentMatrixMode.px ?? currentMatrixPx;
+
+  // 1. "ALL" option
+  const allItem = document.createElement('button');
+  allItem.type = 'button';
+  allItem.className = `matrix-width-menu-item ${targetPx === 'all' ? 'active' : ''}`;
+  allItem.dataset.px = 'all';
+  allItem.innerHTML = `<span>🌐 All Symbols</span><span class="matrix-width-sub">All px</span>`;
+  allItem.addEventListener('click', (e) => {
+    e.stopPropagation();
+    setMatrixWidth('all');
+    closeMatrixWidthMenu();
+  });
+  menu.appendChild(allItem);
+
+  // 2. Individual pixel widths
+  const widthsToList = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12];
+  widthsToList.forEach((w) => {
+    const isAvailable = availableWidths.includes(w);
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = `matrix-width-menu-item ${targetPx === w ? 'active' : ''} ${!isAvailable ? 'disabled' : ''}`;
+    item.dataset.px = String(w);
+    item.innerHTML = `<span>${w} px</span><span class="matrix-width-sub">${isAvailable ? 'available' : '0 chars'}</span>`;
+    if (isAvailable) {
+      item.addEventListener('click', (e) => {
+        e.stopPropagation();
+        setMatrixWidth(w);
+        closeMatrixWidthMenu();
+      });
+    } else {
+      item.style.opacity = '0.4';
+      item.style.cursor = 'not-allowed';
+    }
+    menu.appendChild(item);
+  });
+}
+
+export function toggleMatrixWidthMenu(): void {
+  if (!matrixWidthMenu) return;
+  const isHidden = matrixWidthMenu.style.display === 'none';
+  if (isHidden) {
+    renderMatrixWidthDropdown();
+    closeMatrixSetMenu();
+    matrixWidthMenu.style.display = 'flex';
+  } else {
+    matrixWidthMenu.style.display = 'none';
+  }
+}
+
+export function closeMatrixWidthMenu(): void {
+  if (matrixWidthMenu) {
+    matrixWidthMenu.style.display = 'none';
   }
 }
 
@@ -1651,6 +1745,8 @@ let btnCloseToolsFlyout: HTMLButtonElement;
 let matrixPxUp: HTMLButtonElement;
 let matrixPxDown: HTMLButtonElement;
 let matrixPxValue: HTMLElement;
+let matrixPxBadge: HTMLElement | null = null;
+let matrixWidthMenu: HTMLElement | null = null;
 let matrixPagePrev: HTMLButtonElement;
 let matrixPageNext: HTMLButtonElement;
 let matrixPageLabel: HTMLElement;
@@ -1769,6 +1865,8 @@ function initDOM(): void {
   matrixPxUp          = document.getElementById('matrix-px-up')           as HTMLButtonElement;
   matrixPxDown        = document.getElementById('matrix-px-down')         as HTMLButtonElement;
   matrixPxValue       = document.getElementById('matrix-px-value')        as HTMLElement;
+  matrixPxBadge       = document.getElementById('matrix-px-badge');
+  matrixWidthMenu     = document.getElementById('matrix-width-menu');
   matrixPagePrev      = document.getElementById('matrix-page-prev')       as HTMLButtonElement;
   matrixPageNext      = document.getElementById('matrix-page-next')       as HTMLButtonElement;
   matrixPageLabel     = document.getElementById('matrix-page-label')      as HTMLElement;
@@ -3812,7 +3910,7 @@ function wireEvents(): void {
 
   matrixPxUp?.addEventListener('click', () => {
     const setId = currentMatrixMode.type === 'set' ? currentMatrixMode.setId : currentMatrixSetId;
-    const available = getAvailableWidthsForSet(setId);
+    const available: MatrixPxValue[] = ['all', ...getAvailableWidthsForSet(setId)];
     const targetPx = currentMatrixMode.px ?? currentMatrixPx;
     const idx = available.indexOf(targetPx);
     const nextPx = idx !== -1 && idx < available.length - 1 ? available[idx + 1] : available[0];
@@ -3824,7 +3922,7 @@ function wireEvents(): void {
 
   matrixPxDown?.addEventListener('click', () => {
     const setId = currentMatrixMode.type === 'set' ? currentMatrixMode.setId : currentMatrixSetId;
-    const available = getAvailableWidthsForSet(setId);
+    const available: MatrixPxValue[] = ['all', ...getAvailableWidthsForSet(setId)];
     const targetPx = currentMatrixMode.px ?? currentMatrixPx;
     const idx = available.indexOf(targetPx);
     const prevPx = idx !== -1 && idx > 0 ? available[idx - 1] : available[available.length - 1];
@@ -3832,6 +3930,11 @@ function wireEvents(): void {
     currentMatrixMode.px = prevPx;
     currentMatrixPage = 0;
     renderMatrixSlots();
+  });
+
+  matrixPxBadge?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleMatrixWidthMenu();
   });
 
   matrixPagePrev?.addEventListener('click', () => {
@@ -3902,6 +4005,11 @@ function wireEvents(): void {
         closeMatrixSetMenu();
       }
     }
+    if (matrixWidthMenu && matrixWidthMenu.style.display !== 'none') {
+      if (!matrixWidthMenu.contains(target) && target !== matrixPxBadge && !matrixPxBadge?.contains(target)) {
+        closeMatrixWidthMenu();
+      }
+    }
     if (studioToolsFlyout && studioToolsFlyout.style.display !== 'none') {
       if (!studioToolsFlyout.contains(target) && target !== btnStudioTools && !btnStudioTools.contains(target)) {
         studioToolsFlyout.style.display = 'none';
@@ -3912,6 +4020,7 @@ function wireEvents(): void {
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       closeMatrixSetMenu();
+      closeMatrixWidthMenu();
       if (studioToolsFlyout) studioToolsFlyout.style.display = 'none';
     }
   });

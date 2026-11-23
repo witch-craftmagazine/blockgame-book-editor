@@ -366,6 +366,7 @@ body {
   align-items: center;
   gap: 2px;
   flex-shrink: 0;
+  position: relative;
 }
 
 .matrix-arrow-btn {
@@ -404,6 +405,14 @@ body {
   min-width: 44px;
   height: 26px;
   box-sizing: border-box;
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 0.1s ease, background 0.1s ease;
+}
+
+.matrix-px-badge:hover {
+  border-color: var(--mc-gold);
+  background: #111115;
 }
 
 .matrix-px-badge .matrix-val {
@@ -418,6 +427,68 @@ body {
   font-size: 9px;
   font-family: var(--font-mono);
   color: #888888;
+}
+
+.matrix-width-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1100;
+  background: #18171f;
+  border: 2px solid var(--mc-gui-outline);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.85), var(--bevel-raised);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 146px;
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+.matrix-width-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 8px;
+  background: #25242d;
+  border: 1px solid #373737;
+  color: #dddddd;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  cursor: pointer;
+  text-align: left;
+  border-radius: 0;
+  user-select: none;
+}
+
+.matrix-width-menu-item:hover {
+  background: #363442;
+  border-color: var(--mc-gold);
+  color: #ffffff;
+}
+
+.matrix-width-menu-item.active {
+  background: #142838;
+  border-color: var(--mc-diamond);
+  color: var(--mc-diamond);
+  font-weight: 700;
+}
+
+.matrix-width-menu-item.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.matrix-width-sub {
+  font-size: 9px;
+  color: #888888;
+}
+
+.matrix-width-menu-item.active .matrix-width-sub {
+  color: #72ecf5;
 }
 
 /* Page Navigation (◀ / ▶) */

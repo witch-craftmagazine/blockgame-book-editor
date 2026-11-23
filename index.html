@@ -37,11 +37,14 @@
         <!-- Width Stepper (Up/Down) -->
         <div class="matrix-px-controls">
           <button type="button" id="matrix-px-up" class="matrix-arrow-btn" title="Increase pixel width (+1px)">▲</button>
-          <div class="matrix-px-badge" id="matrix-px-badge" title="Current glyph advance (pixels)">
-            <span id="matrix-px-value" class="matrix-val">6</span>
-            <span class="matrix-unit">px</span>
+          <div class="matrix-px-badge" id="matrix-px-badge" title="Filter by pixel width or view All Symbols • Click to open width menu" role="button" tabindex="0" aria-haspopup="true" aria-expanded="false">
+            <span id="matrix-px-value" class="matrix-val">ALL</span>
+            <span class="matrix-unit">sym</span>
           </div>
           <button type="button" id="matrix-px-down" class="matrix-arrow-btn" title="Decrease pixel width (-1px)">▼</button>
+          <div id="matrix-width-menu" class="matrix-width-dropdown-menu" style="display: none;" role="menu" aria-label="Pixel Width Selection">
+            <!-- Populated dynamically with ALL and pixel width options -->
+          </div>
         </div>
 
         <!-- Horizontal Glyph Pagination (Left/Right) -->

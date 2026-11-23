@@ -916,6 +916,14 @@ describe('Minecraft Page Limit & Page Gallery Presets', () => {
     expect(all6px).toContain('⚡');
     expect(all6px).toContain('♥');
 
+    // Mode "all" with px = 'all' (unfiltered view containing symbols of mixed widths)
+    currentMatrixMode.px = 'all';
+    const allSymbols = getGlyphsForCurrentSelection();
+    expect(allSymbols.length).toBeGreaterThan(all8px.length);
+    expect(allSymbols).toContain('⚔'); // 8px
+    expect(allSymbols).toContain('⚡'); // 6px
+    expect(allSymbols).toContain('•'); // 4px
+
     // Mode "recent"
     currentMatrixMode.setId = 'recent';
     const recent = getGlyphsForCurrentSelection();
@@ -923,7 +931,7 @@ describe('Minecraft Page Limit & Page Gallery Presets', () => {
 
     // Reset back to all
     currentMatrixMode.setId = 'all';
-    currentMatrixMode.px = 6;
+    currentMatrixMode.px = 'all';
   });
 
   test('deleteBook cleanly removes book and creates Untitled Book when last book is deleted', () => {
