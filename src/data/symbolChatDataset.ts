@@ -762,10 +762,10 @@ const SYMBOLCHAT_FACES_GLYPHS: GlyphItem[] = [
   createGlyph("🫤", "Faces 🫤 (U+1FAE4)", 'faces'),
   createGlyph("🫥", "Faces 🫥 (U+1FAE5)", 'faces'),
   createGlyph("🫨", "Faces 🫨 (U+1FAE8)", 'faces'),
-  createGlyph("☜", "Faces ☜ (U+261C)", 'faces'),
-  createGlyph("☝", "Faces ☝ (U+261D)", 'faces'),
-  createGlyph("☞", "Faces ☞ (U+261E)", 'faces'),
-  createGlyph("☟", "Faces ☟ (U+261F)", 'faces'),
+  createGlyph("☜", "White Left Pointing Index ☜ (U+261C)", 'faces'),
+  createGlyph("☝", "White Up Pointing Index ☝ (U+261D)", 'faces'),
+  createGlyph("☞", "White Right Pointing Index ☞ (U+261E)", 'faces'),
+  createGlyph("☟", "White Down Pointing Index ☟ (U+261F)", 'faces'),
   createGlyph("✊", "Faces ✊ (U+270A)", 'faces'),
   createGlyph("✋", "Faces ✋ (U+270B)", 'faces'),
   createGlyph("✌", "Faces ✌ (U+270C)", 'faces'),
@@ -2516,4 +2516,59 @@ export function findGlyphItem(char: string): GlyphItem {
     codepoint: `U+${hex}`,
     isSmp: code > 0xFFFF,
   };
+}
+
+/**
+ * Returns rich search keywords, official Unicode names, and category tags for a glyph character.
+ * Enables searching for terms like "pointing", "finger", "hand", "arrow", "sword", "star", etc.
+ */
+export function getUnicodeSearchAliases(ch: string): string {
+  const cp = ch.codePointAt(0);
+  if (!cp) return '';
+
+  let aliases = '';
+
+  // Pointing indices and hands
+  if (cp === 0x261C) aliases += 'white left pointing index hand finger arrow point direction 261c ';
+  else if (cp === 0x261D) aliases += 'white up pointing index hand finger point direction 261d ';
+  else if (cp === 0x261E) aliases += 'white right pointing index hand finger point direction 261e ';
+  else if (cp === 0x261F) aliases += 'white down pointing index hand finger point direction 261f ';
+  else if (cp === 0x1F448) aliases += 'backhand index pointing left hand finger direction ';
+  else if (cp === 0x1F449) aliases += 'backhand index pointing right hand finger direction ';
+  else if (cp === 0x1F446) aliases += 'backhand index pointing up hand finger direction ';
+  else if (cp === 0x1F447) aliases += 'backhand index pointing down hand finger direction ';
+  else if (cp >= 0x1F58E && cp <= 0x1F59E) aliases += 'hand finger pointing gesture ';
+  else if (cp === 0x270A || cp === 0x270B || cp === 0x270C || cp === 0x270D) aliases += 'fist hand victory peace writing ';
+
+  // Weapons & RPG
+  if (cp === 0x2694) aliases += 'crossed swords battle fight weapon combat ';
+  else if (cp === 0x1F3F9) aliases += 'bow and arrow archery weapon ';
+  else if (cp === 0x1F6E1) aliases += 'shield defense armor protection ';
+  else if (cp === 0x1F5E1) aliases += 'dagger knife sword blade weapon ';
+  else if (cp === 0x26CF) aliases += 'pickaxe mine mining tool ';
+
+  // Common symbols & dingbats
+  if (cp === 0x2605 || cp === 0x2606) aliases += 'star favorite rating ';
+  else if (cp === 0x2665 || cp === 0x2764) aliases += 'heart love like ';
+  else if (cp === 0x2713 || cp === 0x2714) aliases += 'check checkmark tick done ok ';
+  else if (cp === 0x2715 || cp === 0x2716 || cp === 0x2717 || cp === 0x2718) aliases += 'cross x mark wrong cancel no ';
+  else if (cp === 0x26A1) aliases += 'lightning bolt high voltage electric power ';
+  else if (cp === 0x2620) aliases += 'skull crossbones death pirate poison danger ';
+  else if (cp === 0x2615) aliases += 'coffee tea cup beverage hot drink ';
+  else if (cp >= 0x2600 && cp <= 0x2603) aliases += 'sun cloud weather rain snow ';
+  else if (cp >= 0x2669 && cp <= 0x266D) aliases += 'music musical note song sound melody ';
+
+  // Unicode Block categorization
+  if (cp >= 0x2600 && cp <= 0x26FF) aliases += 'miscellaneous symbols ';
+  else if (cp >= 0x2700 && cp <= 0x27BF) aliases += 'dingbats ';
+  else if (cp >= 0x2190 && cp <= 0x21FF) aliases += 'arrows ';
+  else if (cp >= 0x25A0 && cp <= 0x25FF) aliases += 'geometric shapes ';
+  else if (cp >= 0x2500 && cp <= 0x257F) aliases += 'box drawing borders ';
+  else if (cp >= 0x2580 && cp <= 0x259F) aliases += 'block elements ';
+  else if (cp >= 0x16A0 && cp <= 0x16FF) aliases += 'runes runic ';
+  else if (cp >= 0x2800 && cp <= 0x28FF) aliases += 'braille ';
+  else if (cp >= 0x1F600 && cp <= 0x1F64F) aliases += 'emoticon face emoji ';
+  else if (cp >= 0x1F300 && cp <= 0x1F5FF) aliases += 'symbols pictographs ';
+
+  return aliases;
 }

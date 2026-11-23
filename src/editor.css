@@ -323,6 +323,43 @@ body {
   text-overflow: ellipsis;
 }
 
+.matrix-set-menu-footer {
+  grid-column: span 2;
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px solid #33323e;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.matrix-smp-toggle-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: #aaaaaa;
+  cursor: pointer;
+  user-select: none;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: all 0.1s ease;
+}
+
+.matrix-smp-toggle-label:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.matrix-smp-toggle-label input[type="checkbox"] {
+  accent-color: var(--mc-diamond);
+  cursor: pointer;
+  width: 13px;
+  height: 13px;
+  margin: 0;
+}
+
 /* Width Stepper (▲ / ▼) */
 .matrix-px-controls {
   display: flex;
@@ -2085,6 +2122,13 @@ body {
   border-color: var(--mc-diamond);
 }
 
+.glyph-filter-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
 .glyph-width-filter-wrap {
   display: flex;
   align-items: center;
@@ -2112,6 +2156,36 @@ body {
   border: 1px solid var(--mc-gui-outline);
   box-shadow: var(--bevel-raised);
   cursor: pointer;
+}
+
+.glyph-smp-toggle-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted, #aaaaaa);
+  cursor: pointer;
+  user-select: none;
+  padding: 3px 8px;
+  background: var(--mc-slot-bg);
+  border: 2px solid var(--mc-gui-outline);
+  box-shadow: var(--bevel-slot);
+  transition: all 0.15s ease;
+}
+
+.glyph-smp-toggle-label:hover {
+  background: #22222b;
+  border-color: var(--mc-gold);
+  color: var(--text-main, #f0e6d2);
+}
+
+.glyph-smp-toggle-label input[type="checkbox"] {
+  accent-color: var(--mc-diamond);
+  cursor: pointer;
+  width: 14px;
+  height: 14px;
+  margin: 0;
 }
 
 .glyph-category-tabs {

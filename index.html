@@ -524,22 +524,28 @@
               type="text"
               id="glyph-search"
               class="glyph-search-input"
-              placeholder="🔍 Search all glyphs by name, symbol, or hex (e.g. 2694, star, sword, arrow)…"
+              placeholder="🔍 Search all glyphs by name, symbol, or hex (e.g. 261c, pointing, finger, hand, sword, arrow)…"
             />
-            <div class="glyph-width-filter-wrap">
-              <label for="glyph-width-filter" class="glyph-width-label">Width:</label>
-              <select id="glyph-width-filter" class="select-xs glyph-width-select" title="Filter glyphs by Minecraft pixel width">
-                <option value="all">All Widths</option>
-                <option value="1">1 px</option>
-                <option value="2">2 px</option>
-                <option value="3">3 px</option>
-                <option value="4">4 px</option>
-                <option value="5">5 px</option>
-                <option value="6">6 px</option>
-                <option value="7">7 px</option>
-                <option value="8">8 px</option>
-                <option value="9">9 px</option>
-              </select>
+            <div class="glyph-filter-controls">
+              <div class="glyph-width-filter-wrap">
+                <label for="glyph-width-filter" class="glyph-width-label">Width:</label>
+                <select id="glyph-width-filter" class="select-xs glyph-width-select" title="Filter glyphs by Minecraft pixel width">
+                  <option value="all">All Widths</option>
+                  <option value="1">1 px</option>
+                  <option value="2">2 px</option>
+                  <option value="3">3 px</option>
+                  <option value="4">4 px</option>
+                  <option value="5">5 px</option>
+                  <option value="6">6 px</option>
+                  <option value="7">7 px</option>
+                  <option value="8">8 px</option>
+                  <option value="9">9 px</option>
+                </select>
+              </div>
+              <label class="glyph-smp-toggle-label" title="Hide/display characters from the Supplementary Multilingual Plane (>U+FFFF). Vanilla Minecraft Java and Bedrock render many SMP characters as missing boxes []">
+                <input type="checkbox" id="glyph-toggle-smp" />
+                <span class="toggle-label-text">Hide SMP (&gt;U+FFFF)</span>
+              </label>
             </div>
           </div>
 

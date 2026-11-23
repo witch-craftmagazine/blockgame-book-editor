@@ -41,6 +41,7 @@ import {
   CATEGORY_DEFINITIONS,
   GLYPHS_BY_CATEGORY,
   findGlyphItem,
+  getUnicodeSearchAliases,
   type GlyphCategory,
   type GlyphItem,
 } from './data/symbolChatDataset';
@@ -716,10 +717,34 @@ export function getAvailableWidthsForSet(setId: string): number[] {
   return sorted.length > 0 ? sorted : WIDTH_STEPS;
 }
 
+export let hideSmpGlyphs: boolean = typeof localStorage !== 'undefined' ? localStorage.getItem('blockgame_hide_smp') === 'true' : false;
+
+export function setHideSmp(hide: boolean): void {
+  hideSmpGlyphs = hide;
+  if (typeof localStorage !== 'undefined') {
+    localStorage.setItem('blockgame_hide_smp', String(hide));
+  }
+  const glyphToggle = document.getElementById('glyph-toggle-smp') as HTMLInputElement | null;
+  if (glyphToggle) glyphToggle.checked = hide;
+  const matToggle = document.getElementById('matrix-toggle-smp') as HTMLInputElement | null;
+  if (matToggle) matToggle.checked = hide;
+  renderGlyphs();
+  renderMatrixSlots();
+  showToast(hide ? 'Hiding SMP (>U+FFFF) characters' : 'Showing all characters including SMP', 'info');
+}
+
+export function getHideSmp(): boolean {
+  return hideSmpGlyphs;
+}
+
 export function getGlyphsForCurrentSelection(): string[] {
   const setId = currentMatrixMode.type === 'set' ? currentMatrixMode.setId : currentMatrixSetId;
   const targetPx = currentMatrixMode.px ?? currentMatrixPx;
-  const baseGlyphs = getBaseGlyphsForSet(setId);
+  let baseGlyphs = getBaseGlyphsForSet(setId);
+
+  if (hideSmpGlyphs) {
+    baseGlyphs = baseGlyphs.filter((ch) => (ch.codePointAt(0) || 0) <= 0xFFFF);
+  }
 
   // Filter the glyphs in this set by the selected pixel size
   return baseGlyphs.filter(ch => getCharPixelAdvance(ch) === targetPx);
@@ -915,6 +940,22 @@ export function renderMatrixSetDropdown(): void {
 
     matrixSetMenu.appendChild(item);
   });
+
+  // Footer with SMP toggle
+  const footer = document.createElement('div');
+  footer.className = 'matrix-set-menu-footer';
+  footer.innerHTML = `
+    <label class="matrix-smp-toggle-label" title="Hide/display characters from the Supplementary Multilingual Plane (>U+FFFF). Vanilla Minecraft Java and Bedrock render many SMP characters as missing boxes []">
+      <input type="checkbox" id="matrix-toggle-smp" ${hideSmpGlyphs ? 'checked' : ''} />
+      <span class="toggle-label-text">Hide SMP (>U+FFFF)</span>
+    </label>
+  `;
+  const matInput = footer.querySelector('input');
+  matInput?.addEventListener('change', (e) => {
+    e.stopPropagation();
+    setHideSmp(matInput.checked);
+  });
+  matrixSetMenu.appendChild(footer);
 }
 
 export function toggleMatrixSetMenu(): void {
@@ -1702,6 +1743,13 @@ function initDOM(): void {
   glyphSearch         = document.getElementById('glyph-search')          as HTMLInputElement;
   glyphTabs           = document.getElementById('glyph-tabs')!;
   glyphWidthFilter    = document.getElementById('glyph-width-filter')   as HTMLSelectElement | null;
+  const glyphToggleSmp = document.getElementById('glyph-toggle-smp')   as HTMLInputElement | null;
+  if (glyphToggleSmp) {
+    glyphToggleSmp.checked = hideSmpGlyphs;
+    glyphToggleSmp.addEventListener('change', () => {
+      setHideSmp(glyphToggleSmp.checked);
+    });
+  }
 
   // Dedicated Bookshelf Modal
   bookshelfDialog     = document.getElementById('bookshelf-dialog')      as HTMLDialogElement | null;
@@ -2926,13 +2974,13 @@ function renderGlyphs(): void {
   let itemsToRender: GlyphItem[] = [];
 
   if (query) {
+    const qTokens = query.split(/\s+/).filter(Boolean);
     itemsToRender = ALL_GLYPHS.filter((item) => {
       const hex = (item.char.codePointAt(0) || 0).toString(16).toLowerCase();
-      return (
-        item.char.includes(query) ||
-        item.name.toLowerCase().includes(query) ||
-        hex.includes(query.replace(/^u\+?/i, ''))
-      );
+      const aliases = getUnicodeSearchAliases(item.char).toLowerCase();
+      const name = item.name.toLowerCase();
+      const searchable = `${item.char} ${name} ${aliases} u+${hex} ${hex}`;
+      return qTokens.every((tok) => searchable.includes(tok));
     });
 
     // If active category is a large subset (e.g. nonlatin, noncharacter, cjk, latin), also search within that subset
@@ -2940,11 +2988,10 @@ function renderGlyphs(): void {
       const subsetItems = (GLYPHS_BY_CATEGORY as any)[activeGlyphCat] || [];
       const subsetMatches = subsetItems.filter((item: GlyphItem) => {
         const hex = (item.char.codePointAt(0) || 0).toString(16).toLowerCase();
-        return (
-          item.char.includes(query) ||
-          item.name.toLowerCase().includes(query) ||
-          hex.includes(query.replace(/^u\+?/i, ''))
-        );
+        const aliases = getUnicodeSearchAliases(item.char).toLowerCase();
+        const name = item.name.toLowerCase();
+        const searchable = `${item.char} ${name} ${aliases} u+${hex} ${hex}`;
+        return qTokens.every((tok) => searchable.includes(tok));
       });
       const seen = new Set(itemsToRender.map(i => i.char));
       for (const m of subsetMatches) {
@@ -2963,6 +3010,11 @@ function renderGlyphs(): void {
     itemsToRender = ALL_GLYPHS;
   } else {
     itemsToRender = (GLYPHS_BY_CATEGORY as any)[activeGlyphCat] || [];
+  }
+
+  // Filter out SMP characters if hideSmpGlyphs is active
+  if (hideSmpGlyphs) {
+    itemsToRender = itemsToRender.filter((item) => !item.isSmp);
   }
 
   // Filter by pixel width if selected

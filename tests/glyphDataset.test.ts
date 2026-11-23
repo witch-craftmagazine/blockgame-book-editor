@@ -5,6 +5,7 @@ import {
   GLYPHS_BY_CATEGORY,
   findGlyphItem,
   getUnicodeSubsetGlyphs,
+  getUnicodeSearchAliases,
 } from '../src/data/symbolChatDataset';
 import {
   SYMBOL_CHAT_FONTS,
@@ -153,5 +154,41 @@ describe('Symbol Chat Glyph Dataset & Taxonomy', () => {
     const font = getFontById('small_caps');
     expect(font.name).toBe('Small Caps');
     expect(font.isSmp).toBe(false);
+  });
+
+  test('Unicode search aliases and pointing index discoverability', () => {
+    // ☜ (U+261C) pointing index verification
+    const finger = findGlyphItem('☜');
+    expect(finger).toBeDefined();
+    expect(finger.codepoint).toBe('U+261C');
+    expect(finger.isSmp).toBe(false);
+
+    // Verify search aliases for ☜ include hand, finger, pointing, left
+    const aliases = getUnicodeSearchAliases('☜');
+    expect(aliases).toContain('pointing');
+    expect(aliases).toContain('finger');
+    expect(aliases).toContain('hand');
+    expect(aliases).toContain('left');
+    expect(aliases).toContain('261c');
+
+    // Verify swords and weapons have search aliases
+    const swordAliases = getUnicodeSearchAliases('⚔');
+    expect(swordAliases).toContain('swords');
+    expect(swordAliases).toContain('weapon');
+  });
+
+  test('SMP character detection and filtering', () => {
+    // BMP character: ☜ (U+261C) <= 0xFFFF
+    expect(('☜'.codePointAt(0) || 0) <= 0xFFFF).toBe(true);
+
+    // SMP character: 😀 (U+1F600) > 0xFFFF
+    const emoji = findGlyphItem('😀');
+    expect(emoji.isSmp).toBe(true);
+    expect(('😀'.codePointAt(0) || 0) > 0xFFFF).toBe(true);
+
+    // Filtering out SMP characters preserves BMP characters and drops SMP
+    const sample = ['☜', '⚔', '★', '😀', '💀'];
+    const bmpOnly = sample.filter(ch => (ch.codePointAt(0) || 0) <= 0xFFFF);
+    expect(bmpOnly).toEqual(['☜', '⚔', '★']);
   });
 });
